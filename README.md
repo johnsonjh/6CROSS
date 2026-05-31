@@ -93,8 +93,8 @@ make clean           # cleanup build artifacts
 
 * For reproducible builds using `BMAP`, the `DATE` pseudo-op honours the
   standard [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
-  environment variable (a decimal Unix time, interpreted as UTC); when it
-  is set, `DATE` emits a fixed date word instead of reading the live clock.
+  environment variable.  When set, `DATE` emits a fixed date word instead
+  of reading the live clock.
 
 ## How the port works
 

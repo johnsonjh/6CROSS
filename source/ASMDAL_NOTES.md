@@ -71,23 +71,24 @@ records with a header word so the stream is self-describing:
 
 * Relocation code (2 bits per code word): `00` absolute, `01` relocatable
   (local), `10` external reference, `11` BLOCK directive (value = count).
+
 * A symbol entry is two words: 6 chars packed 9-bit each (54 bits) then an
   18-bit value. The def/und nibble in word1 is `0` = defined, `1` = undefined.
+
 * For an external reference, the symbol's stored value is updated to the
   referencing location (the original builds a reference chain this way).
 
 A reader walks the file by reading WORD0, taking `LENGTH` words, and repeating
 until it sees TYPE 2. (See the decode loop used in the test notes below.)
 
-## Verifying / KLH10 hand-off
+## Verifying
 
-There is no PDP-10 emulator wired into this suite yet. Validation is by
-**byte-exact object fixtures** plus hand-checking every instruction word's octal
-against the PDP-10 opcode encodings — `tests/dalsmoke.dal` and
-`tests/dalcover.dal` were verified this way and snapshotted into
-`tests/expected/`; `tests/dalerr.dal` checks that an erroneous source is
-rejected with no object. The listing prints each word as two 6-digit octal
-halves, which is the convenient artifact for hand-verification.
+Validation was by **byte-exact object fixtures** plus hand-checking every
+instruction word's octal against the PDP-10 opcode encodings
+— `tests/dalsmoke.dal` and `tests/dalcover.dal` were verified this way and
+snapshotted into `tests/expected/`; `tests/dalerr.dal` checks that an
+erroneous source is rejected with no object. The listing prints each word
+as two 6-digit octal halves, which is the convenient artifact for hand-verification.
 
 To eventually exercise the encodings under **KLH10** (https://github.com/PDP-10/klh10):
 the type-0 code words are loadable PDP-10 instructions. A hand-off party can pull
@@ -103,11 +104,14 @@ are *not* meaningful to a bare DEC monitor, so verification is per-instruction
 * The pass-1→pass-2 **scratch token file** (M$TOKEN) becomes an in-memory array
   of `struct token`. Symbol-table memory (the original extended data segment 3
   one page at a time via M$GDS) becomes plain `malloc`.
+
 * The symbol table is the original **Horowitz-&-Sahni AVL** insert, ported
   faithfully. (Output order is an in-order walk, so it is sorted regardless.)
+
 * CP-6 intrinsics were reproduced from their call sites: `INDEX` returns the
   0-based offset or the string length when not found; `CHAR_TO_SBIN` parses an
   optional sign then base-N digits until a blank; `DECIMAL_TO_OCTAL` formats an
   18-bit value as six octal digits.
+
 * The 42 error codes keep the original ordering (their bit positions in the
   PL/6 `BIT(72)` error word == indices into the message table).

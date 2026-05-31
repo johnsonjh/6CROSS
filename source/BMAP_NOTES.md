@@ -6,7 +6,7 @@ language). Copyright (c) Bull HN Information Systems Inc., 1989; author Tom
 Martin, LADC. It is far larger and richer than ASMDAL: macros (DUP/IDRP/created
 symbols), literals, complex relocation, control sections, floating point,
 cross-reference, and a debug schema, emitting a CP-6/GCOS relocatable object
-unit. Target is **Honeywell DPS-8, not PDP-10**, so KLH10 does not apply to it.
+unit. Target is **Honeywell DPS-80**.
 
 This file is the map and plan for the C port (which is a multi-phase effort).
 The op-code table has already been extracted (see "Foundation done", below).
@@ -39,14 +39,17 @@ under-appreciated early on — most are recoverable, not "lost"):
   in real source — it just needs DPS-8 FP arithmetic (`DFMP`/`FAD`/`FNO`/
   `LLS`/`LRS`…) modelled in C. (`ANSYM` is moot here — symbols are kept as C
   strings, not 6-bit packed; `BITINSERT` is a trivial mask/shift in C.)
+
 - The **`XUO$*` object-unit writer is full PL/6 source**, copied into
   `.original/`: `XUO$BUILD.txt` (~26k lines: `XUO$PRGM`/`RELOC`/`SECTBUILD`/
   `EDEF`/`SDEF`/`EREF`/`SREF`/`DNAME`/`RNAME`/`EXST`/`VREBL`…), `XUO$INIT.txt`
   (`XUO$OUINIT`/`LOGBLK*`), `XUO$ENTRIES.txt`, `XUO$OBJ_C.txt` (the `%OPER*`/
   `%RELOCOP*`/`%EVALOP*` `%EQU`s) and `XUO$ROOT.txt`; `B$OBJECT_C.txt` is the
   record spec. **Phase 6 can port this library rather than reimplement it.**
+
 - `X$PARSE` (the option parser) is a CP-6 library routine, not needed by the
   port (option parsing is handled in the C CLI), so it was not copied.
+
 - Genuinely external: the `M$*` monitor services (file I/O, time, exit) — these
   the port maps to stdio/OS as the microprocessor-assembler ports already did.
 
@@ -177,18 +180,20 @@ Verified by `tests/bmapscan.gmap` → `tests/expected/bmapscan.scan`, wired into
 `make test` (16/16 at the time; 49/49 now). What landed and the non-obvious
 decisions:
 
-- **CLI / options / DCBs.** `bmap source [object [listing]] [-o/-l/-u/-s] [-O
+* **CLI / options / DCBs.** `bmap source [object [listing]] [-o/-l/-u/-s] [-O
   opts | (opts)]`; option tokens `1P/2P/LU/LS/NLS/OU/NOU/SC/NSC/SO/UI/NUI/XR/
   SRCH(...)` (CTLCRD, SI61 1150). Always two-pass (HELP star 24631); default
   `LS`+`OU` when none given. M$SI=source (read into memory once, replayed each
   pass), M$LO=listing (the scan trace), M$UI/M$OU/M$SO accepted but their
   output is later phases.
-- **`BMAP_COMMON` (DA1) → C structs**, original names kept: `OPTIONS`,
+
+* **`BMAP_COMMON` (DA1) → C structs**, original names kept: `OPTIONS`,
   `LISTING`, scanner state (`XCARD`/`XCARDL`/`CURRCH`/`NEXTCH`/`DEL`/`KEY`),
   `LOC`/`LOCSZ`, `OP` (a `const struct bmap_op *` into `bmap_ops[]`, replacing
   `OP$`→SPOOL), `PASS2`, `PC`, and the counters. SPOOL/MPOOL pools + packet
   trees arrive with phases 3-7.
-- **The CP-6 `SEARCH`/`INDEX1` intrinsics** (PL/6 built-ins, not in the
+
+* **The CP-6 `SEARCH`/`INDEX1` intrinsics** (PL/6 built-ins, not in the
   sources) were reverse-engineered from call sites: `SEARCH(outidx,outval,
   table,str,start)` scans `str` from `start` for the first char with a nonzero
   `table` entry, returning a **substring-base-relative** index (ALTRET if none).
@@ -196,19 +201,22 @@ decisions:
   base-1 substring (SI61 4382) precisely so `CURRCH` lands one short, which
   `NEXTFLD`'s pre-increment (`CURRCH=CURRCH+1`) then corrects. `bmap.c`
   reproduces that observable result directly (`CURRCH = var_start - 1`).
-- **Scanner:** `scanop`/`delscan`/`nextfld`/`read_card` ported faithfully;
+
+* **Scanner:** `scanop`/`delscan`/`nextfld`/`read_card` ported faithfully;
   `DELTBL`/`NONBLK` built from DA1. Op lookup is `bsearch`+`strcmp` over
   `bmap_ops[]` (table is strcmp-sorted; mnemonics are `[0-9A-Z]` only). The op
   field is uppercased first because CONSYM's 6-bit-ASCII fold maps a-z→A-Z.
   Empty op field → `NONOP` (no error); unknown mnemonic → `NONOP`+`error(2)`.
   Comment cards (col-1 `*`, or first 16 cols blank) are skipped; EOF synthesises
   an `END`.
-- **Pass loop + dispatch shell:** `PASS2` 0→1 driven by `END` (CASE 9). The
+
+* **Pass loop + dispatch shell:** `PASS2` 0→1 driven by `END` (CASE 9). The
   46-way `OP.TYPE` switch routes mainline types (7,8,11,12,20,24,38-41,43,45)
   and `INST` (CASE ELSE) to counting stubs; `STMNTCT`/`RECORDCT` match the
   original's bump points. The pre-dispatch label-define (`OP.PRFS&'01'B`) and
   the 34-36 boundary call are stubbed (SYMTAB/GENLOC/BOUNDARY are phases 3/5).
-- **Verification artefact:** pass 2 emits a hand-verifiable *scan trace* to
+
+* **Verification artefact:** pass 2 emits a hand-verifiable *scan trace* to
   M$LO — per card: `CARD#  L=label  O=mnem  tNN:typename  vOCTAL  |
   "field"/DELIM ...`. Each line was checked against `bmap_opcodes.h` (TYPE/VAL)
   and HELP_BMAP field rules before snapshotting. This scan trace is retained as
@@ -223,9 +231,11 @@ decisions:
 > refinements, see the handler sections above and `BMAP_CONTINUE.md`.
 
 1. **Tables (DONE):** `bmap_opcodes.{py,h}` from DA2.
+
 2. **Skeleton + scanner (DONE):** see the section above — CLI/options/DCBs,
    `BMAP_COMMON`→structs, `READCARD`/`SCANOP`/`DELSCAN`/`NEXTFLD` with bsearch
    op lookup, two-pass loop + `OP.TYPE` dispatch shell, scan-trace fixture.
+
 3. **Symbol table + `CONVERT` (DONE, integer; float deferred):** the AVL
    (`TREESRCH`/`TREESTEP` as a malloc'd pointer tree, Horowitz pattern, 30-char
    strcmp keys) + the `SYMTAB` define/lookup core (multiply-defined → error
@@ -236,6 +246,7 @@ decisions:
    (`bmapconv`). (XUO$ emission and the xref were later done in phases 6/8; only
    the `UFR` forward-ref fixup is still deferred.  Float was later done in phase
    5 -- `dps8_float`, a C port of the DPS-8 `FIX`/`SCALE` FP encoding.)
+
 4. **VARSCAN expression evaluator (DONE, TYPE 0/1; modifier→phase 5):** the
    operator-precedence parse over `+ - * / ( )` (and the same delimiters as
    `OR/EOR/AND/NOT` in an octal field, `type&1`), tracking the `REL` packet:
@@ -247,6 +258,7 @@ decisions:
    relocatable cases, and the R1*R2 error). **Deferred:** the modifier path
    `S60` (TYPE 2, the address-mod tag field — `MODSYM`/`MODVAL`) goes with INST
    (phase 5); literals (`=`) with phase 8.
+
 5. **INST dispatcher + live encoder — IN PROGRESS (assembles to an octal listing):**
    - `GEN`/`GENLOC`/`GENVAL` (SI61 1326): pack NF fields of given bit-widths
      into a 36-bit word MSB-first (the original's two `BITINSERT`s = a
@@ -255,15 +267,18 @@ decisions:
      emission (`XUO$PRGM`/`XUO$RELOC`) deferred to phase 6; the forward-ref
      `FR` build deferred to phase 8 (undefined fields assemble with value 0 and
      show `F`). `IFORM`={3,15,12,6,18,12,6}, `XFORM`={3,15,6,3,3,6,18,6,3,3,6}.
+
    - `VARSCAN` **modifier path `S60`** (TYPE 2): the address-mod tag field —
      `MODSYM`/`MODVAL` bsearch, indirect `*`, numeric/symbol tags. Needed
      because type-1/2 read the tag via `VARSCAN(...,OP.MASK)` (MASK 2 = symbolic
      → modifier mode).
+
    - `INST` instruction types **1** (non-EIS: addr + tag + optional AR 4-field,
      IC-relative fix-up), **2** (index: absolute reg → 8·idx+OP.VAL via IFORM,
      relocatable reg → 6-field XFORM), **3** (tally), **4** (REPEAT: count +
      increment + condition list TOV..TNZ, `RFORM`), **5** (RPTX), **6** (no
      variable field), **0** (ignore).
+
    - data/pseudo types **13** (EQU/BOOL/SET/SETB — set `REL.F` flags, define
      label=value, SET-redefinition allowed), **15** (ASCII/BCI/EBCDIC/UASCI —
      `XLATEV` char-pack via the `bmap_asciitbl.h` conversion tables, M=4+2·AR
@@ -271,10 +286,12 @@ decisions:
      **float words deferred**), **17** (ZERO), **18** (VFD — `[type]width/value`
      bit fields packed MSB-first across words via the per-word accumulator;
      OPD opcode-definition deferred).
+
    - **Mainline handlers** (in `do_pass`, not INST): **24** BSS (PC += count),
      **12** ORG (`GENLOC(val)` sets PC, line shows the new origin), **11**
      EVEN/ODD/EIGHT/PAGE via `BOUNDARY` (SI61 814: align PC, emit a NOP/TRA pad
      word). USE/BLOCK (7, control-section table) is deferred to phase 6.
+
    - **WIRED into the live dispatch** as the default mode: `bmap prog.gmap`
      now assembles to a real **octal listing** (location + 36-bit word(s) +
      source) via `GEN`/`GENLOC`/`GENVAL`; two passes resolve forward label
@@ -285,9 +302,11 @@ decisions:
      `bmapasm.scan` (a full program: instructions w/ fwd refs, EQU, ORG,
      OCT/DEC/ZERO, BSS, EVEN pad — every word + label hand-checked) and the
      `bmap -t` `inst:`/`data:` batteries.
+
    - **The named phase-5 list is COMPLETE** (instructions 1-6 + EQU/BOOL/SET,
      ASCII/BCI/EBCDIC, DEC/OCT, ZERO, VFD + BSS/ORG/EVEN); **DEF/REF (14)** and
      **USE/BLOCK (7)** are now done (phase 6).  The remaining tail:
+
        * **DEC/OCT float (DONE):** `convert` now computes a host `double` for a
          `.`/E/D literal (mantissa × 10^(E − frac digits)) and `dps8_float`
          encodes it to a DPS-8 binary float word — single (`.`/E) or double (D,
@@ -295,6 +314,7 @@ decisions:
          modernisation of `FIX`/`SCALE`/`CONVERTSTEP` (host double instead of
          emulating DPS-8 FP); the words match the hardware format (verified
          `tests/bmapflt.gmap`: 1.5, 1E3, -0.5, 1.0D0, 3B17).  Needs `-lm`.
+
        * the specialized instruction families.  **DONE:** **IO (23)** (`IOFORM`
          18|6|12, opcode in the middle field), **ASCNT (32)** (`ASFORM`
          16|11|1|8, the `,N` flag), and **EIS (27, 92 opcodes)** — `mfscan`
@@ -352,7 +372,8 @@ decisions:
          Unix time as UTC) -- when set, `date_word()` uses `gmtime` of it instead
          of the live clock (`tests/bmapdate.gmap` pins a fixed epoch).  **The full
          GMAP instruction set now assembles.**
-       * **macro processor (phase 7, DONE)** -- types MACRO (20), macro call
+
+      * **macro processor (phase 7, DONE)** -- types MACRO (20), macro call
          (21), DUP (19), IF (22), IDRP (37).  SI61 keeps prototype text in the
          dynamic `MPOOL` word-pool with a `BASED` `MAC` stack and expands lazily
          in `READCARD`; this port (by design decision -- see the commit) takes a
@@ -387,6 +408,7 @@ decisions:
          lines.  (The real BMAP subroutine library `BMAP_SIG.XSI` --
          DEFREGS via IDRP + label concatenation, ADJUST via string-compare IFs --
          assembles to a byte-verified object; the suite runs it as `bmapsig`, whose fixture was hand-walked -- 173/173 basic-instruction opcodes checked against the op table, INDEX opcodes + OCT data + the macro-generated EQUs verified, structure confirmed.)
+
        * **literals (phase 8, DONE):** a `=expr` / `=Oexpr` operand
          (VARSCAN, when the field allows it -- `type & 4`) is interned by
          `literal()`/`lit_intern()` -- deduped by value -- into the LITERALS
@@ -402,11 +424,13 @@ decisions:
          (`case_litorg`, which starts a fresh pool batch).  **Still deferred:**
          `=M` (instruction) and `=V` (VFD) literals -- they need GEN/VFD output
          captured into the literal packet.
+
        * **OPSYN (phase 8, DONE):** "NEW OPSYN OLD" (CASE 38) adds NEW to a
          synonym table (`opsyn_add`) aliasing the existing op OLD; SCANOP
          consults it after the built-in ops and macros, so NEW assembles
          identically.  Pass-1 only, persists to pass 2.  Verified `tests/bmapsyn`
          (LOADA->LDA, STOREQ->STQ).
+
        * **cross-reference + listing control (phase 8, DONE; listing-only):**
          with the `XR` option, `listing_line` prepends a statement-number column
          and `symtab` records each symbol's reference statements (`struct
@@ -421,6 +445,7 @@ decisions:
          (`check_scan`).  **All 9 phases are now complete.**  Deferred
          refinements only: CRSM auto-symbols, typed/multi-word literals + LITORG,
          nested/literal-list IDRP, full listing pagination.
+
 6. **Object-unit writer (`XUO$*`) — IN PROGRESS (parts 1-2 done):** the real
    object is a keyed file (UTS-timestamped keys) built by the 26k-line
    `XUO$BUILD`; with no CP-6 linker to consume it, the port emits the *record
@@ -433,6 +458,7 @@ decisions:
    content, relocation is `PROG` with the `SUBTYPREL`=1 subtype (`B$RELOCSUBS`,
    not a separate type), and `END`=`0o777` is a synthetic sentinel (the keyed
    file has none — its keys delimit records).
+
    - **Part 1 (DONE):** `xuo_ouinit`/`sectbuild`/`prgm`/`headname`/
      `head_severity`/`outterm` → records **HEAD(0)** (id `GMAP`, version `B00`,
      severity, start, *and the object-unit name* — set by `OUNAME`, default
@@ -443,6 +469,7 @@ decisions:
      flow; written to the `.obj` (M$OU) when `OU` is on. Verified by
      `tests/bmapobj.gmap` → `tests/expected/bmapobj.obj` (byte-walk; an absolute
      program so no relocation is needed yet).
+
    - **Part 2 (DONE):** relocation directives — `xuo_reloc` emits a **PROG(10)
      subtype `SUBTYPREL`=1** record per relocated field, walking `GEN`'s fields
      with a bit offset `FB` (`STBIT`/`ENDBIT` = `FB`..`FB+NB-1`), exactly as
@@ -456,6 +483,7 @@ decisions:
      (`REL_`) and written after all PROG records, before END. The compact
      1-word `B$RELOC1` form is an encoder optimisation we skip (general form is
      lossless).
+
      **Bug fixed in passing:** SYMTAB's reference path must clear `REL.F` (SI61
      4849/4856 `REL.F='0'B`) — the EQU/SET/EDEF/SDEF/DEFED/REFED flags are a
      symbol-table attribute, not part of an expression's relocation; leaving
@@ -464,10 +492,12 @@ decisions:
      `tests/expected/bmaprel.obj` (byte-walk: section-relative LDA/ADA/TRA →
      add-relocation directives, `STA START*2` → the 3-word `EVALOP=MULT`/value
      form, the absolute `OCT` word → no directive).
+
    - **Part 3a (DONE):** realigned the stream's record TYPE codes to
      `B$OBJECT_C`'s `B$RECORDSUBS` (folded the OU name into HEAD, RELOC is now
      PROG subtype 1, END is a synthetic sentinel) so the def/ref records get
      their spec numbers (DNAM=1/RNAM=2/EDEF=4/EREF=5/SDEF=6/SREF=7).
+
    - **Part 3b (DONE):** the **definition** records.  CASE 14 (`case_defref`)
      decodes the opcode's `OP.VAL` (the first 18 REL bits) and flags each named
      symbol: ENTDEF→`F.EDEF`, SYMDEF→`F.SDEF` (both via `symtab(def=false)`, the
@@ -481,6 +511,7 @@ decisions:
      fixed the SECT size to track the high-water PC (a trailing BSS now grows
      the section) and `xuo_headname` to NUL-terminate.  Verified by
      `tests/bmapdef.gmap` → `tests/expected/bmapdef.obj` (byte-walk).
+
    - **Part 3c (DONE):** the **reference** records.  CASE 14 with OP.AR=1
      (`symtab(def=true)`) defines ENTREF→OPNDTYP=OPEREREF / SYMREF→OPNDTYP=
      OPERSREF.  Between the passes, `assign_ext_numbers` walks the symbols in
@@ -494,6 +525,7 @@ decisions:
      `tests/bmapref.gmap` → `tests/expected/bmapref.obj` (byte-walk: RNAM
      DATA/SUBR, EREF→SUBR, SREF→DATA, and the LDA/ADA RELOCs naming SREF#0/
      EREF#0 while TRA stays an OPERSECT relocation).
+
    - **Control sections — USE/BLOCK (7, DONE):** `case_use` (SI61 CASE 7)
      switches the current control section.  Each section keeps its own location
      counter in `OSECT[].pc` (the original parks it in `B$SECTION.MBZ`); USE
@@ -513,11 +545,13 @@ decisions:
      in section COMM=2 — its type set to 0 by `BLOCK COMM,0` — and `LDA VAL` →
      RELOC OPNDTYP=OPERSECT OPERAND=2).  **Deferred:** SEGDEF (8, no assembler
      directive emits it) and the blank-common (unnamed BLOCK) retype edge case.
+
    - **SEGREF (9, DONE):** the SEGREF directive (type-14, OPNDTYP=OPERSEGREF)
      gets a 0-based number like EREF/SREF (`assign_ext_numbers`), and the
      `xuo_emit_defs` sweep emits a **SEGREF(9)** record (1-word B$SEGREF:
      `NPOINTER` into RNAM); using the symbol relocates with OPNDTYP=OPERSEGREF,
      OPERAND=the segref number.  Covered by `tests/bmapref.gmap` (`STA SEG`).
+
    - **Part 4 — debug schema (DONE):** the DELTA-debugger schema, gated by a new
      `-g`/`--debug` flag (`opt_debug`).  In CP-6 it is on unless `OPTIONS.ND`
      ("no debug"); the port keeps it **off by default** so ordinary objects stay
@@ -538,10 +572,11 @@ decisions:
      each entry's NPOINTER addressing its DBGNAM name).  **Deferred:** the
      aggregate B$VREBLC/CA/CET/CSET type variants (BMAP emits only the scalar
      form), the B$LBNTRY0 compiler-id header, and INTNTRY(12).
+
 7. **Macros:** define/expand, DUP/IDRP/ETC, created symbols, parameter subst.
+
 8. **Literals, forward references, listing + cross-reference, options** (`UFR`
    resolution, `REFLINK`/xref, option parsing in the C CLI).
+
 9. **Tests:** hand-verified GMAP fixtures wired into `make test`, like the
    `dal*` cases; object-unit byte checks against the spec.
-
-Items 4–7 are each substantial; expect several focused sessions.

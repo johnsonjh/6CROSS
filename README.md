@@ -15,10 +15,12 @@ It includes the full set of CP-6 assemblers, disassemblers, and tools:
 * **MSA disassemblers**: `MSAZ80`, `MSA6502`, `MSA6800`, `MSA8085`, `MSA8748`.
 
 * **ASMDAL**: a two-pass assembler for "DEC Assembly Langauge", a subset
-  PDP-10 MACRO-10.  A port of [`ASMDAL_SI61.XSI`](.original/ASMDAL_SI61.XSI).
+  PDP-10 MACRO-10.
+  * A port of [`ASMDAL_SI61.XSI`](.original/ASMDAL_SI61.XSI).
 
 * **BMAP**: CP-6 Macro Assembly Program for **GMAP** (for the 36-bit
-  Honeywell/Bull DPS-8); a port of [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
+  Honeywell/Bull DPS-8).
+  * A port of [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
   * It assembles GMAP programs to an octal listing (with cross-reference) and
     a complete relocatable object unit, with support for the full instruction
     set, macros, and literals.

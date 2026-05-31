@@ -1,8 +1,8 @@
-C*T***********************************************************  
-C*T*                                                         *  
-C*T* Copyright (c) Bull HN Information Systems Inc., 1989    *  
-C*T*                                                         *  
-C*T***********************************************************  
+C*T***********************************************************
+C*T*                                                         *
+C*T* Copyright (c) Bull HN Information Systems Inc., 1989    *
+C*T*                                                         *
+C*T***********************************************************
       BLOCK DATA
       IMPLICIT INTEGER(A-Z)
       INCLUDE 'asmz80_c1.finc'
@@ -272,4 +272,4 @@ C
 C     COMMON BREAK CONTROLS BREAK KEY STUFF
 C
       DATA BREAK/0/
-      END 
+      END

@@ -8,26 +8,26 @@ This port builds and runs on any Linux system with `gfortran` and `gcc`.
 
 It includes the full set of CP-6 assemblers, disassemblers, and tools:
 
-* **ASMZ80** — CP-6 `ASMZ80` Z80/8080 cross-assembler (*written in FORTRAN*).
+* **ASMZ80**: CP-6 `ASMZ80` Z80/8080 cross-assembler (*written in FORTRAN*).
 
-* **ASM6502** — CP-6 `ASM6502` 6502 cross-assembler (*written in FORTRAN*).
+* **ASM6502**: CP-6 `ASM6502` 6502 cross-assembler (*written in FORTRAN*).
 
-* **MSA disassemblers** — `MSAZ80`, `MSA6502`, `MSA6800`, `MSA8085`, `MSA8748`.
+* **MSA disassemblers**: `MSAZ80`, `MSA6502`, `MSA6800`, `MSA8085`, `MSA8748`.
 
-* **ASMDAL** — a two-pass assembler for "DEC Assembly Langauge", a subset
+* **ASMDAL**: a two-pass assembler for "DEC Assembly Langauge", a subset
   PDP-10 MACRO-10.  A port of [`ASMDAL_SI61.XSI`](.original/ASMDAL_SI61.XSI).
 
-* **BMAP** — CP-6 Macro Assembly Program for **GMAP** (for the 36-bit
+* **BMAP**: CP-6 Macro Assembly Program for **GMAP** (for the 36-bit
   Honeywell/Bull DPS-8); a port of [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
   * It assembles GMAP programs to an octal listing (with cross-reference) and
     a complete relocatable object unit, with support for the full instruction
     set, macros, and literals.
 
-* **cp6link** — a linker, reimplementing CP-6 `BAS_LINK`.
+* **cp6link**: a linker, reimplementing CP-6 `BAS_LINK`.
 
-* **ouconv** — an object/run-unit to binary or Intel HEX converter.
+* **ouconv**: an object/run-unit to binary or Intel HEX converter.
 
-* **sim6502** — a small 6502 emulator for running tests (not from CP-6).
+* **sim6502**: a small 6502 emulator for running tests (not from CP-6).
 
 ## Quick start
 
@@ -90,32 +90,35 @@ make clean
   conversion, the **ASMDAL** and **BMAP** ports, and for producing the automated
   test suite based on hand written test cases.
 
-  * **36-bit words** — The FORTRAN code is built with `-fdefault-integer-8` so
+  * **36-bit words**: The FORTRAN code is built with `-fdefault-integer-8` so
     an `INTEGER` holds a CP-6 36-bit word; `cp6_compat.f` reproduces the CP-6
     shift/logical intrinsics with exact 36-bit semantics.  The C tools model
     a word as a `uint64_t` masked to 36 bits, and packing instruction fields
     big-endian (MSB-first).
 
-  * **9-bit characters** — Characters live in 9-bit bytes (4 per word); emitted
+  * **9-bit characters**: Characters live in 9-bit bytes (4 per word); emitted
     output is plain ASCII and host-independent.
 
-  * **CP-6 I/O** — CP-6 monitor and file services are replaced by portable file
+  * **CP-6 I/O**: CP-6 monitor and file services are replaced by portable file
     I/O; source/listing/object files come from the command line.
 
 ## Status
 
 * **ASMZ80 / ASM6502** assemble to the documented object-unit format with
-  correct opcodes, checksums and listings.
+  correct opcodes, checksums and listings.  A simple CP/M-80 "Hello World"
+  program is built with the assembler and executed using the `tnylpo` emulator
+  as a test.
 
-* **All five MSA disassemblers** work; Z80 and 6502 round-trip byte-identically
-  against their assemblers (`asm→msa→asm`), the others on hand-built objects.
+* **MSA disassemblers** work; Z80 and 6502 round-trip byte-identically
+  against their assemblers (`ASM -> MSA -> ASM`), the others on hand-built
+  objects.
 
 * **ASMDAL** is fully ported and verified (two-pass, AVL symbol table, three
-  word formats, the object unit; every instruction word hand-checked vs the
+  word formats, the object unit.  All instruction words hand-checked vs. the
   PDP-10 encodings). See [`source/ASMDAL_NOTES.md`](source/ASMDAL_NOTES.md).
 
 * **BMAP** is complete: `bmap prog.gmap` assembles to a real octal listing
-  **and** a complete relocatable object unit (`.obj`) — relocation, def/ref +
+  **and** a complete relocatable object unit (`.obj`) - relocation, def/ref +
   segment-ref records, control sections (USE/BLOCK), and (with `-g`) full
   debug symbols.  The real CP-6 BMAP subroutine library (`BMAP_SIG.XSI`, 253
   code words) assembles to a hand-walked, byte-verified object.

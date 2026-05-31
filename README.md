@@ -49,10 +49,8 @@ It includes the full set of CP-6 assemblers, disassemblers, and tools:
 
 ```
 make                 # build everything
-make asm             # build ./asmz80 (and ./asm6502)
-make tools           # build the C tools: cp6link ouconv sim6502 msa* asmdal bmap
-make test            # build everything and run the test suite (49 checks)
-make clean
+make test            # run the test suite (49 checks)
+make clean           # cleanup build artifacts
 ```
 
 ```sh

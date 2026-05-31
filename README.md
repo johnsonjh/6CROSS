@@ -1,6 +1,6 @@
-# 6CROSS: GE/Honeywell/Bull CP-6 cross-assembler suite for Linux
+# 6CROSS: GE/Honeywell/Bull CP-6 cross-assembler suite
 
-This directory is a Linux port of the Honeywell/Bull **CP-6** cross-assembler
+This is a Linux port of the Honeywell/Bull **CP-6** cross-assembler
 toolchain. The original is FORTRAN + PL/6 + CP-6 BASIC; this port builds and
 runs on an ordinary Linux box with **gfortran** + a C compiler. It comprises:
 

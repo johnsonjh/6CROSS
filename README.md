@@ -1,26 +1,25 @@
 # 6CROSS: Honeywell/Bull CP-6 cross-assembler suite
 
 This is a Linux port of the Honeywell/Bull **CP-6** cross-assembler
-toolchain.
+toolchain.  The original CP-6 software was written in FORTRAN,
+PL/6, and CP-6 BASIC.
 
-The original CP-6 software was written in FORTRAN, PL/6, and CP-6 BASIC.
-This port builds and runs on an Linux system with `gfortran` and `gcc`.
+This port builds and runs on any Linux system with `gfortran` and `gcc`.
 
 It includes the full set of CP-6 assemblers, disassemblers, and tools:
 
-* **ASMZ80** — CP-6 `ASMZ80` Z80/8080 cross-assembler (written in FORTRAN).
+* **ASMZ80** — CP-6 `ASMZ80` Z80/8080 cross-assembler (*written in FORTRAN*).
 
-* **ASM6502** — CP-6 `ASM6502` 6502 cross-assembler (written in FORTRAN).
+* **ASM6502** — CP-6 `ASM6502` 6502 cross-assembler (*written in FORTRAN*).
 
 * **MSA disassemblers** — `MSAZ80`, `MSA6502`, `MSA6800`, `MSA8085`, `MSA8748`.
 
 * **ASMDAL** — a two-pass assembler for "DEC Assembly Langauge", a subset
-  PDP-10 MACRO-10.
-  A faithful port of [`ASMDAL_SI61.XSI`](.original/ASMDAL_SI61.XSI).
+  PDP-10 MACRO-10.  A port of [`ASMDAL_SI61.XSI`](.original/ASMDAL_SI61.XSI).
 
 * **BMAP** — CP-6 Macro Assembly Program for **GMAP** (for the 36-bit
   Honeywell/Bull DPS-8); a port of [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
-  * It assembles a GMAP program to an octal listing (with cross-reference) and
+  * It assembles GMAP programs to an octal listing (with cross-reference) and
     a complete relocatable object unit, with support for the full instruction
     set, macros, and literals.
 
@@ -32,28 +31,42 @@ It includes the full set of CP-6 assemblers, disassemblers, and tools:
 
 ## Quick start
 
-```sh
+```
 make                 # build everything
 make asm             # build ./asmz80 (and ./asm6502)
 make tools           # build the C tools: cp6link ouconv sim6502 msa* asmdal bmap
 make test            # build everything and run the test suite (49 checks)
 make clean
+```
 
-# microprocessor assemblers -> generates object (.obj) + listing (.lst)
+```sh
+# microprocessor assemblers -> generate object (.obj) + listing (.lst)
 ./asmz80  prog.z80
 ./asm6502 prog.s
+```
 
+```sh
 # disassemble an object back to source
 ./msaz80  prog.obj -o prog.z80
+```
 
-# link object unit(s) -> CP-6 run-unit (.ru); convert -> raw binary / Intel HEX
+```sh
+# link object(s) -> CP-6 run-unit (.ru)
 ./cp6link prog.obj -o prog.ru
+```
+
+```sh
+# convert object(s) -> raw binary / Intel HEX
 ./ouconv  prog.obj -o prog.com         # raw binary (e.g. a CP/M .COM)
 ./ouconv  prog.obj -o prog.hex --ihex  # Intel HEX
+```
 
+```sh
 # ASMDAL: assemble a DAL (PDP-10) program
 ./asmdal  prog.dal                     # -> prog.obj + prog.lst
+```
 
+```sh
 # BMAP: assemble a GMAP (DPS-8) program -> octal listing + object unit (.obj)
 ./bmap    prog.gmap                    # -> prog.scan (octal listing)
 ./bmap    prog.gmap -S                 # -S/--scan: scanner trace only
@@ -64,20 +77,19 @@ make clean
   `./asmz80 prog.z80 "(LS,OU,XR)"`. By default `LS` (listing) and `OU`
   (object output) are on.
 
-* For reproducible builds, `BMAP`'s `DATE` pseudo-op honours the
-  [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
-  environment variable (a decimal Unix time, interpreted as UTC); when it is
-  set, `DATE` emits a fixed date word instead of reading the live clock.
+* For reproducible builds using `BMAP`, the `DATE` pseudo-op honours the
+  standard [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
+  environment variable (a decimal Unix time, interpreted as UTC); when it
+  is set, `DATE` emits a fixed date word instead of reading the live clock.
 
 ## How the port works
 
-* The approach was **faithful per-module** where practical: algorithms, control
-  flow, COMMON blocks, data layouts, and fixed-form source are preserved; only
-  the host-specific boundaries are adapted.
+* The approach was **faithful per-module** where practical.  Algorithms,
+  control flow, COMMON blocks, data layouts, and fixed-form source are preserved.
 
-  * **36-bit words** — The FORTRAN is built with `-fdefault-integer-8` so an
-    `INTEGER` holds a CP-6 36-bit word; `cp6_compat.f` reproduces the CP-6
-    shift/logical intrinsics with exact 36-bit semantics. The C tools model
+  * **36-bit words** — The FORTRAN code is built with `-fdefault-integer-8` so
+    an `INTEGER` holds a CP-6 36-bit word; `cp6_compat.f` reproduces the CP-6
+    shift/logical intrinsics with exact 36-bit semantics.  The C tools model
     a word as a `uint64_t` masked to 36 bits, and packing instruction fields
     big-endian (MSB-first).
 
@@ -97,13 +109,13 @@ make clean
 
 * **ASMDAL** is fully ported and verified (two-pass, AVL symbol table, three
   word formats, the object unit; every instruction word hand-checked vs the
-  PDP-10 encodings). See [`source/ASMDAL_NOTES.md`](`source/ASMDAL_NOTES.md`).
+  PDP-10 encodings). See [`source/ASMDAL_NOTES.md`](source/ASMDAL_NOTES.md).
 
 * **BMAP** is complete: `bmap prog.gmap` assembles to a real octal listing
   **and** a complete relocatable object unit (`.obj`) — relocation, def/ref +
-  segment-ref records, control sections (USE/BLOCK), and (with `-g`) the full
-  debug symbols.  The real BMAP subroutine library (`BMAP_SIG.XSI`, 253 code
-  words) assembles to a hand-walked, byte-verified object.
+  segment-ref records, control sections (USE/BLOCK), and (with `-g`) full
+  debug symbols.  The real CP-6 BMAP subroutine library (`BMAP_SIG.XSI`, 253
+  code words) assembles to a hand-walked, byte-verified object.
   See [`source/BMAP_NOTES.md`](source/BMAP_NOTES.md).
 
 * `make test` runs **49 checks**.

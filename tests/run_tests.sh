@@ -21,14 +21,14 @@ check_obj() {                          # $1 = test name
     exp="$TDIR/expected/$1.obj"
     if [ -f "$exp" ]; then
         if diff -q "$exp" "$WORK/$1.obj" >/dev/null 2>&1; then
-            echo "PASS  $1        object unit matches fixture"
+            echo "PASS  $1        	object unit matches fixture"
         else
-            echo "FAIL  $1        object unit differs:"
+            echo "FAIL  $1        	object unit differs:"
             diff "$exp" "$WORK/$1.obj" 2>&1 | sed 's/^/        /'
             fail=1
         fi
     else
-        echo "----  $1        (no fixture)"
+        echo "----  $1        	(no fixture)"
     fi
 }
 
@@ -36,14 +36,14 @@ check_scan() {                         # $1 = test name (BMAP phase-2 scan trace
     exp="$TDIR/expected/$1.scan"
     if [ -f "$exp" ]; then
         if diff -q "$exp" "$WORK/$1.scan" >/dev/null 2>&1; then
-            echo "PASS  $1        scan trace matches fixture"
+            echo "PASS  $1        	scan trace matches fixture"
         else
-            echo "FAIL  $1        scan trace differs:"
+            echo "FAIL  $1        	scan trace differs:"
             diff "$exp" "$WORK/$1.scan" 2>&1 | sed 's/^/        /'
             fail=1
         fi
     else
-        echo "----  $1        (no fixture)"
+        echo "----  $1        	(no fixture)"
     fi
 }
 
@@ -194,9 +194,9 @@ if [ -x "$BMAP" ]; then
         ( cd "$WORK" && "$BMAP" bmaperr.gmap >/dev/null 2>&1 ); rc=$?
         sev=$(od -An -tu1 -j4 -N1 "$WORK/bmaperr.obj" 2>/dev/null | tr -d ' ')
         if [ "$rc" -ne 0 ] && [ "$sev" = "4" ]; then
-            echo "PASS  bmaperr        invalid op flagged (exit $rc, HEAD severity 4)"
+            echo "PASS  bmaperr        	invalid op flagged (exit $rc, HEAD severity 4)"
         else
-            echo "FAIL  bmaperr        expected nonzero exit + severity 4 (rc=$rc sev=$sev)"
+            echo "FAIL  bmaperr        	expected nonzero exit + severity 4 (rc=$rc sev=$sev)"
             fail=1
         fi
     fi
@@ -217,12 +217,12 @@ if [ -x "$BMAP" ]; then
         if [ "$rc" -eq 0 ]; then
             check_obj bmapsig
         else
-            echo "FAIL  bmapsig        BMAP_SIG.XSI failed to assemble (rc=$rc)"
+            echo "FAIL  bmapsig        	BMAP_SIG.XSI failed to assemble (rc=$rc)"
             fail=1
         fi
     fi
 else
-    echo "SKIP  bmap-scan     (bmap not built)"
+    echo "SKIP  bmap-scan     	(bmap not built)"
 fi
 
 # Execution test: the Z80 hello program prints its message under tnylpo.
@@ -230,13 +230,13 @@ if command -v tnylpo >/dev/null 2>&1 && [ -f "$WORK/hello.obj" ]; then
     ( cd "$WORK" && "$CONV" hello.obj -o hello.com >/dev/null 2>&1 )
     out=$(cd "$WORK" && tnylpo hello.com 2>/dev/null | tr -d '\r')
     if [ "$out" = "HELLO FROM CP-6 ASMZ80" ]; then
-        echo "PASS  hello-run     tnylpo printed: $out"
+        echo "PASS  hello-run     	tnylpo printed: $out"
     else
-        echo "FAIL  hello-run     tnylpo printed: '$out'"
+        echo "FAIL  hello-run     	tnylpo printed: '$out'"
         fail=1
     fi
 else
-    echo "SKIP  hello-run     (tnylpo not found)"
+    echo "SKIP  hello-run     	(tnylpo not found)"
 fi
 
 # Execution test: the 6502 run6502 program computes 5*3=15 into $80.
@@ -244,13 +244,13 @@ if [ -x "$ROOT/sim6502" ] && [ -f "$WORK/run6502.obj" ]; then
     "$CONV" "$WORK/run6502.obj" -o "$WORK/run6502.bin" >/dev/null 2>&1
     out=$("$ROOT/sim6502" "$WORK/run6502.bin" -l 0x200 -d 0x80)
     if [ "$out" = "0F" ]; then
-        echo "PASS  run6502-run   sim6502: \$80 = 0F (5*3=15)"
+        echo "PASS  run6502-run   	sim6502: \$80 = 0F (5*3=15)"
     else
-        echo "FAIL  run6502-run   sim6502: \$80 = '$out' (expected 0F)"
+        echo "FAIL  run6502-run   	sim6502: \$80 = '$out' (expected 0F)"
         fail=1
     fi
 else
-    echo "SKIP  run6502-run   (sim6502 not built)"
+    echo "SKIP  run6502-run    	(sim6502 not built)"
 fi
 
 # Round-trip: asmz80 -> msaz80 (disassemble) -> asmz80 must reproduce the obj.
@@ -260,14 +260,14 @@ if [ -x "$ROOT/msaz80" ]; then
         "$ROOT/msaz80" "$WORK/$name.obj" -o "$WORK/${name}_d.z80" </dev/null 2>/dev/null
         ( cd "$WORK" && "$ASMZ80" "${name}_d.z80" >/dev/null 2>&1 )
         if diff -q "$WORK/$name.obj" "$WORK/${name}_d.obj" >/dev/null 2>&1; then
-            echo "PASS  $name-rt        round-trip asmz80->msaz80->asmz80 identical"
+            echo "PASS  $name-rt        	round-trip asmz80->msaz80->asmz80 identical"
         else
-            echo "FAIL  $name-rt        round-trip differs"
+            echo "FAIL  $name-rt        	round-trip differs"
             fail=1
         fi
     done
 else
-    echo "SKIP  msaz80-rt     (msaz80 not built)"
+    echo "SKIP  msaz80-rt     	(msaz80 not built)"
 fi
 
 # Round-trip: asm6502 -> msa6502 (disassemble) -> asm6502 must reproduce.
@@ -277,14 +277,14 @@ if [ -x "$ROOT/msa6502" ]; then
         "$ROOT/msa6502" "$WORK/$name.obj" -o "$WORK/${name}_d.s" </dev/null 2>/dev/null
         ( cd "$WORK" && "$ASM6502" "${name}_d.s" >/dev/null 2>&1 )
         if diff -q "$WORK/$name.obj" "$WORK/${name}_d.obj" >/dev/null 2>&1; then
-            echo "PASS  $name-rt    round-trip asm6502->msa6502->asm6502 identical"
+            echo "PASS  $name-rt    	round-trip asm6502->msa6502->asm6502 identical"
         else
-            echo "FAIL  $name-rt    round-trip differs"
+            echo "FAIL  $name-rt    	round-trip differs"
             fail=1
         fi
     done
 else
-    echo "SKIP  msa6502-rt    (msa6502 not built)"
+    echo "SKIP  msa6502-rt    	(msa6502 not built)"
 fi
 
 # ASMDAL error handling: a source with errors must be rejected (nonzero exit)
@@ -293,13 +293,13 @@ if [ -x "$ASMDAL" ] && [ -f "$TDIR/dalerr.dal" ]; then
     cp "$TDIR/dalerr.dal" "$WORK/"
     ( cd "$WORK" && "$ASMDAL" dalerr.dal >/dev/null 2>&1 ); rc=$?
     if [ "$rc" -ne 0 ] && [ ! -f "$WORK/dalerr.obj" ]; then
-        echo "PASS  dalerr        errors rejected (exit $rc, no object written)"
+        echo "PASS  dalerr        	errors rejected (exit $rc, no object written)"
     else
-        echo "FAIL  dalerr        expected nonzero exit and no object (rc=$rc)"
+        echo "FAIL  dalerr        	expected nonzero exit and no object (rc=$rc)"
         fail=1
     fi
 else
-    echo "SKIP  dalerr        (asmdal not built)"
+    echo "SKIP  dalerr        	(asmdal not built)"
 fi
 
 rm -rf "$WORK"

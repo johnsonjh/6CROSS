@@ -86,6 +86,9 @@ make clean
 
 * The approach was **faithful per-module** where practical.  Algorithms,
   control flow, COMMON blocks, data layouts, and fixed-form source are preserved.
+  AI *was*used (Gemini, Claude, and ChatGPT), especially with the PL/6 to C
+  conversion, the **ASMDAL** and **BMAP** ports, and for producing the automated
+  test suite based on hand written test cases.
 
   * **36-bit words** — The FORTRAN code is built with `-fdefault-integer-8` so
     an `INTEGER` holds a CP-6 36-bit word; `cp6_compat.f` reproduces the CP-6

@@ -1,0 +1,10 @@
+* BMAP phase-8 literals: "=expr" / "=Oexpr" numeric literals are interned --
+* deduped by value -- into the LITERALS section (section 1), and each reference
+* is relocated against that section.  =5 is shared by LDA and LDQ (one pool
+* word); =O17 and =-1 add two more.  Pool: 5, 017, 777777777777.
+       OUNAME LITTST
+       LDA    =5
+       ADA    =O17
+       LDQ    =5
+       STA    =-1
+       END

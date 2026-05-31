@@ -1,0 +1,15 @@
+* BMAP CRSM (create-symbol) macro mode: with CRSM ON, a macro reference beyond
+* the supplied args (#9 here) expands to a generated unique label _NNNN_, so a
+* macro that defines a local label can be called repeatedly without colliding.
+* GENJ is called twice -> _0000_ / _0001_ (distinct), each TRA #9 referencing
+* its own.  #1 is the ordinary argument (5, then 6).
+       OUNAME CRSMT
+       CRSM   ON
+GENJ   MACRO
+#9     EQU    *
+       TRA    #9
+       LDA    #1
+       ENDM
+       GENJ   5
+       GENJ   6
+       END

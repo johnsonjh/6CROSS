@@ -1,0 +1,358 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+    DO I=0 TO LEN-1;
+        Q=PINCRC(MEM$,MOD(LOCTR+I,65536)*2);
+        IF ~Q->CELL.SOME THEN DO;
+            DO K=0 TO I-1;
+                PINCRC(MEM$,MOD(LOCTR+K,65536)*2)->CELL.EXEC='0'B;
+            END;
+            GOTO FINDIT;
+        END;
+        Q->CELL.VISIT='1'B;
+        Q->CELL.BNO=I;
+        Q->CELL.EXEC='1'B;
+    END;
+    HOW=0;
+    DO CASE(TYPE);
+    CASE(0); /* Fall through, no memory reference */
+        ;
+    CASE(1); /* Conditional relative branch */
+        J=Q->CELL.VALUE;
+        IF J>127 THEN
+            J=J-256;
+        PINCRC(MEM$,MOD(LOCTR+2+J,65536)*2)->CELL.JMP='1'B;
+    CASE(2); /* Unconditional relative branch */
+        J=Q->CELL.VALUE;
+        IF J>127 THEN
+            J=J-256;
+        LOCTR=MOD(LOCTR+2+J,65536);
+        HOW=1;
+        GOTO INSTR;
+    CASE(3); /* Conditional long jump */
+        CALL GETADRS(ADRS,LOCTR+1);
+        PINCRC(MEM$,2*ADRS)->CELL.JMP='1'B;
+    CASE(4); /* Unconditional long jump */
+        CALL GETADRS(LOCTR,LOCTR+1);
+        HOW=1;
+        GOTO INSTR;
+    CASE(5); /* Conditional long call */
+        CALL GETADRS(ADRS,LOCTR+1);
+        PINCRC(MEM$,2*ADRS)->CELL.JSR='1'B;
+    CASE(6); /* Unconditional long call */
+        CALL GETADRS(LOCTR,LOCTR+1);
+        HOW=2;
+        GOTO INSTR;
+    CASE(7); /* Z80, 8085 restart instruction */
+        ADRS=BITBIN(BINBIT(Q->CELL.VALUE,9)&'070'O);
+        PINCRC(MEM$,2*ADRS)->CELL.JSR='1'B;
+    CASE(8); /* End-of-chain */
+        GOTO FINDIT;
+    CASE(9); /* Read reference, long address */
+        CALL GETADRS(ADRS,LOCTR+LEN-2);
+        PINCRC(MEM$,2*ADRS)->CELL.RD='1'B;
+    CASE(10); /* Write reference, long address */
+        CALL GETADRS(ADRS,LOCTR+LEN-2);
+        PINCRC(MEM$,2*ADRS)->CELL.WR='1'B;
+    CASE(11); /* Read reference, page-zero address */
+        PINCRC(MEM$,2*Q->CELL.VALUE)->CELL.RD='1'B;
+    CASE(12); /* Write reference, page-zero address */
+        PINCRC(MEM$,2*Q->CELL.VALUE)->CELL.WR='1'B;
+    CASE(13); /* Read/write reference, long address */
+        CALL GETADRS(ADRS,LOCTR+LEN-2);
+        PINCRC(MEM$,2*ADRS)->CELL.WR='1'B;
+        PINCRC(MEM$,2*ADRS)->CELL.RD='1'B;
+    CASE(14); /* Read/write reference, page-zero address */
+        PINCRC(MEM$,2*Q->CELL.VALUE)->CELL.WR='1'B;
+        PINCRC(MEM$,2*Q->CELL.VALUE)->CELL.RD='1'B;
+    CASE(15); /* Unconditional relative call */
+        J=Q->CELL.VALUE;
+        IF J>127 THEN
+            J=J-256;
+        PINCRC(MEM$,MOD(LOCTR+2+J,65536)*2)->CELL.JSR='1'B;
+    CASE(16); /* 3/8 conditional jump (8748) */
+        CALL GET3_8(ADRS,LOCTR);
+        PINCRC(MEM$,2*ADRS)->CELL.JMP='1'B;
+    CASE(17); /* 3/8 unconditional call (8748) */
+        CALL GET3_8(ADRS,LOCTR);
+        PINCRC(MEM$,2*ADRS)->CELL.JSR='1'B;
+    CASE(18); /* Unconditional same-page jump */
+        CALL GETSP(LOCTR,LOCTR+1);
+        HOW = 1;
+        GOTO INSTR;
+    CASE(19); /* Conditional same-page jump */
+        CALL GETSP(ADRS,LOCTR+1);
+        PINCRC(MEM$,2*ADRS)->CELL.JMP='1'B;
+    CASE(20); /* 3/8 unconditional jump (8748) */
+        CALL GET3_8(LOCTR,LOCTR);
+        HOW = 1;
+        GOTO INSTR;
+    CASE(ELSE);
+        MEBUF='Whoops! One of the Tables isn''t right!';
+        CALL M$WRITE(WRITE_ME);
+        RETURN;
+    END;
+    LOCTR=MOD(LOCTR+LEN,65536);
+    GOTO INSTR;
+ 
+%EJECT;
+FINDIT:
+    LOCTR=0;
+    J=0;
+    DO WHILE(LOCTR<65536);
+        P=PINCRC(MEM$,2*LOCTR);
+        IF P->CELL.SOME AND (P->CELL.VISIT OR P->CELL.RD OR P->CELL.WR) THEN
+            J=J+1;
+        IF P->CELL.SOME AND ~P->CELL.VISIT AND (P->CELL.JSR OR P->CELL.JMP) THEN
+            GOTO INSTR;
+        LOCTR=LOCTR+1;
+    END;
+    CALL BINCHAR(DWORK,J);
+    I=0;
+    DO WHILE(I<7 AND SUBSTR(DWORK,I,1)='0');
+        I=I+1;
+    END;
+    CALL CONCAT(MEBUF,SUBSTR(DWORK,I,8-I),' byte(s) out of');
+    CALL BINCHAR(DWORK,TOTBYTES);
+    I=0;
+    DO WHILE(I<7 AND SUBSTR(DWORK,I,1)='0');
+        I=I+1;
+    END;
+    CALL INDEX2(K,'  ',MEBUF,0);
+    CALL INSERT(MEBUF,K+1,24-I,SUBSTR(DWORK,I,8-I),' accounted for (');
+    J=(1000*J/TOTBYTES+5)/10;
+    CALL BINCHAR(DWORK,J);
+    I=0;
+    DO WHILE(I<7 AND SUBSTR(DWORK,I,1)='0');
+        I=I+1;
+    END;
+    CALL INDEX2(K,'  ',MEBUF,0);
+    CALL INSERT(MEBUF,K,11-I,SUBSTR(DWORK,I,8-I),'%).');
+    CALL M$WRITE(WRITE_ME);
+    GOTO PHASE2;
+ 
+%EJECT;
+DUMPIT:
+    LOCTR=8*(LOCTR/8);
+    DO WHILE(LOCTR<65536);
+        OUBUF=' ';
+        DO I=0 TO 7;
+            P=PINCRC(MEM$,2*(LOCTR+I));
+            IF P->CELL.SOME AND P->CELL.VALUE<256 THEN DO;
+                J=P->CELL.VALUE;
+                CALL PUTBYTE(2*I+5,J);
+                SUBSTR(OUBUF,5*I+22,4)=TABLE0(J);
+                SUBSTR(OUBUF,I+71,1)=ASCII(J);
+                J=0;
+                IF P->CELL.RD THEN
+                    J=J+8;
+                IF P->CELL.WR THEN
+                    J=J+4;
+                IF P->CELL.JMP THEN
+                    J=J+2;
+                IF P->CELL.JSR THEN
+                    J=J+1;
+                IF J>9 THEN
+                    J=J+7;
+                SUBSTR(OUBUF,I+62,1)=BINASC(J+ASCBIN('0'));
+            END;
+        END;
+        IF OUBUF~=' ' THEN DO;
+            CALL PUTADRS(0,LOCTR);
+            IF HOW=1 THEN DO;
+                CALL M$WRITE(WRITE_OU);
+                KEYBUF.C=KEYBUF.C+1000;
+            END;
+            ELSE DO;
+                MEBUF=OUBUF;
+                CALL M$WRITE(WRITE_ME);
+            END;
+        END;
+        LOCTR=LOCTR+8;
+        IF BROKEN>0 THEN
+            GOTO PHASE2;
+    END;
+    GOTO PHASE2;
+ 
+%EJECT;
+PRINT:
+    OUBUF='$XXXX-$XXXX';
+    CALL PUTADRS(1,LOCTR);
+    J=0;
+    P=PINCRC(MEM$,2*LOCTR);
+    IF P->CELL.SOME THEN
+        J=J+1;
+    IF P->CELL.EXEC THEN
+        J=J+2;
+    LOCTR=LOCTR+1;
+    DO WHILE(LOCTR<65536);
+        P=PINCRC(P,2);
+        I=0;
+        IF P->CELL.SOME THEN
+            I=I+1;
+        IF P->CELL.EXEC THEN
+            I=I+2;
+        IF I~=J THEN DO;
+            CALL PUTADRS(7,LOCTR-1);
+            IF J=1 THEN
+                SUBSTR(OUBUF,12,12)='Data';
+            IF J=3 THEN
+                SUBSTR(OUBUF,12,12)='Instructions';
+            MEBUF=OUBUF;
+            IF J>0 THEN
+                CALL M$WRITE(WRITE_ME);
+            J=I;
+            CALL PUTADRS(1,LOCTR);
+        END;
+        LOCTR=LOCTR+1;
+        IF BROKEN>0 THEN
+            GOTO PHASE2;
+    END;
+    CALL PUTADRS(7,LOCTR-1);
+    IF J=1 THEN
+        SUBSTR(OUBUF,12,12)='Data';
+    IF J=3 THEN
+        SUBSTR(OUBUF,12,12)='Instructions';
+    MEBUF=OUBUF;
+    IF J>0 THEN
+        CALL M$WRITE(WRITE_ME);
+    GOTO PHASE2;
+ 
+%EJECT;
+PHASE3:
+    LOCTR=0;
+    LASTORG=-1;
+    P=SYM$;
+    DO I=0 TO LASTSYM;
+        IF P->SYMBOL.TYPE~=2 THEN DO;
+            Q=PINCRC(MEM$,P->SYMBOL.VALUE*2);
+            IF ~Q->CELL.RD AND ~Q->CELL.WR AND ~Q->CELL.JMP AND ~Q->CELL.JSR
+                AND ~Q->CELL.EXEC THEN
+                Q->CELL.RD='1'B;
+        END;
+        P=PINCRC(P,SIZEC(SYMBOL));
+    END;
+    CALL CONCAT(OUBUF,'         NAME     "',SUBSTR(DCBADDR(DCBNUM(M$SI))
+        ->DUMMY.NAME#.C,0,DCBADDR(DCBNUM(M$SI))->DUMMY.NAME#.L),'.',
+        DCBADDR(DCBNUM(M$SI))->DUMMY.ACCT#,'"');
+    CALL M$WRITE(WRITE_OU);
+    KEYBUF.C=KEYBUF.C+1000;
+    I=0;
+    DO WHILE(I<=LASTSYM);
+        R=PINCRC(SYM$,I*SIZEC(SYMBOL));
+        IF R->SYMBOL.TYPE>0 THEN DO;
+            OUBUF=' ';
+            CALL INSERT(OUBUF,18,8,R->SYMBOL.NAME);
+            IF R->SYMBOL.TYPE=1 THEN
+                CALL INSERT(OUBUF,9,3,'DEF');
+            ELSE
+                CALL INSERT(OUBUF,9,3,'REF');
+            CALL M$WRITE(WRITE_OU);
+            KEYBUF.C=KEYBUF.C+1000;
+        END;
+        I=I+1;
+    END;
+    DO WHILE(LOCTR<65536);
+        OUBUF=' ';
+        P=PINCRC(MEM$,2*LOCTR);
+        IF P->CELL.RD OR P->CELL.WR OR P->CELL.JMP OR P->CELL.JSR THEN DO;
+            I=0;
+            CALL CVS(I,LOCTR);
+            SUBSTR(OUBUF,36,6)='; ----';
+            IF P->CELL.RD THEN
+                SUBSTR(OUBUF,38,1)='R';
+            IF P->CELL.WR THEN
+                SUBSTR(OUBUF,39,1)='W';
+            IF P->CELL.JMP THEN
+                SUBSTR(OUBUF,40,1)=%JMP;
+            IF P->CELL.JSR THEN
+                SUBSTR(OUBUF,41,1)=%JSR;
+            IF ~P->CELL.SOME THEN DO;
+                SUBSTR(OUBUF,9,10)='EQU      $';
+                I=19;
+                CALL PUTADRS(I,LOCTR);
+                GOTO NEXTADRS;
+            END;
+        END;
+        IF ~P->CELL.SOME THEN
+            GOTO NEXTADRS;
+        IF LOCTR~=LASTORG THEN DO;
+            SIBUF=OUBUF;
+            OUBUF='         SKIP     1';
+            CALL M$WRITE(WRITE_OU);
+            KEYBUF.C=KEYBUF.C+1000;
+            OUBUF='         ORG      $';
+            CALL PUTADRS(19,LOCTR);
+            CALL M$WRITE(WRITE_OU);
+            KEYBUF.C=KEYBUF.C+1000;
+            OUBUF=SIBUF;
+            LASTORG=LOCTR;
+        END;
+        IF SUBSTR(OUBUF,36,1)=' ' THEN
+            SUBSTR(OUBUF,36,6)='; ----';
+        IF ~P->CELL.EXEC OR P->CELL.BNO>0 THEN DO;
+            IF P->CELL.VALUE<256 THEN DO;
+                SUBSTR(OUBUF,9,10)='DATA     $';
+                SUBSTR(OUBUF,43,2)='C''';
+                K=1;
+                I=P->CELL.VALUE;
+                SUBSTR(OUBUF,45,1)=ASCII(I);
+                CALL PUTBYTE(19,I);
+                CALL NEXTONE(I);
+                LASTORG=LOCTR;
+                DO WHILE(LOCTR<65536 AND K<4 AND P->CELL.SOME AND
+                    ~P->CELL.EXEC AND ~P->CELL.WR AND ~P->CELL.RD
+                    AND P->CELL.VALUE<256);
+                    I=P->CELL.VALUE;
+                    SUBSTR(OUBUF,K+45,1)=ASCII(I);
+                    SUBSTR(OUBUF,4*K+17,2)=',$';
+                    CALL PUTBYTE(4*K+19,I);
+                    K=K+1;
+                    CALL NEXTONE(I);
+                    LASTORG=LOCTR;
+                END;
+                SUBSTR(OUBUF,K+45,1)='''';
+                GOTO OUTPUT;
+            END;
+            ELSE DO;
+                SUBSTR(OUBUF,9,4)='DEFS';
+                K=1;
+                CALL NEXTONE(I);
+                DO WHILE(LOCTR<65536 AND P->CELL.VALUE>255 AND ~P->CELL.RD
+                    AND ~P->CELL.WR AND ~P->CELL.JSR AND ~P->CELL.JMP AND
+                    ~P->CELL.EXEC);
+                    K=K+1;
+                    CALL NEXTONE(I);
+                END;
+                LASTORG=LOCTR;
+                CALL BINCHAR(DWORK,K);
+                I=0;
+                DO WHILE(SUBSTR(DWORK,I,1)='0');
+                    I=I+1;
+                END;
+                CALL INSERT(OUBUF,18,8-I,SUBSTR(DWORK,I,8-I));
+                GOTO OUTPUT;
+            END;
+        END;
+        SUBSTR(OUBUF,43,10)='C''      X''';
+        Q=P;
+        K=0;
+        DO WHILE(K=Q->CELL.BNO);
+            I=Q->CELL.VALUE;
+            SUBSTR(OUBUF,K+45,1)=BINASC(I);
+            CALL PUTBYTE(2*K+53,I);
+            IF K>0 AND (Q->CELL.RD OR Q->CELL.WR) THEN DO;
+                SUBSTR(OUBUF,63,9)='Modified!';
+                I=0;
+                CALL CVS(I,LOCTR);
+            END;
+            K=K+1;
+            Q=PINCRC(MEM$,MOD(LOCTR+K,65536)*2);
+            LASTORG=LASTORG+1;
+        END;
+        SUBSTR(OUBUF,K+45,1)='''';
+        SUBSTR(OUBUF,2*K+53,1)='''';
+        I=P->CELL.VALUE;
+        K=18;

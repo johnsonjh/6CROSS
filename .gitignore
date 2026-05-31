@@ -1,0 +1,44 @@
+# ---- build products (built in the repo root by the Makefile) ----
+/build/
+/build.log
+/asmz80
+/asm6502
+/cp6link
+/ouconv
+/sim6502
+/msaz80
+/msa6502
+/msa6800
+/msa8085
+/msa8748
+/asmdal
+/bmap
+*.o
+*.mod
+
+# ---- assembler scratch files (created in the working directory) ----
+asmz80.tm
+asmz80.mc
+asmz80.xr
+asm6502.tm
+asm6502.mc
+asm6502.xr
+
+# ---- generated outputs from running the tools ----
+# (the test harness writes these under a temp dir, but ignore stray copies)
+*.lst
+*.bin
+*.com
+*.hex
+*.ru
+*.dis
+*_d.z80
+*_d.s
+# NOTE: *.obj and *.scan are intentionally NOT ignored, so the hand-verified
+# fixtures in tests/expected/ stay tracked.  Keep generated ones out of the
+# repo by running the tools in a scratch directory (as run_tests.sh does).
+
+# ---- editor / OS noise ----
+*.swp
+*~
+.DS_Store

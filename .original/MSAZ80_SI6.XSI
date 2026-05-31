@@ -1,0 +1,572 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+MSAZ80: PROC MAIN NOAUTO;
+%INCLUDE CP_6;
+%LIST;
+%INCLUDE MSA_C1;
+    DCL TABLE0(0:255) CONSTANT         CHAR(4) INIT(
+        'NOP ','LD  ','LD  ','INC ','INCB','DECB','LDBn','RLCA',
+        'EXAF','ADD ','LD  ','DEC ','INCC','DECC','LDCn','RRCA',
+        'DJNZ','LD  ','LD  ','INC ','INCD','DECD','LDDn','RLA ',
+        'JR  ','ADD ','LD  ','DEC ','INCE','DECE','LDEn','RRA ',
+        'JRNZ','LD  ','LD  ','INC ','INCH','DECH','LDHn','DAA ',
+        'JR Z','ADD ','LD  ','DEC ','INCL','DECL','LDLn','CPL ',
+        'JRNC','LD  ','LD  ','INC ','INCm','DECm','LDmn','SCF ',
+        'JR C','ADD ','LD  ','DEC ','INCA','DECA','LDAn','CCF ',
+        'LDBB','LDBC','LDBD','LDBE','LDBH','LDBL','LDBm','LDBA',
+        'LDCB','LDCC','LDCD','LDCE','LDCH','LDCL','LDCm','LDCA',
+        'LDDB','LDDC','LDDD','LDDE','LDDH','LDDL','LDDm','LDDA',
+        'LDEB','LDEC','LDED','LDEE','LDEH','LDEL','LDEm','LDEA',
+        'LDHB','LDHC','LDHD','LDHE','LDHH','LDHL','LDHm','LDHA',
+        'LDLB','LDLC','LDLD','LDLE','LDLH','LDLL','LDLm','LDLA',
+        'LDmB','LDmC','LDmD','LDmE','LDmH','LDmL','HALT','LDmA',
+        'LDAB','LDAC','LDAD','LDAE','LDAH','LDAL','LDAm','LDAA',
+        'ADDB','ADDC','ADDD','ADDE','ADDH','ADDL','ADDm','ADDA',
+        'ADCB','ADCC','ADCD','ADCE','ADCH','ADCL','ADCm','ADCA',
+        'SUBB','SUBC','SUBD','SUBE','SUBH','SUBL','SUBm','SUBA',
+        'SBCB','SBCC','SBCD','SBCE','SBCH','SBCL','SBCm','SBCA',
+        'ANDB','ANDC','ANDD','ANDE','ANDH','ANDL','ANDm','ANDA',
+        'XORB','XORC','XORD','XORE','XORH','XORL','XORm','XORA',
+        'OR B','OR C','OR D','OR E','OR H','OR L','OR m','OR A',
+        'CP B','CP C','CP D','CP E','CP H','CP L','CP m','CP A',
+        'RTNZ','POP ','JPNZ','JP  ','CLNZ','PUSH','ADDn','RST0',
+        'RT Z','RET ','JP Z','bsrs','CL Z','CALL','ADCn','RST1',
+        'RTNC','POP ','JPNC','OTnA','CLNC','PUSH','SUBn','RST2',
+        'RT C','EXX ','JP C','INAn','CL C','*IX*','SBCn','RST3',
+        'RTPO','POP ','JPPO','EXSP','CLPO','PUSH','ANDn','RST4',
+        'RTPE','JPHL','JPPE','EXDE','CLPE','misc','XORn','RST5',
+        'RT P','POP ','JP P','DI  ','CL P','PUSH','OR n','RST6',
+        'RT M','LDSP','JP M','EI  ','CL M','*IY*','CP n','RST7');
+ 
+    DCL TABLE1(0:255) CONSTANT UNAL    SBIN BYTE INIT(
+          1,  3,  1,  1,  1,  1,  2,  1,  1,  1,  1,  1,  1,  1,  2,  1,
+         10,  3,  1,  1,  1,  1,  2,  1, 18,  1,  1,  1,  1,  1,  2,  1,
+         10,  3, 83,  1,  1,  1,  2,  1, 10,  1, 75,  1,  1,  1,  2,  1,
+         10,  3, 83,  1,  1,  1,  2,  1, 10,  1, 75,  1,  1,  1,  2,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1, 65,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1, 27, 35, 43,  1,  2, 57,  1, 65, 27, -1, 43, 43,  2, 57,
+          1,  1, 27,  2, 43,  1,  2, 57,  1,  1, 27,  2, 43, -3,  2, 57,
+          1,  1, 27,  1, 43,  1,  2, 57,  1, 65, 27,  1, 43, -2,  2, 57,
+          1,  1, 27,  1, 43,  1,  2, 57,  1,  1, 27,  1, 43, -3,  2, 57);
+ 
+    DCL TABLE3(0:255) CONSTANT UNAL    SBIN BYTE INIT(
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          2,  2,  2, 84,  2, 66,  2,  2,  2,  2,  2, 76,  0, 66,  0,  2,
+          2,  2,  2, 84,  0,  0,  2,  2,  2,  2,  2, 76,  0,  0,  2,  2,
+          2,  2,  2, 84,  0,  0,  0,  2,  2,  2,  2, 76,  0,  0,  0,  2,
+          2,  0,  2, 84,  0,  0,  0,  0,  2,  2,  2, 76,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          2,  2,  2,  2,  0,  0,  0,  0,  2,  2,  2,  2,  0,  0,  0,  0,
+          2,  2,  2,  2,  0,  0,  0,  0,  2,  2,  2,  2,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0);
+ 
+%EJECT;
+    DCL TABLE4(0:255) CONSTANT UNAL    SBIN BYTE INIT(
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  0,  0,  0,  0,  0,  0,
+          0,  4, 84,  2,  0,  0,  0,  0,  0,  2, 76,  2,  0,  0,  0,  0,
+          0,  0,  0,  0,  3,  3,  4,  0,  0,  2,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          3,  3,  3,  3,  3,  3,  0,  3,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0,  3,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, -4,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  2,  0,  2,  0,  2,  0,  0,  0, 66,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  2,  0,  0,  0,  0,  0,  0);
+ 
+    DCL REG1(0:7) CONSTANT             CHAR(4) INIT
+        ('B   ','C   ','D   ','E   ','H   ','L   ','(HL)','A   ');
+    DCL REG2(0:3) CONSTANT             CHAR(2) INIT
+        ('BC','DE','HL','SP');
+    DCL REG3(0:3) CONSTANT             CHAR(2) INIT
+        ('BC','DE','HL','AF');
+    DCL COND(0:7) CONSTANT             CHAR(2) INIT
+        ('NZ','Z ','NC','C ','PO','PE','P ','M ');
+    DCL MRG(0:7) CONSTANT              CHAR(3) INIT
+        ('ADD','ADC','SUB','SBC','AND','XOR','OR ','CP ');
+    DCL SP1(0:7) CONSTANT              CHAR(4) INIT
+        ('RLCA','RRCA','RLA ','RRA ','DAA ','CPL ','SCF ','CCF ');
+    DCL SP2(0:15) CONSTANT             CHAR(4) INIT
+        ('LDI ','CPI ','INI ','OUTI','LDD ','CPD ','IND ','OUTD',
+        'LDIR','CPIR','INIR','OTIR','LDDR','CPDR','INDR','OTDR');
+    DCL SH(0:7) CONSTANT               CHAR(3) INIT
+        ('RLC','RRC','RL ','RR ','SLA','SRA','BAD','SRL');
+%EQU JSR='C';
+%EQU JMP='J';
+%EQU BY1=1;
+%EQU BY2=256;
+ 
+%EJECT;
+%INCLUDE MSA_C2;
+    MEBUF='Hello, MSAZ80 here (11/23/81)';
+%INCLUDE MSA_C3;
+    IF I<0 THEN DO;
+        Q=PINCRC(MEM$,MOD(LOCTR+1,65536)*2);
+        IF ~Q->CELL.SOME THEN
+            GOTO FINDIT;
+        DO CASE(-I);
+        CASE(1);
+            IF Q->CELL.VALUE>=48 AND Q->CELL.VALUE<=55 THEN
+                GOTO FINDIT;
+            TYPE=0;
+            LEN=2;
+        CASE(2);
+            I=TABLE3(Q->CELL.VALUE);
+            IF I<=0 THEN
+                GOTO FINDIT;
+            TYPE=I/8;
+            LEN=MOD(I,8);
+        CASE(3);
+            I=TABLE4(Q->CELL.VALUE);
+            TYPE=I/8;
+            LEN=MOD(I,8);
+            IF I<0 THEN DO;
+                Q=PINCRC(MEM$,MOD(LOCTR+3,65536)*2);
+                IF ~Q->CELL.SOME THEN
+                    GOTO FINDIT;
+                IF (BINBIT(Q->CELL.VALUE,9)&'007'O)~='006'O OR Q->CELL.VALUE=54
+                    OR Q->CELL.VALUE=62 THEN
+                    GOTO FINDIT;
+                TYPE=0;
+                LEN=4;
+            END;
+        CASE(ELSE);
+            MEBUF='Oops, tell The Wizard he blew it in Phase 2!';
+            CALL M$WRITE(WRITE_ME);
+            RETURN;
+        END;
+    END;
+%INCLUDE MSA_C4;
+        DO CASE(I/64);
+        CASE(0); /* 00-3F */
+            DO CASE(MOD(I,16));
+            CASE(0,8); /* 00, 08, 10, 18, 20, 28, 30, 38 */
+                IF I=0 THEN
+                    SUBSTR(OUBUF,9,3)='NOP';
+                ELSE IF I=8 THEN
+                    SUBSTR(OUBUF,9,15)='EX       AF,AF''';
+                ELSE DO;
+                    IF I=16 THEN
+                        SUBSTR(OUBUF,9,4)='DJNZ';
+                    ELSE
+                        SUBSTR(OUBUF,9,2)='JR';
+                    IF I~=16 AND I~=24 THEN DO;
+                        SUBSTR(OUBUF,18,2)=COND(MOD(I/8,4));
+                        K=20;
+                        IF SUBSTR(OUBUF,19,1)~=' ' THEN
+                            K=K+1;
+                        SUBSTR(OUBUF,K-1,1)=',';
+                    END;
+                    CALL NEXTONE(I);
+                    IF I>127 THEN
+                        I=I-256;
+                    I=MOD(LOCTR+1+I,65536);
+                    CALL CVS(K,I);
+                END;
+            CASE(1); /* 01, 11, 21, 31 */
+                CALL INSERT(OUBUF,9,12,'LD       ',REG2(MOD(I/16,4)),',');
+                CALL NEXTTWO(I);
+                K=21;
+                CALL CVX(K,I);
+            CASE(2); /* 02, 12, 22, 32 */
+                DO CASE(MOD(I/16,4));
+                CASE(0,1); /* 02, 12 */
+                    CALL INSERT(OUBUF,9,15,'LD       (',REG2(MOD(I/16,4)),'),A');
+                CASE(2,3); /* 22, 32 */
+                    SUBSTR(OUBUF,9,10)='LD       (';
+                    K=19;
+                    CALL MEMREF(K);
+                    IF MOD(I/16,4)=2 THEN
+                        SUBSTR(OUBUF,K,4)='),HL';
+                    ELSE
+                        SUBSTR(OUBUF,K,3)='),A';
+                END;
+            CASE(3,11); /* 03, 0B, 13, 1B, 23, 2B, 33, 3B */
+                IF MOD(I,16)=3 THEN
+                    SUBSTR(OUBUF,9,3)='INC';
+                ELSE
+                    SUBSTR(OUBUF,9,3)='DEC';
+                SUBSTR(OUBUF,18,2)=REG2(MOD(I/16,4));
+            CASE(4,5,12,13); /* 04,05,0C,0D,14,15,1C,1D,24,25,2C,2D,34,35,3C,3D */
+                IF MOD(I,8)=4 THEN
+                    SUBSTR(OUBUF,9,3)='INC';
+                ELSE
+                    SUBSTR(OUBUF,9,3)='DEC';
+                SUBSTR(OUBUF,18,4)=REG1(MOD(I/8,8));
+            CASE(6,14); /* 06, 0E, 16, 1E, 26, 2E, 36, 3E */
+                CALL INSERT(OUBUF,9,13,'LD       ',REG1(MOD(I/8,8)));
+                IF SUBSTR(OUBUF,19,1)~=' ' THEN
+                    K=K+3;
+                SUBSTR(OUBUF,K+1,1)=',';
+                CALL NEXTONE(I);
+                K=K+2;
+                CALL CVX(K,I);
+            CASE(7,15); /* 07, 0F, 17, 1F, 27, 2F, 37, 3F */
+                SUBSTR(OUBUF,9,4)=SP1(MOD(I/8,8));
+            CASE(9); /* 09, 19, 29, 39 */
+                CALL INSERT(OUBUF,9,14,'ADD      HL,',REG2(MOD(I/16,4)));
+            CASE(10); /* 0A, 1A, 2A, 3A */
+                DO CASE(MOD(I/16,4));
+                CASE(0,1); /* 0A, 1A */
+                    CALL INSERT(OUBUF,9,15,'LD       A,(',REG2(MOD(I/16,4)),')');
+                CASE(2,3); /* 2A, 3A */
+                    IF MOD(I/16,4)=2 THEN
+                        SUBSTR(OUBUF,9,13)='LD       HL,(';
+                    ELSE
+                        SUBSTR(OUBUF,9,12)='LD       A,(';
+                    K=21;
+                    IF SUBSTR(OUBUF,21,1)~=' ' THEN
+                        K=K+1;
+                    CALL MEMREF(K);
+                    SUBSTR(OUBUF,K,1)=')';
+                END;
+            END;
+        CASE(1); /* 40-7F */
+            IF I=118 /* 76 */ THEN
+                SUBSTR(OUBUF,9,4)='HALT';
+            ELSE DO;
+                CALL INSERT(OUBUF,9,13,'LD       ',REG1(MOD(I/8,8)));
+                IF SUBSTR(OUBUF,19,1)~=' ' THEN
+                    K=K+3;
+                CALL INSERT(OUBUF,K+1,5,',',REG1(MOD(I,8)));
+            END;
+        CASE(2); /* 80-BF */
+            CALL INSERT(OUBUF,9,13,MRG(MOD(I/8,8)),'      ',REG1(MOD(I,8)));
+        CASE(3); /* C0-FF */
+            DO CASE(MOD(I,16));
+            CASE(0,8); /* C0, C8, D0, D8, E0, E8, F0, F8 */
+                CALL INSERT(OUBUF,9,11,'RET      ',COND(MOD(I/8,8)));
+            CASE(1,5); /* C1, C5, D1, D5, E1, E5, F1, F5 */
+                IF MOD(I,16)=1 THEN
+                    SUBSTR(OUBUF,9,3)='POP';
+                ELSE
+                    SUBSTR(OUBUF,9,4)='PUSH';
+                SUBSTR(OUBUF,18,2)=REG3(MOD(I/16,4));
+            CASE(2,4,10,12); /* C2,C4,CA,CC,D2,D4,DA,DC,E2,E4,EA,EC,F2,F4,FA,FC */
+                IF MOD(I,8)=2 THEN
+                    SUBSTR(OUBUF,9,2)='JP';
+                ELSE
+                    SUBSTR(OUBUF,9,4)='CALL';
+                SUBSTR(OUBUF,18,2)=COND(MOD(I/8,8));
+                K=19;
+                IF SUBSTR(OUBUF,19,1)~=' ' THEN
+                    K=K+1;
+                SUBSTR(OUBUF,K,1)=',';
+                K=K+1;
+                CALL NEXTTWO(I);
+                CALL CVS(K,I);
+            CASE(3); /* C3, D3, E3, F3 */
+                DO CASE(MOD(I/16,4));
+                CASE(0); /* C3 */
+                    SUBSTR(OUBUF,9,2)='JP';
+                    CALL NEXTTWO(I);
+                    CALL CVS(K,I);
+                CASE(1); /* D3 */
+                    SUBSTR(OUBUF,9,10)='OUT      (';
+                    CALL NEXTONE(I);
+                    K=19;
+                    CALL CVX(K,I);
+                    SUBSTR(OUBUF,K,3)='),A';
+                CASE(2); /* E3 */
+                    SUBSTR(OUBUF,9,16)='EX       (SP),HL';
+                CASE(3); /* F3 */
+                    SUBSTR(OUBUF,9,2)='DI';
+                END;
+            CASE(6,14); /* C6, CE, D6, DE, E6, EE, F6, FE */
+                CALL INSERT(OUBUF,9,3,MRG(MOD(I/8,8)));
+                CALL NEXTONE(I);
+                K=18;
+                CALL CVX(K,I);
+            CASE(7,15); /* C7, CF, D7, DF, E7, EF, F7, FF */
+                CALL INSERT(OUBUF,9,10,'RST      ',BINASC(MOD(I/8,8)+
+                    ASCBIN('0')));
+            CASE(9); /* C9, D9, E9, F9 */
+                DO CASE(MOD(I/16,4));
+                CASE(0); /* C9 */
+                    SUBSTR(OUBUF,9,3)='RET';
+                CASE(1); /* D9 */
+                    SUBSTR(OUBUF,9,3)='EXX';
+                CASE(2); /* E9 */
+                    SUBSTR(OUBUF,9,13)='JP       (HL)';
+                CASE(3); /* F9 */
+                    SUBSTR(OUBUF,9,14)='LD       SP,HL';
+                END;
+            CASE(11); /* CB, DB, EB, FB */
+                DO CASE(MOD(I/16,4));
+                CASE(0); /* CB */
+                    CALL NEXTONE(I);
+                    DO CASE(I/64);
+                    CASE(0); /* 00-3F */
+                        CALL INSERT(OUBUF,9,13,SH(MOD(I/8,8)),'      ',
+                            REG1(MOD(I,8)));
+                    CASE(1,2,3); /* 40-FF */
+                        IF I<128 THEN
+                            SUBSTR(OUBUF,9,3)='BIT';
+                        ELSE IF I<192 THEN
+                            SUBSTR(OUBUF,9,3)='RES';
+                        ELSE
+                            SUBSTR(OUBUF,9,3)='SET';
+                        CALL INSERT(OUBUF,18,6,BINASC(MOD(I/8,8)+ASCBIN('0')),
+                            ',',REG1(MOD(I,8)));
+                    END;
+                CASE(1); /* DB */
+                    SUBSTR(OUBUF,9,12)='IN       A,(';
+                    CALL NEXTONE(I);
+                    K=21;
+                    CALL CVX(K,I);
+                    SUBSTR(OUBUF,K,1)=')';
+                CASE(2); /* EB */
+                    SUBSTR(OUBUF,9,14)='EX       DE,HL';
+                CASE(3); /* FB */
+                    SUBSTR(OUBUF,9,2)='EI';
+                END;
+            CASE(13); /* CD, DD, ED, FD */
+                DO CASE(MOD(I/16,4));
+                CASE(0); /* CD */
+                    SUBSTR(OUBUF,9,4)='CALL';
+                    CALL NEXTTWO(I);
+                    CALL CVS(K,I);
+                CASE(2); /* ED */
+                    CALL NEXTONE(I);
+                    J=BITBIN(BINBIT(I,9)&'307'O);
+                    IF J=64 THEN DO;
+                        CALL INSERT(OUBUF,9,13,'IN       ',REG1(MOD(I/8,8)));
+                        IF SUBSTR(OUBUF,19,1)~=' ' THEN
+                            K=K+3;
+                        SUBSTR(OUBUF,K+1,4)=',(C)';
+                        GOTO NEXTADRS;
+                    END;
+                    IF J=65 THEN DO;
+                        CALL INSERT(OUBUF,9,17,'OUT      (C),',REG1(MOD(I/8,8)));
+                        GOTO NEXTADRS;
+                    END;
+                    J=BITBIN(BINBIT(I,9)&'317'O);
+                    IF J=66 THEN
+                        SUBSTR(OUBUF,9,3)='SBC';
+                    IF J=74 THEN
+                        SUBSTR(OUBUF,9,3)='ADC';
+                    IF J=66 OR J=74 THEN DO;
+                        CALL INSERT(OUBUF,18,5,'HL,',REG2(MOD(I/16,4)));
+                        GOTO NEXTADRS;
+                    END;
+                    IF J=67 THEN DO;
+                        SUBSTR(OUBUF,9,10)='LD       (';
+                        K=19;
+                        CALL MEMREF(K);
+                        CALL INSERT(OUBUF,K,4,'),',REG2(MOD(I/16,4)));
+                        GOTO NEXTADRS;
+                    END;
+                    IF J=75 THEN DO;
+                        CALL INSERT(OUBUF,9,13,'LD       ',REG2(MOD(I/16,4)),',(');
+                        K=22;
+                        CALL MEMREF(K);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF BITBIN(BINBIT(I,9)&'344'O)=160 THEN DO;
+                        SUBSTR(OUBUF,9,4)=SP2(MOD(I,4)+4*MOD(I/8,4));
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=68 THEN
+                        SUBSTR(OUBUF,9,3)='NEG';
+                    ELSE IF I=69 THEN
+                        SUBSTR(OUBUF,9,4)='RETN';
+                    ELSE IF I=70 THEN
+                        SUBSTR(OUBUF,9,10)='IM       0';
+                    ELSE IF I=71 THEN
+                        SUBSTR(OUBUF,9,12)='LD       I,A';
+                    ELSE IF I=77 THEN
+                        SUBSTR(OUBUF,9,4)='RETI';
+                    ELSE IF I=79 THEN
+                        SUBSTR(OUBUF,9,12)='LD       R,A';
+                    ELSE IF I=86 THEN
+                        SUBSTR(OUBUF,9,10)='IM       1';
+                    ELSE IF I=87 THEN
+                        SUBSTR(OUBUF,9,12)='LD       A,I';
+                    ELSE IF I=94 THEN
+                        SUBSTR(OUBUF,9,10)='IM       2';
+                    ELSE IF I=95 THEN
+                        SUBSTR(OUBUF,9,12)='LD       A,R';
+                    ELSE IF I=103 THEN
+                        SUBSTR(OUBUF,9,3)='RRD';
+                    ELSE IF I=111 THEN
+                        SUBSTR(OUBUF,9,3)='RLD';
+                CASE(1,3); /* DD, FD */
+                    IF MOD(I/16,4)=1 THEN
+                        IR='IX';
+                    ELSE
+                        IR='IY';
+                    CALL NEXTONE(I);
+                    IF BITBIN(BINBIT(I,9)&'370'O)=112 THEN DO;
+                        CALL INSERT(OUBUF,9,12,'LD       (',IR);
+                        K=21;
+                        CALL NEXTONE(J);
+                        CALL SDISP(K,J);
+                        CALL INSERT(OUBUF,K,6,'),',REG1(MOD(I,8)));
+                        GOTO NEXTADRS;
+                    END;
+                    IF BITBIN(BINBIT(I,9)&'317'O)=9 THEN DO;
+                        CALL INSERT(OUBUF,9,14,'ADD      ',IR,',',
+                            REG2(MOD(I/16,4)));
+                        IF MOD(I/16,4)=2 THEN
+                            IF IR='IX' THEN
+                                SUBSTR(OUBUF,21,2)='IX';
+                            ELSE
+                                SUBSTR(OUBUF,21,2)='IY';
+                        GOTO NEXTADRS;
+                    END;
+                    J=BITBIN(BINBIT(I,9)&'307'O);
+                    IF J=70 THEN DO;
+                        CALL INSERT(OUBUF,9,14,'LD       ',SUBSTR(REG1
+                            (MOD(I/8,8)),0,1),',(',IR);
+                        K=23;
+                        CALL NEXTONE(J);
+                        CALL SDISP(K,J);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF J=134 THEN DO;
+                        CALL INSERT(OUBUF,9,12,MRG(MOD(I/8,8)),'      (',
+                            IR);
+                        K=21;
+                        CALL NEXTONE(J);
+                        CALL SDISP(K,J);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=33 THEN DO;
+                        CALL INSERT(OUBUF,9,12,'LD       ',IR,',');
+                        CALL NEXTTWO(I);
+                        K=21;
+                        CALL CVX(K,I);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=34 THEN DO;
+                        CALL INSERT(OUBUF,9,10,'LD       (');
+                        K=19;
+                        CALL MEMREF(K);
+                        CALL INSERT(OUBUF,K,4,'),',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=35 THEN DO;
+                        CALL INSERT(OUBUF,9,11,'INC      ',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=42 THEN DO;
+                        CALL INSERT(OUBUF,9,13,'LD       ',IR,',(');
+                        K=22;
+                        CALL MEMREF(K);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=43 THEN DO;
+                        CALL INSERT(OUBUF,9,11,'DEC      ',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=52 THEN
+                        CALL INSERT(OUBUF,9,12,'INC      (',IR);
+                    IF I=53 THEN
+                        CALL INSERT(OUBUF,9,12,'DEC      (',IR);
+                    IF I=52 OR I=53 THEN DO;
+                        K=21;
+                        CALL NEXTONE(J);
+                        CALL SDISP(K,J);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=54 THEN DO;
+                        CALL INSERT(OUBUF,9,12,'LD       (',IR);
+                        K=21;
+                        CALL NEXTONE(J);
+                        CALL SDISP(K,J);
+                        SUBSTR(OUBUF,K,2)='),';
+                        CALL NEXTONE(J);
+                        K=K+3;
+                        CALL CVX(K,J);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=225 THEN DO;
+                        CALL INSERT(OUBUF,9,11,'POP      ',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=227 THEN DO;
+                        CALL INSERT(OUBUF,9,16,'EX       (SP),',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=229 THEN DO;
+                        CALL INSERT(OUBUF,9,11,'PUSH     ',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=233 THEN DO;
+                        CALL INSERT(OUBUF,9,13,'JP       (',IR,')');
+                        GOTO NEXTADRS;
+                    END;
+                    IF I=249 THEN DO;
+                        CALL INSERT(OUBUF,9,14,'LD       SP,',IR);
+                        GOTO NEXTADRS;
+                    END;
+                    CALL NEXTONE(J);
+                    CALL NEXTONE(I);
+                    IF I<64 THEN DO;
+                        CALL INSERT(OUBUF,9,12,SH(MOD(I/8,8)),'      (',IR);
+                        K=21;
+                        CALL SDISP(K,J);
+                        SUBSTR(OUBUF,K,1)=')';
+                        GOTO NEXTADRS;
+                    END;
+                    IF I<128 THEN
+                        SUBSTR(OUBUF,9,3)='BIT';
+                    ELSE IF I<192 THEN
+                        SUBSTR(OUBUF,9,3)='RES';
+                    ELSE
+                        SUBSTR(OUBUF,9,3)='SET';
+                    CALL INSERT(OUBUF,18,5,BINASC(MOD(I/8,8)+ASCBIN('0')),
+                        ',(',IR);
+                    K=23;
+                    CALL SDISP(K,J);
+                    SUBSTR(OUBUF,K,1)=')';
+                END;
+            END;
+        END;
+ 
+%INCLUDE MSA_C5;
+END;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+BREAK: PROC ASYNC;
+ 
+%INCLUDE CP_6;
+%FPT_TRMPRG(RSTBRK=YES);
+ 
+    DCL BROKEN STATIC SYMDEF           SBIN;
+ 
+    BROKEN=BROKEN+1;
+    CALL M$TRMPRG(FPT_TRMPRG);
+    RETURN;
+END;

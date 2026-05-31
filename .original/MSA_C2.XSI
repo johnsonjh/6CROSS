@@ -1,0 +1,8 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+PHASE0:
+    CALL M$INT(FPT_INT);
+    CALL M$PROMPT(FPT_PROMPT);

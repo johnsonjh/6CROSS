@@ -1,0 +1,237 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+    CALL M$WRITE(WRITE_ME);
+    CALL M$GDS(FPT_GDS) ALTRET(MORE_MEM);
+    MEM$=VLP_VECTOR.PTR$;
+    LIMIT=0;
+    LASTSYM=-1;
+    TOTBYTES=0;
+    BEGIN=-1;
+    LOCTR=0;
+    DO WHILE(LOCTR<65536);
+        PINCRC(MEM$,2*LOCTR)->CELL='0'B;
+        LOCTR=LOCTR+1;
+    END;
+    CALL M$OPEN(OPEN_OU);
+    GOTO PHASE1;
+ 
+MORE_MEM:
+    MEBUF='Gasp! I need more memory to operate in!';
+    CALL M$WRITE(WRITE_ME);
+    RETURN;
+ 
+%EJECT;
+PHASE1:
+    SIBUF=' ';
+    CALL M$READ(READ_SI) ALTRET(IS_IT_EOF);
+    ARS=DCBADDR(DCBNUM(M$SI))->DUMMY.ARS#;
+    IF ARS<1 THEN
+        GOTO PHASE1;
+    IF ARS<11 OR SUBSTR(SIBUF,0,1)~=':' THEN DO;
+        IF MOD(ARS,2)~=0 OR SIKEY.C>=65536000 OR
+            DCBADDR(DCBNUM(M$SI))->DUMMY.ORG#~=2 /* KEYED */ THEN DO;
+            MEBUF=SIBUF;
+            CALL M$WRITE(WRITE_ME);
+            MEBUF='This isn''t a good dump or OU/RU record.';
+            CALL M$WRITE(WRITE_ME);
+            GOTO PHASE1;
+        END;
+        I=0;
+        LOCTR=SIKEY.C/1000;
+        DO WHILE(I<ARS);
+            P=PINCRC(MEM$,2*LOCTR);
+            CALL GETBYTE(J,I);
+            IF J<0 THEN DO;
+                MEBUF=SIBUF;
+                CALL M$WRITE(WRITE_ME);
+                CALL CONCAT(MEBUF,'Sorry, "',SUBSTR(SIBUF,I,1),
+                    '" is not a hex digit.');
+                CALL M$WRITE(WRITE_ME);
+                GOTO PHASE1;
+            END;
+            P->CELL.VALUE=J;
+            P->CELL.SOME='1'B;
+            LOCTR=MOD(LOCTR+1,65536);
+            TOTBYTES=TOTBYTES+1;
+        END;
+        GOTO PHASE1;
+    END;
+    I=1;
+    K=0;
+    DO WHILE(I<ARS);
+        CALL GETBYTE(J,I);
+        IF J<0 THEN DO;
+            MEBUF=SIBUF;
+            CALL M$WRITE(WRITE_ME);
+            CALL CONCAT(MEBUF,'Sorry, "',SUBSTR(SIBUF,I,1),
+                '" is not a hex digit.');
+            CALL M$WRITE(WRITE_ME);
+            GOTO PHASE1;
+        END;
+        K=K+J;
+    END;
+    IF MOD(K,256)~=0 THEN DO;
+        MEBUF=SIBUF;
+        CALL M$WRITE(WRITE_ME);
+        MEBUF='Checksum error!';
+        CALL M$WRITE(WRITE_ME);
+        GOTO PHASE1;
+    END;
+    I=3;
+    CALL GETBYTE(LOCTR,I);
+    CALL GETBYTE(J,I);
+    LOCTR=256*LOCTR+J;
+    CALL GETBYTE(J,I);
+    IF J>127 THEN DO;
+        LASTSYM=LASTSYM+1;
+        IF LASTSYM>=LIMIT THEN DO;
+            CALL M$GDS(SYMTAB_GDS) ALTRET(PHASE1);
+            SYM$=SYMTAB_VECTOR.PTR$;
+            LIMIT=LIMIT+4096/SIZEC(SYMBOL);
+        END;
+        R=PINCRC(SYM$,SIZEC(SYMBOL)*LASTSYM);
+        R->SYMBOL.TYPE=J-128;
+        R->SYMBOL.VALUE=LOCTR;
+        IF J=130 THEN
+            R->SYMBOL.VALUE=0;
+        DO K=0 TO 7;
+            CALL GETBYTE(J,I);
+            CALL INSERT(R->SYMBOL.NAME,K,1,BINASC(J));
+        END;
+        GOTO PHASE1;
+    END;
+    J=MOD(J,16);
+    IF J=0 THEN DO;
+        DO WHILE(I<ARS-2);
+            CALL GETBYTE(K,I);
+            P=PINCRC(MEM$,2*LOCTR);
+            P->CELL.VALUE=K;
+            P->CELL.SOME='1'B;
+            LOCTR=MOD(LOCTR+1,65536);
+            TOTBYTES=TOTBYTES+1;
+        END;
+    END;
+    IF J=1 THEN
+        BEGIN=LOCTR;
+    IF J=5 THEN DO;
+        CALL GETBYTE(ADRS,I);
+        CALL GETBYTE(K,I);
+        ADRS=256*ADRS+K;
+        DO K=1 TO ADRS;
+            P=PINCRC(MEM$,2*LOCTR);
+            IF P->CELL.SOME='0'B THEN DO;
+                P->CELL.VALUE=256;
+                P->CELL.SOME='1'B;
+                P->CELL.VISIT='1'B;
+            END;
+            LOCTR=MOD(LOCTR+1,65536);
+            TOTBYTES=TOTBYTES+1;
+        END;
+    END;
+    GOTO PHASE1;
+ 
+IS_IT_EOF:
+    IF ~DCBADDR(DCBNUM(M$SI))->DUMMY.TYC.EOF# AND
+        ~DCBADDR(DCBNUM(M$SI))->DUMMY.TYC.EOD# THEN DO;
+        MEBUF='I/O error on M$SI DCB...Sorry ''bout that.';
+        CALL M$WRITE(WRITE_ME);
+        RETURN;
+    END;
+    IF TOTBYTES=0 THEN DO;
+        MEBUF='Either that''s not a good file or it''s empty.';
+        CALL M$WRITE(WRITE_ME);
+        RETURN;
+    END;
+    P=SYM$;
+    DO I=0 TO LASTSYM-1;
+        Q=PINCRC(P,SIZEC(SYMBOL));
+        DO J=I+1 TO LASTSYM;
+            IF (P->SYMBOL.TYPE~=2 AND Q->SYMBOL.TYPE=2) OR
+                (P->SYMBOL.VALUE>Q->SYMBOL.VALUE) THEN DO;
+                HOLD=P->SYMBOL;
+                P->SYMBOL=Q->SYMBOL;
+                Q->SYMBOL=HOLD;
+            END;
+            Q=PINCRC(Q,SIZEC(SYMBOL));
+        END;
+        P=PINCRC(P,SIZEC(SYMBOL));
+    END;
+    HOW=1;
+    LOCTR=BEGIN;
+    IF LOCTR>=0 THEN
+        GOTO INSTR;
+ 
+%EJECT;
+PHASE2:
+    BROKEN=0;
+    CALL M$READ(READ_ME) ALTRET(PHASE3);
+    ARS=DCBADDR(DCBNUM(M$ME))->DUMMY.ARS#;
+    IF ARS<1 THEN
+        GOTO PHASE2;
+    IF SUBSTR(MEBUF,0,1)='E' THEN
+        GOTO PHASE3;
+    IF SUBSTR(MEBUF,0,1)='Q' THEN DO;
+        CALL M$CLOSE(CLOSE_OU);
+        RETURN;
+    END;
+    IF SUBSTR(MEBUF,0,1)~=%JSR AND SUBSTR(MEBUF,0,1)~=%JMP
+        AND SUBSTR(MEBUF,0,1)~='D' AND SUBSTR(MEBUF,0,1)~='M'
+        AND SUBSTR(MEBUF,0,1)~='P' THEN DO;
+        CALL CONCAT(MEBUF,'Eh? (Try E[nd], Q[uit], ',%JMP,'xxxx, ',%JSR,
+            'xxxx, Mxxxx, Dxxxx or Pxxxx)');
+        CALL M$WRITE(WRITE_ME);
+        GOTO PHASE2;
+    END;
+    LOCTR=0;
+    I=1;
+    DO WHILE(I<ARS);
+        J=ASCBIN(SUBSTR(MEBUF,I,1));
+        IF J<ASCBIN('0') OR J>ASCBIN('F') OR
+            (J>ASCBIN('9') AND J<ASCBIN('A')) THEN DO;
+            CALL CONCAT(MEBUF,'Error! "',BINASC(J),
+                '" is not a hex digit!');
+            CALL M$WRITE(WRITE_ME);
+            GOTO PHASE2;
+        END;
+        J=J-ASCBIN('0');
+        IF J>9 THEN
+            J=J-7;
+        LOCTR=16*LOCTR+J;
+        IF LOCTR>65535 THEN DO;
+            MEBUF='That''s not a valid address!';
+            CALL M$WRITE(WRITE_ME);
+            GOTO PHASE2;
+        END;
+        I=I+1;
+    END;
+    IF SUBSTR(MEBUF,0,1)='P' THEN
+        GOTO PRINT;
+    IF SUBSTR(MEBUF,0,1)='D' THEN DO;
+        HOW=1;
+        GOTO DUMPIT;
+    END;
+    IF SUBSTR(MEBUF,0,1)='M' THEN DO;
+        HOW=2;
+        GOTO DUMPIT;
+    END;
+    IF SUBSTR(MEBUF,0,1)=%JMP THEN
+        HOW=1;
+    ELSE
+        HOW=2;
+ 
+%EJECT;
+INSTR:
+    P=PINCRC(MEM$,2*LOCTR);
+    IF HOW=1 THEN
+        P->CELL.JMP='1'B;
+    IF HOW=2 THEN
+        P->CELL.JSR='1'B;
+    IF ~P->CELL.SOME OR P->CELL.VISIT THEN
+        GOTO FINDIT;
+    I=TABLE1(P->CELL.VALUE);
+    TYPE=I/8;
+    LEN=MOD(I,8);
+    P->CELL.VISIT='1'B;

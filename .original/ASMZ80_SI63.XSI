@@ -1,0 +1,79 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+PEEKAT: PROC(OPTLST,W,D);
+ 
+/*
+*       FETCH THE OPTION LIST (IF ANY) FROM CCBUF IN THE JIT
+*
+*/
+ 
+%INCLUDE CP_6;
+%INCLUDE B$JIT;
+%FPT_INT(UENTRY=YOUCALLD);
+%F$DCB(DCBN=DUMMY);
+ 
+    DCL OPTLST(0:127)                  CHAR(4);
+    DCL W                              SBIN;
+    DCL D                              SBIN;
+    DCL B$JIT$ SYMREF                  PTR;
+    DCL YOUCALLD                       ENTRY ASYNC;
+    DCL F$106                          DCB;
+    DCL F$107                          DCB;
+    DCL F$105                          DCB;
+    DCL I                              SBIN;
+    DCL J                              SBIN;
+    DCL K                              SBIN;
+ 
+    CALL M$INT(FPT_INT);
+    DO I=0 TO 127;
+        OPTLST(I)='    ';
+    END;
+    W=DCBADDR(DCBNUM(F$106))->DUMMY.WIDTH#;
+    IF W=0 OR W>132 THEN
+        W=132;
+    IF W>=110 AND W<132 THEN
+        W=110;
+    IF W>=80 AND W<110 THEN
+        W=80;
+    IF W>=72 AND W<80 THEN
+        W=72;
+    IF W<72 THEN
+        W=64;
+    D=DCBADDR(DCBNUM(F$106))->DUMMY.LINES#;
+    IF D<10 THEN
+        D=99999999;
+    CALL INDEX1(J,'(',SUBSTR(B$JIT.CCBUF,0,B$JIT.CCARS),0) ALTRET(RET);
+    CALL INDEX1R(K,')',SUBSTR(B$JIT.CCBUF,0,B$JIT.CCARS),0);
+    IF K<=J THEN
+        K=B$JIT.CCARS-1;
+    J=J+1;
+    K=K-1;
+    I=0;
+    DO J=J TO K;
+        OPTLST(I)=SUBSTR(B$JIT.CCBUF,J,1);
+        I=I+1;
+    END;
+ 
+RET:
+    RETURN;
+END;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+YOUCALLD: PROC ASYNC;
+%INCLUDE CP_6;
+%FPT_TRMPRG(RSTBRK=YES);
+ 
+    DCL BREAK EXT                      SBIN;
+ 
+    CALL M$TRMPRG(FPT_TRMPRG);
+    BREAK=BREAK+1;
+    RETURN;
+ 
+END;

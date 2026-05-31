@@ -1,0 +1,32 @@
+0 000000  000005235000  | START  LDA    FIVE
+0 000001  000144075000  |        ADA    DATA
+0 000002  000002755000  | LOOP   STA    LOOP
+0 000003  000000710000  |        TRA    START
+         =000000000005  | FIVE   EQU    5
+0 000144               |        ORG    100
+0 000144  000000000777  | DATA   OCT    777,0
+  000145  000000000000  |
+0 000146  000000000001  |        DEC    1,2,3
+  000147  000000000002  |
+  000150  000000000003  |
+0 000151  000004000005  |        ZERO   4,5
+0 000152               | TABLE  BSS    1
+0 000153  000000011000  |        EVEN
+0 000154  000000011000  |        NOP
+0 000155  110105114114  | MSG    ASCII  2,HELLO
+  000156  117040040040  |
+0 000157  212223242526  |        BCI    1,ABCDEF
+0 000160  301302100100  |        EBCDIC 1,AB
+0 000161  000005000007  |        VFD    18/5,18/7
+0 000162  010200770011  |        VFD    6/1,6/2,O12/77,12/9
+0 000163  006202520001  |        RPT    3,1,TZE
+                       |        END    START
+----
+passes=2 statements=28 records=40 errors=0 severity=0
+---- symbols (6) ----
+  DATA     v000144  DEF  opndtyp=1
+  FIVE     v000005  DEF  opndtyp=0
+  LOOP     v000002  DEF  opndtyp=1
+  MSG      v000155  DEF  opndtyp=1
+  START    v000000  DEF  opndtyp=1
+  TABLE    v000152  DEF  opndtyp=1

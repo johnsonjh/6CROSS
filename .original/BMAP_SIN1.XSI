@@ -1,0 +1,26 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+BMAP_SYNTAX (D,1,S) = [ [.BLANK] '(' < ',' , OPTION > [ ')' ] ] .END
+OPTION    (F)     = ( HELP_OPT | ;
+                      { ( LS_OPT | NLS_OPT ) | ( OU_OPT | NOU_OPT ) ;
+                      | ( SC_OPT | NSC_OPT ) | SO_OPT | SRCH_OPT | XR_OPT ;
+                      | ( UI_OPT | NUI_OPT ) | ( P2_OPT | P1_OPT ) | LU_OPT } )
+HELP_OPT  (2,S)   = 'HE/LP' [ .SYMBOL ]
+LS_OPT    (3)     = 'LS'
+NLS_OPT   (4)     = 'NLS'
+OU_OPT    (5)     = 'OU'
+NOU_OPT   (6)     = 'NOU'
+P2_OPT    (7)     = '2P'
+SC_OPT    (8)     = 'SC/HEMA'
+NSC_OPT   (9)     = 'NSC/HEMA'
+SO_OPT    (10)    = 'SO'
+SRCH_OPT  (11)    = 'SR/CH' '(' < ',' , SRCH_NAME > ')'
+SRCH_NAME (11)    = .FID
+UI_OPT    (12)    = 'UI'
+NUI_OPT   (13)    = 'NUI'
+XR_OPT    (14)    = 'XR/EF'
+LU_OPT    (15)    = 'LU'
+P1_OPT    (16)    = '1P'

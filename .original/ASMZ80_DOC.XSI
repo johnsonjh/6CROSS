@@ -1,0 +1,1651 @@
+.GO SKIP1
+.*M*
+ASMZ80
+.LA SKIP1
+.PDW 70
+.WIT 2
+.SPB 6
+.FIF
+.ALC
+.*A*
+ASMZ80 - A Z80 Cross-Assembler for CP-6
+.* NOTE: ASMZ80_DOC is formatted for printing on 8-1/2" by 11"
+.*       paper using the TEXT processor.
+.SPB 3
+.*K* CONTENTS
+Table of Contents
+----- -- --------
+ 
+.ALL
+        Features . . . . . . . . . . . . . . . . . . . . .  2
+ 
+        Expressions  . . . . . . . . . . . . . . . . . . .  3
+ 
+        Argument Formats . . . . . . . . . . . . . . . . .  6
+ 
+        Machine Instructions . . . . . . . . . . . . . . .  7
+ 
+        Assembler Directives . . . . . . . . . . . . . . . 12
+ 
+        ASMZ80 - CP-6 Interface  . . . . . . . . . . . . . 18
+ 
+        Listing Format . . . . . . . . . . . . . . . . . . 20
+ 
+        Object Unit Format . . . . . . . . . . . . . . . . 22
+ 
+        TDL to ZILOG Mnemonic Conversion Table . . . . . . 24
+ 
+        Known Problems . . . . . . . . . . . . . . . . . . 26
+ 
+        Index  . . . . . . . . . . . . . . . . . . . . . . 27
+ 
+ 
+.*T*
+       Copyright, (c) Bull HN Information Systems Inc., 1987
+.BRP
+.HBB
+|ASMZ80||Page %PageNo%|
+.HBE
+.FIF
+.ALC
+.*K* FEATURES
+Features
+--------
+.FIN
+.ALB
+ 
+.UNL -4
+ASMZ80 is a cross-assembler for Z80 hardware.  It is written in FORTRAN
+and a small amount of optional PL-6, so it should be transportable to
+other systems with a minimum of conversion.  The following features
+are supported:
+ 
+.INL +4
+.UNL +4
+o   Labels must begin in column 1.  They may be of any length, but only
+the first 8 characters are significant.  Labels may consist of
+upper and lower case letters (A-Z, a-z), numerals (0-9), periods
+(.), colons (:), and underscores (_).  The first character must not
+be a numeral.  If the label is two or more characters and ends in
+a colon (:), the colon is stripped; however, the colon must be
+followed by a space to separate the label field from the opcode.
+Up to 999 labels may be defined.  Examples:  ABC, Z29, A:X, X..y, _82d.
+ 
+.UNL +4
+o   Opcodes must be preceded by at least one space and may be any
+length, but only the first 8 characters are significant.  Opcodes
+may consist of upper and lower case letters (A-Z, a-z), numerals
+(0-9), periods (.), colons (:), and underscores (_).  The first
+character must not be a numeral.  The 67 operations in the Z80
+instruction set are pre-defined and may not be redefined via macro
+statements.  39 assembler directives are also supported; these may
+not be redefined via macro statements.  Up to 94 additional opcodes
+may be defined as macros by the user.
+ 
+.UNL +4
+o   Arguments must be preceded by at least one space and must follow
+the opcode.  Arguments may not contain embedded spaces not enclosed
+in text or constant strings.  Arguments are separated by commas, but
+no spaces.  For more detail, see "Expressions" below.
+ 
+.UNL +4
+o   Comments may follow the arguments (if any).  If the opcode has no
+arguments (such as RRD), comments must be preceded by a semicolon
+(;) or exclamation mark (!).  If the opcode has arguments, comments
+may be separated from the arguments by one or more spaces, a
+semicolon, or an exclamation mark.  If the first non-blank character
+on a line is a semicolon or exclamation mark, the entire line is a
+comment.  If column one of the input line contains an asterisk (*),
+the entire line is a comment.
+ 
+.UNL +4
+o   Input lines may be any length from one to 256 characters; however,
+they may not be continued.
+.BRP
+.FIF
+.ALC
+.*K* EXPRESSIONS
+Expressions
+-----------
+.FIN
+.ALB
+ 
+ 
+.INL 0
+.UNL -4
+With exceptions noted in individual commands below, arguments may be
+expressions of any complexity.  Expressions are made up of constants,
+symbols (see the definition of labels above), and operations.
+ 
+.INL +4
+.UNL +4
+o   Constants may be specified in decimal, binary, octal, hexadecimal, split
+octal, packed decimal, character, or text.  Constants may not exceed 16
+bits in magnitude (0-65535 or -32768 to 32767).
+ 
+.INL +4
+.UNL +4
+-   Decimal constants consist of one or more numeric digits (0-9)
+optionally followed by a D.  Examples:  29, 0, 1257D.
+ 
+.UNL +4
+-   Binary constants consist of 0's and 1's either (a) preceded by
+a percent sign(%), (b) followed by a B, or (c) enclosed in
+single quotes (') and either preceded or followed by a B.
+Examples:  %101, 01010B, B'1100', '00110011'B.
+ 
+.UNL +4
+-   Octal constants consist of numeric digits 0-7 either (a)
+preceded by an at sign (@), (b) followed by a K, or (c)
+enclosed in single quotes and either preceded or followed by
+an O.  Examples:  @27, 762K, O'12063', '000'O.
+ 
+.UNL +4
+-   Split octal constants consist of numeric digits 0-7 followed
+by an O (oh).  Counting from the right, each third digit must
+be in the range 0-3.  Examples:  27O, 1122O, 377377O.
+ 
+.UNL +4
+-   Hexadecimal constants consist of numeric digits (0-9) and the
+letters A-F either (a) preceded by a dollar sign ($), (b)
+beginning with a numeric digit (0-9) and followed by an H, or
+(c) enclosed in single quotes and either preceded or followed
+by an X.  Examples:  $AB, 0AFH, X'27', '3A4'X.  Note that a
+constant specified as A29H is a symbol; to specify the hex
+constant A29 it is necessary to precede it by a leading zero
+(0A29H).
+ 
+.UNL +4
+-   Packed constants consist of numeric digits (0-9) and the
+letters A-F either (a) preceded by a dollar sign ($), (b)
+beginning with a numeric digit (0-9) and followed by a P, or
+(c) enclosed in single quotes and either preceded or followed
+by a P.  Examples:  $013, 027CP, P'27', '2A4'P.  Note that a
+constant specified as A29H is a symbol; to specify the packed
+constant A29 it is necessary to precede it by a leading zero
+(0A29H).  Note also that packed and hexadecimal constants are
+synonymous.
+ 
+.UNL +4
+-   Character constants consist of one or two characters enclosed
+in single or double quotes (' or ").  To specify a single quote
+inside a single-quoted string, two successive single quotes
+('') are used; similarly, a double quote in a double-quoted
+string is specified by two successive double quotes ("").
+Examples:  'HI', "a", '''', '"', """", "'".  Character constants
+are treated as integers, right-justified with leading binary
+zeros, if required.
+ 
+.UNL +4
+-   Text constants are character constants of three or more
+characters.  Text constants may not be used in expressions,
+but must be specified as the sole entry in an argument.
+Examples:  "Hi, there", 'This is a text constant'.
+ 
+.INL -4
+.UNL +4
+o   The following operations are allowed within expressions, listed in
+order of precedence.  All intermediate results in expression
+evaluation are truncated to 16 bits.
+ 
+.INL +4
+.UNL +4
+-   Unary (prefix) plus (+) and minus (-).  These operators are
+evaluated first in an expression.  Examples:  +1, -$A,
+--+XYZ.  Note that multiple prefix operators may precede a
+constant, symbol, or sub-expression.
+ 
+.UNL +4
+-   Multiplication (*), division (/), and modulus (\).  Division
+is performed with integers (i.e., any remainder is discarded).
+A\B is defined as A-B*(A/B).  Division or modulus by zero is
+illegal.
+ 
+.UNL +4
+-   Addition (+) and subtraction (-).
+ 
+.UNL +4
+-   Shift right (>>) and shift left (<<).  Logical shifts are
+performed (i.e., the sign bit is not preserved).  Shifts of 16
+bits or greater will give zero as a result.  Examples:  10>>1
+(=5), $CA<<4 (=$CA0), '27'O<<16 (=0).
+ 
+.UNL +4
+-   Logical not (~).  This is a prefix operator, and may be
+compounded.  Examples:  ~A, ~'1'B, ~~27H.  The not operator
+inverts all 16 bits in a value.
+ 
+.UNL +4
+-   Logical AND (&).  0&0=0, 0&1=0, 1&0=0, 1&1=1.
+ 
+.UNL +4
+-   Logical inclusive OR (|) and exclusive OR (||).  0|0=0, 0|1=1,
+1|0=1, 1|1=1.  0||0=0, 0||1=1, 1||0=1, 1||1=0.
+ 
+.UNL +4
+-   Relations:  Less than (<), Less than or equal to (<=), equal to
+(=), not equal to (~= or <>), greater than (>), and greater than
+or equal to (>=).  The result of any of these comparisons is
+either 0 (false) or -1 ($FFFF, true).
+ 
+.INL -4
+Expressions are evaluated in accordance with the rules of precedence
+listed above; operations of equal precedence are executed left to
+right.  The programmer may force evaluation of a sub-expression by
+placing it within brackets ([]).  Parentheses may not be used to
+bracket sub-expressions since they are used to denote operand type.
+ 
+.UNL +4
+o   The symbol $ or * may be used to reference the current location
+counter and therefore must not be defined by the programmer as a
+label.  Additionally, the following identifiers are used to
+represent the registers and conditions and must not be defined by the programmer
+as labels:  A, B, C, D, E, H, I, L, M, P, R, Z, AF, BC, DE, HL,
+IX, IY, NC, NZ, PE, PO, and SP.
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* ARGUMENT_FORMATS
+Argument Formats
+-------- -------
+.FIN
+.ALB
+ 
+.UNL -4
+The following 37 argument formats are recognized by ASMZ80 on machine
+instructions:
+ 
+.INL +4
+.UNL +4
+o   Implied argument (no argument field is present).
+ 
+.UNL +4
+o   8-bit registers:
+ 
+.FIF
+.ALL
+A       B       C       D       E       H       I       L       R
+ 
+.FIN
+.ALB
+.UNL +4
+o   16-bit registers or register pairs:
+ 
+.FIF
+.ALL
+AF      AF'     BC      DE      HL      IX      IY      SP
+ 
+.FIN
+.ALB
+.UNL +4
+o   Indirect register addressing:
+ 
+.FIF
+.ALL
+(C)     (BC)    (DE)    (HL)    (IX)    (IY)    (SP)
+ 
+.FIN
+.ALB
+.UNL +4
+o   Indexed addressing:
+ 
+.FIF
+.ALL
+(IX+d)  (IY+d)
+ 
+.FIN
+.ALB
+where -128 <= d <= 127.
+ 
+.UNL +4
+o   Immediate:
+ 
+.FIF
+.ALL
+n
+ 
+.FIN
+.ALB
+where 0 <= n <= 255.
+ 
+.UNL +4
+o   Direct address:
+ 
+.FIF
+.ALL
+pq
+ 
+.FIN
+.ALB
+where 0 <= pq <= 65535
+ 
+.UNL +4
+o   Indirect memory addressing:
+ 
+.FIF
+.ALL
+(n)     (pq)
+ 
+.FIN
+.ALB
+where 0 <= n <= 255 and 0 <= pq <= 65535.
+ 
+.UNL +4
+o   Relative addressing:
+ 
+.FIF
+.ALL
+e
+ 
+.FIN
+.ALB
+where -128 <= e-$-2 <= 127
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* MACHINE_INSTRUCTIONS
+Machine Instructions
+------- ------------
+.FIN
+.ALB
+ 
+.UNL -4
+The following 67 opcodes are recognized as machine instructions:
+ 
+.FIF
+.ALL
+o   8 and 16 bit load group:
+ 
+    LD   - Load
+ 
+    Permissible argument types with LD:
+ 
+    r,r                                SP,HL
+    r,(HL)                             SP,Ii
+    (HL),r                             BC,pq
+    A,(BC)                             DE,pq
+    A,(DE)                             HL,pq
+    (BC),A                             SP,pq
+    (DE),A                             HL,(pq)
+    A,I                                (pq),HL
+    A,R                                BC,(pq)
+    I,A                                DE,(pq)
+    R,A                                SP,(pq)
+    r,n                                (pq),BC
+    (HL),n                             (pq),DE
+    r,(Ii+d)                           (pq),SP
+    (Ii+d),r                           Ii,pq
+    A,(pq)                             Ii,(pq)
+    (pq),A                             (pq),Ii
+    (Ii+d),n
+ 
+o   8 and 16 bit add group:
+ 
+    ADD  - Add
+ 
+    Permissible argument types with ADD:
+ 
+    [A,]r                              Ii,BC
+    [A,](HL)                           Ii,DE
+    [A,]n                              Ii,SP
+    [A,](Ii+d)                         IX,IX
+    HL,BC                              IY,IY
+    HL,DE
+    HL,HL
+    HL,SP
+ 
+o   8 and 16 bit add/subtract with carry group:
+ 
+    ADC  - Add with carry              SBC  - Subtract with carry
+ 
+    Permissible argument types with ADC/SBC:
+ 
+    [A,]r                              HL,BC
+    [A,](HL)                           HL,DE
+    [A,]n                              HL,HL
+    [A,](Ii+d)                         HL,SP
+ 
+o   8 and 16 bit increment/decrement group:
+ 
+    INC  - Increment                   DEC  - Decrement
+ 
+    Permissible argument types with INC/DEC:
+ 
+    r                                  BC
+    (HL)                               DE
+    (Ii+d)                             HL
+    Ii                                 SP
+ 
+o   8 bit arithmetic and logical group:
+ 
+    SUB  - Subtract                    AND  - Logical AND
+    XOR  - Logical exclusive OR        OR   - Logical OR
+    CP   - Compare
+ 
+    Permissible argument types with ALG:
+ 
+    r                                  n
+    (HL)                               (Ii+d)
+ 
+o   Shift/rotate group:
+ 
+    RLC  - Rotate left with carry      RRC  - Rotate right with carry
+    RL   - Rotate left                 RR   - Rotate right
+    SLA  - Shift left algebraic        SRA  - Shift right algebraic
+    SRL  - Shift right logical
+ 
+    Permissible argument types with SRG:
+ 
+    r                                  (Ii+d)
+    (HL)
+ 
+o   Bit test, set, or reset group:
+ 
+    BIT  - Bit test                    RES  - Bit reset
+    SET  - Bit set
+ 
+    Permissible argument types with BIT, SET, and RES:
+ 
+    b,r                                b,(Ii+d)
+    b,(HL)
+ 
+o   Jump group:
+ 
+    JP   - Jump
+ 
+    Permissible argument types with JP:
+ 
+    (HL)                               pq
+    (Ii)                               cc,pq
+ 
+o   Call group:
+ 
+    CALL - Call subroutine
+ 
+    Permissible argument types with CALL:
+ 
+    pq                                 cc,pq
+ 
+o   Return group:
+ 
+    RET  - Return from subroutine
+ 
+    Permissible argument types with RET:
+ 
+    cc                                 <empty>
+ 
+o   Jump relative group:
+ 
+    JR   - Jump relative
+ 
+    Permissible argument types with JR:
+ 
+    NZ,e                               Z,e
+    NC,e                               C,e
+ 
+o   Input group:
+ 
+    IN   - Input
+ 
+    Permissible argument types with IN:
+ 
+    A,(n)                              r,(C)
+ 
+o   Output group:
+ 
+    OUT  - Output
+ 
+    Permissible argument types with OUT:
+ 
+    (n),A                              (C),r
+ 
+o   Push/pop group:
+ 
+    PUSH - Push into stack             POP  - Pop from stack
+ 
+    Permissible argument types with PUSH/POP:
+ 
+    BC                                 Ii
+    DE
+    HL
+    AF
+ 
+o   Exchange group:
+ 
+    EX   - Exchange
+ 
+    Permissible argument types with EX:
+ 
+    AF,AF'                             (SP),HL
+    DE,HL                              (SP),Ii
+ 
+o   DJNZ group:
+ 
+    DJNZ - Decrement, jump if non-zero
+ 
+    Permissible argument types with DJNZ:
+ 
+    e
+ 
+o   Set interrupt mode:
+ 
+    IM   - Set interrupt mode
+ 
+    Permissible arguments with IM:
+ 
+    0                                  2
+    1
+ 
+o   Restart instruction:
+ 
+    RST  - Restart
+ 
+    Permissible arguments with RST:
+ 
+    0                                  0
+    8                                  1
+    16                                 2
+    24                                 3
+    32                                 4
+    40                                 5
+    48                                 6
+    56                                 7
+ 
+o   Single-byte implied addressing instructions:
+ 
+    EXX  - Exchange registers          DAA  - Decimal adjust
+    CPL  - Complement A                CCF  - Complement carry flag
+    SCF  - Set carry flag              NOP  - No-op
+    HALT - Halt                        DI   - Disable interrupts
+    EI   - Enable interrupts           RLCA - Rotate A left with carry
+    RLA  - Rotate A left               RRCA - Rotate A right w/carry
+    RRA  - Rotate A right
+ 
+    No arguments are permitted.
+ 
+o   Double-byte implied addressing instructions:
+ 
+    LDI  - Load incrementing           LDIR - Load incr., repeat
+    LDD  - Load decrementing           LDDR - Load decr., repeat
+    CPI  - Compare incrementing        CPIR - Compare incr., repeat
+    CPD  - Compare decrementing        CPDR - Compare decr., repeat
+    NEG  - Negate A                    RLD  - Rotate left decimal
+    RRD  - Rotate right decimal        RETI - Return from interrupt
+    RETN - Return from NMI             INI  - Input incrementing
+    INIR - Input incr., repeat         IND  - Input decrementing
+    INDR - Input decr., repeat         OUTI - Output incrementing
+    OTIR - Output incr., repeat        OUTD - Output decrementing
+    OTDR - Output decr., repeat
+ 
+    No arguments are permitted.
+ 
+.FIN
+.ALB
+.INL 0
+The following symbols are used in the above list:
+ 
+.INL +10
+.UNL +6
+r   - One of the 8-bit registers B, C, D, E, H, L, or A.
+ 
+.UNL +6
+n   - An 8-bit value, 0-255 or -128 to 127 (signed), which may be
+relocatable.
+ 
+.UNL +6
+Ii  - One of the index registers, IX or IY.
+ 
+.UNL +6
+d   - An 8-bit signed displacement, -128 to 127, which may not be
+relocatable and must be preceded by either + or -.
+ 
+.UNL +6
+pq  - A 16-bit address or value, 0-65535 or -32768 to 32767 which may be relocatable.
+ 
+.UNL +6
+b   - An expression which resolves into a non-relocatable integer
+in the range 0-7 (bit number).
+ 
+.UNL +6
+cc  - A condition, one of C, NC, Z, NZ, PO, PE, P, or M.
+ 
+.UNL +6
+e   - A non-relocatable expression which evaluates to -128 <= e-$-2 <= 127,
+where $ refers to the current location counter (leftmost
+byte of the instruction).
+ 
+.INL 0
+Note the following extensions to the assembler for programming ease:
+ 
+.INL +4
+.UNL +4
+o   ADD, ADC, and SBC assume A as the first operand if it is omitted.
+ 
+.UNL +4
+o   The argument to JR and DJNZ must not have the location counter
+subtracted from it.  Example:  DJNZ HERE rather than DJNZ HERE-$.
+ 
+.UNL +4
+o   The argument to RST may be an integral multiple of 8 (0-56) or
+an integer, 0-7.
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* DIRECTIVES
+Assembler Directives
+--------- ----------
+.FIN
+.ALB
+ 
+.UNL -4
+The following assembler directives are recognized by ASMZ80:
+ 
+.INL +4
+.UNL +4
+o   Define data constants:
+ 
+.FIF
+.ALL
+    [label] DATA {expr|text}[,{expr|text}]...
+    [label] TEXT {text|expr}[,{text|expr}]...
+    [label] DEFM {text|expr}[,{text|expr}]...
+ 
+.FIN
+.ALB
+Expressions are reduced to 8 or 16-bit values and stored at the
+current value of the location counter.  Note that 16-bit values
+are stored most significant byte first, the reverse of normal
+Z80 addresses.  Text constants are stored in ASCII.  If a label
+is present, it is assigned the value of the location counter
+before storing the first byte.  Numeric expressions may not be relocatable.
+ 
+.UNL +4
+o   Define 16-bit constants:
+ 
+.FIF
+.ALL
+    [label] WORD expr[,expr]...
+ 
+.FIN
+.ALB
+Expressions are reduced to 16-bit values and stored at the current
+value of the location counter.  Note that the values are stored
+most significant byte first, the reverse of normal Z80 addresses.
+If a label is present, it is assigned the value of the location
+counter before storing the first byte.  "expr" may not be
+relocatable.
+ 
+.UNL +4
+o   Define 8-bit constants:
+ 
+.FIF
+.ALL
+    [label] BYTE expr[,expr]...
+    [label] DEFB expr[,expr]...
+ 
+.FIN
+.ALB
+Expressions are reduced to 8-bit values and stored at the current
+value of the location counter.  If a label is present, it is
+assigned the value of the location counter before storing the
+first byte.  Expressions may be relocatable.
+ 
+.UNL +4
+o   Define address constants:
+ 
+.FIF
+.ALL
+    [label] ADDR expr[,expr]...
+    [label] DEFW expr[,expr]...
+ 
+.FIN
+.ALB
+Expressions are reduced to 16-bit values and stored at the current
+value of the location counter, least significant byte first.  If a
+label is present, it is assigned the value of the location counter
+before storing the first byte.  Expressions may be relocatable.
+ 
+.UNL +4
+o   Equate:
+ 
+.FIF
+.ALL
+    label   EQU expr
+    label   = expr
+ 
+.FIN
+.ALB
+A label is required.  The value of the label is set to the value
+of the expression.
+No code is generated; the location
+counter is not affected.
+ 
+.UNL +4
+o   Define value:
+ 
+.FIF
+.ALL
+    label   SET expr
+ 
+.FIN
+.ALB
+A label is required.  The value of the label is set to the value
+of the expression.
+No code is generated; the location
+counter is not affected.  SET differs from EQU in that multiple
+assignments may be made to the same label; only the latest one is
+retained.  The format "label SET $" may be used as an effective
+"no-op" to define a label for a GOTO command (see below).
+ 
+.UNL +4
+o   Define origin:
+ 
+.FIF
+.ALL
+    [label] ORG expr
+ 
+.FIN
+.ALB
+The location counter is set to the value of the expression.
+No
+code is generated.  If a label is present, it is assigned the value
+of the expression.
+ 
+.UNL +4
+o   Advance location counter to a boundary:
+ 
+    [label] BOUND expr
+ 
+.FIN
+.ALB
+The location counter is advanced to the next multiple of the expression.
+The expression must be positive and non-zero.  No code is generated in
+the skipped bytes (if any).  If a label is present, it is assigned the
+value of the location counter after it is advanced.
+ 
+.UNL +4
+o   Reserve memory:
+ 
+.FIF
+.ALL
+    [label] DEFS expr
+    [label] BSS expr
+ 
+.FIN
+.ALB
+The expression is evaluated and the location counter is advanced
+by "expr" bytes.  No code is generated in the skipped bytes.
+If
+a label is present, it is assigned the value of the location
+counter before it is advanced.  "expr" is treated as an unsigned
+value, 0-65535.
+ 
+.UNL +4
+o   Define global symbol:
+ 
+.FIF
+.ALL
+            ENT label[,label]...
+            DEF label[,label]...
+ 
+.FIN
+.ALB
+No label is allowed.  Each of the labels listed in the argument
+field is defined as a symbol that can be referenced from outside
+this program unit.  No code is generated; the location counter is
+not affected.  Each of the labels must appear in the label field of a
+statement elsewhere in the program.
+ 
+.UNL +4
+o   Define external symbol:
+ 
+.FIF
+.ALL
+            EXT label[,label]...
+            EXTL label[,label]...
+            EXTS label[,label]...
+            REF label[,label]...
+            REFL label[,label]...
+            REFS label[,label]...
+ 
+.FIN
+.ALB
+No label is allowed.  Each of the labels listed in the argument
+field is defined as a symbol which is not contained within this
+program unit; references to these symbols will be resolved at
+link time from modules which have defined them as ENT or
+DEF operands.  No code is generated; the location counter is not
+affected.  EXT, EXTL, REF, and REFL specify that the external
+symbol is not on page zero (i.e., it is a "long" address); EXTS
+and REFS specify that the external symbol is on page zero (i.e.,
+it is a "short" address).  Up to 126 EXT/REF symbols may be
+defined.
+ 
+.UNL +4
+o   Define program end:
+ 
+.FIF
+.ALL
+            END [label]
+ 
+.FIN
+.ALB
+No label is allowed.  The END statement marks the physical end of
+the program deck.  If a label is present in the argument field,
+it defines the entry point for this program and marks the program
+as the main program.  An END statement is required at the end of
+the input file.  It may not be present in include files or macro
+expansions.
+ 
+.UNL +4
+o   Define listing title:
+ 
+.FIF
+.ALL
+            NAME text
+            TITLE text
+ 
+.FIN
+.ALB
+No label is allowed.  The text (up to 80 characters) is placed in
+the listing at the top of each page.  An immediate
+page break is also performed.  No code is generated; the location
+counter is not affected.  This command is not listed on the listing
+unless LIST 8 is specified.
+ 
+.UNL +4
+o   Perform a page break:
+ 
+.FIF
+.ALL
+            PAGE
+            EJECT
+ 
+.FIN
+.ALB
+No label or argument is allowed.  The listing is advanced to a new
+page.  No code is generated; the location counter is not affected.
+This command is not listed on the listing unless LIST 8 is specified.
+ 
+.UNL +4
+o   Skip n lines on the listing:
+ 
+.FIF
+.ALL
+            SKIP [expr]
+            SPACE [expr]
+ 
+.FIN
+.ALB
+No label is allowed.  The expression (if any) is evaluated and the
+listing is advanced by (expr mod 64) lines.  If the expression is
+omitted, 1 is assumed.  No code is generated; the location counter
+is not affected.  This command is not listed on the listing unless
+LIST 8 is specified.
+ 
+.UNL +4
+o   Include code from a file:
+ 
+.FIF
+.ALL
+            INCL label
+ 
+.FIN
+.ALB
+No label is allowed.  The file specified by "label" is inserted
+unchanged into the program at this point.  Note that "label" is
+limited by the rules of label formation, which may be a subset or
+superset of the file names allowed by the host operating system.
+INCL statements may not be nested; that is, an INCL file may not
+contain an INCL command.
+ 
+.UNL +4
+o   Conditional assembly:
+ 
+.FIF
+.ALL
+    [label] IF expr
+    ...
+    [[label] ELSE]
+    [...]
+    [label] FI
+ 
+.FIN
+.ALB
+The expression in the argument field is evaluated.  If it is not
+zero, the statements following the IF statement are assembled until
+an ELSE or FI statement is encountered.  If
+the expression is zero, the statements following it are skipped
+until an ELSE or FI statement is encountered.  If the expression
+is not zero and an ELSE statement is encountered, statements
+following it are skipped until a FI statement is encountered; if
+the expression is zero and an ELSE statement is encountered,
+statements following it are assembled.  Examples:
+ 
+.FIF
+.ALL
+        IF     0
+        <stmt 1>                       (skipped)
+        <stmt 2>                       (skipped)
+        ELSE
+        <stmt 3>                       (assembled)
+        <stmt 4>                       (assembled)
+        FI
+ 
+        IF     1
+        <stmt 1>                       (assembled)
+        <stmt 2>                       (assembled)
+        ELSE
+        <stmt 3>                       (skipped)
+        <stmt 4>                       (skipped)
+        FI
+ 
+.FIN
+.ALB
+IF[/ELSE]/FI must occur in matched groups; an ELSE statement applies
+to the last unmatched IF statement encountered; a FI statement
+applies to the last unmatched ELSE or IF statement encountered.  IF
+commands may be nested to any level.  Labels, if present, may be
+used as targets for GOTO statements (see below), and are not entered
+into the symbol table.
+ 
+.UNL +4
+o   Skip statements unconditionally:
+ 
+.FIF
+.ALL
+    [label] GOTO label
+ 
+.FIN
+.ALB
+All statements are skipped until the label specified in the
+argument field is encountered.  Skipping may occur only in the
+forward direction.  The label may not occur within an INCL file,
+if the INCL directive follows the GOTO statement, since the INCL
+will not be executed.  If a statement label is present, it may be
+used as a target for a prior GOTO statement, but is not entered into
+the symbol table.
+ 
+.UNL +4
+o   Turn listing of statements on or off:
+ 
+.FIF
+.ALL
+            LIST [expr]
+ 
+.FIN
+.ALB
+No label is allowed.  The expression (if any) is evaluated and used
+as follows:
+ 
+.FIF
+.ALL
+        1 - Normal listing of source commands only
+        2 - List include files
+        4 - List macro expansions
+        8 - List all assembler directives
+ 
+.FIN
+.ALB
+If the expression is omitted, 1 is assumed; if it exceeds 15, it
+is used modulo 16.  Listing options may be summed to specify the
+type of listing desired.  For example, LIST 5 provides a listing
+of macro expansions and source commands, but not include files or
+assembler directives not normally listed (TITLE, SPACE, etc.).
+LIST 0 turns the listing off entirely and is equivalent to NLIST.
+ 
+.UNL +4
+o   Turn listing off:
+ 
+.FIF
+.ALL
+            NLIST
+ 
+.FIN
+.ALB
+NLIST is equivalent to LIST 0 (see above).  No label or argument is
+allowed.
+ 
+.UNL +4
+o   Define macro:
+ 
+.FIF
+.ALL
+    label   MAC [dummy[,dummy]...]
+            ...
+            MEND
+ 
+.FIN
+.ALB
+A label is required and is entered into the table of allowed
+operation codes flagged as a macro.  Statements following the
+MAC command up to the next MEND command are copied to the macro
+file for use later.  A macro may not define a macro; that is, MAC
+commands may not be nested.  No code is generated for a macro
+until it is invoked.  The dummies specify symbols corresponding to
+user-supplied expressions on an invocation line; they are positional
+in nature (that is, dummy symbol 1 corresponds to user argument 1 on
+the macro invocation line).  Example:
+ 
+.FIF
+.ALL
+    SAVE MAC B1,B2                     <Macro definition>
+         LD  A,(B1)
+         LD  (B2),A
+         MEND
+ 
+    HI   SAVE VALUE+10,TABLE-9         <Macro invocation>
+ 
+.FIN
+.ALB
+The macro "SAVE" is defined on the first four lines.  The dummies
+B1 and B2 correspond to the two user-supplied arguments.  No code
+is generated for the LD/LD sequence, since this is the macro
+definition phase.  The last line shows the invocation of the
+macro.  "VALUE+10" is used in the macro expansion as "B1" and
+"TABLE-9" in place of "B2".  The expanded code looks like this:
+ 
+.FIF
+.ALL
+    HI    LD  A,(VALUE+10)
+          LD  (TABLE-9),A
+ 
+.FIN
+.ALB
+If a macro invocation statement is labeled, the label is given the
+value of the current location counter.  Since the macro expander
+works by substituting the text of the arguments in place of the
+dummies, care must be taken that the expanded text within the macro
+does not exceed 256 characters per line.  Up to 94 macros may be
+defined by the user.  All macros must be defined before any is
+invoked, and they may be nested up to 9 levels.  Macros may be
+recursive.  Macros may not contain INCL statements.
+ 
+.UNL +4
+o   Change options:
+ 
+.FIF
+.ALL
+            OPTS option[,option]...
+ 
+.FIN
+.ALB
+No label is allowed.  The options listed are merged into the current
+options (see below for a listing of options).  Some options must
+have been turned on at program invocation time, such as XR and OU;
+these may be turned off and back on in the program.  However, they
+may not be turned on if the program was invoked without them.  See
+below for details.
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* OPTIONS INTERFACE USAGE
+ASMZ80 - CP-6 Interface
+------   ---- ---------
+ 
+.FIN
+.ALB
+.UNL -4
+ASMZ80 is set up to run on CP-6 as a standard processor.  ASMZ80 may be
+invoked by the IBEX command
+ 
+.FIF
+.ALL
+    !ASMZ80.Z source [{ON|OVER|INTO} [object][,listing]] [(options)]
+ 
+.FIN
+.ALB
+UI files are not allowed as of this writing.  Available options are
+ 
+.INL +4
+.UNL +4
+o   [N]LS - List source program via "listing" DCB (F$106).  LS is the
+default.  NLS/LS may be specified by an OPTS command any time.
+ 
+.UNL +4
+o   [N]OU - Produce an object program via "object" DCB (F$107).  OU is
+the default.  OU must be specified at invocation time, but may
+be turned off and on.
+ 
+.UNL +4
+o   [N]XR[EF] - Produce a cross-reference of all symbols on the
+listing DCB (F$106).  NXR is the default.  XR must be specified
+at invocation time, but may be turned off and on.
+ 
+.UNL +4
+o   AB[S] or RE[L] - Produce an absolute (ABS) or relocatable (REL)
+object unit.  ABS is the default.  Either may appear on an
+OPTS command, but caution is advised.
+ 
+.UNL +4
+o   SR[CH](.acct[,.acct]...) - Specifies accounts to search for files
+specified on INCL commands.  The running account is always
+searched first.  Up to eight accounts may be specified, to be
+searched in the order given.  If specified on an OPTS command,
+the accounts will entirely replace any previous entries.
+ 
+.UNL +4
+o   Cn - Specifies the target machine's clock speed in megahertz.  "n"
+may range from 1 (1 megahertz) to 4 (4 megahertz), for use in
+timing computations.  If omitted, a one megahertz clock is
+assumed.  This option instructs the assembler to print timing
+information at the right margin of the listing; this is done
+only if the listing device width is 81 columns or greater.
+Cn may be changed via OPTS any time.  See CLOCK below.
+ 
+.UNL +4
+o   CL[OCK]=real - Specifies the clock frequency as a real number of
+megahertz.  This form may be used in place of the Cn option
+above if the clock is not an integral multiple of megahertz.
+Only two fractional digits are retained, though more may be
+specified.  CLOCK may be changed via OPTS any time.
+ 
+.UNL +4
+o   HE[X] or OC[TAL] - Specifies the format to be used to display
+addresses and generated code or data on the listing.  If HEX
+is specified, addresses appear as four hex digits followed by
+up to sixteen hex digits of generated code.  If OCTAL is
+specified, addresses appear as six hex digits followed by up
+to twelve octal digits of generated code.  HEX is the default.
+HEX or OCTAL may be changed via OPTS any time.  See AO below.
+ 
+.UNL +4
+o   [N]AO - Specifies that the assembler address field on the listing
+is to be expressed in split octal format.  AO is only effective
+if OCTAL has been specified.  NAO specifies normal octal format
+for the address field and is the default when OCTAL is specified.
+AO may be changed via OPTS any time.
+ 
+.UNL +4
+o   Px - Specifies the parity to be applied to generated text values.
+"x" may be one of the following:
+ 
+.FIF
+.ALL
+        0 or S or N - No parity (parity bit is zero).
+        1 or E - Even parity.
+        2 or O - Odd parity.
+        3 or M - Mark parity (parity bit is one).
+ 
+.FIN
+.ALB
+Parity is applied to all text and character constants.
+Px may be changed via OPTS any time.
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* ERRORS LISTING_FORMAT
+Listing Format
+------- ------
+ 
+.FIN
+.ALB
+.UNL -4
+Unless NLS is specified as one of the options, a listing of the source
+program statements and the generated code is produced on the listing
+device (F$106) in the following format:
+ 
+.FIF
+.ALL
+eeeellll xxxxxxxxxxxxxxxxt nnnnfsssssssssssssssssss...sssss cccccccc
+ 
+.FIN
+.ALB
+.INL +8
+.UNL +4
+eeee - Contains error flags, up to 4 per statement.  Errors are
+indicated by a single letter:
+ 
+.INL +4
+.UNL +4
+A - Argument error.  One or more of the arguments is not valid
+(wrong type, wrong format for this instruction, etc.).
+ 
+.UNL +4
+D - Doubly-defined symbol.
+ 
+.UNL +4
+L - Label error.  A label is required, but missing, or one was
+supplied when not allowed, or the label is malformed.
+ 
+.UNL +4
+M - Macro nesting error (depth is limited to 9).
+ 
+.UNL +4
+O - Opcode error.  Unknown, missing, or malformed.
+ 
+.UNL +4
+P - Pass synchronization error; a label does not have the same
+value on pass 2 as it did on pass 1.  This is probably due
+to macro expansions or IFs that use forward references.
+ 
+.UNL +4
+R - Relocation error; an argument field cannot be relocated.
+ 
+.UNL +4
+S - Syntactical error, usually in an argument expression.
+ 
+.UNL +4
+T - Truncation.  An expression exceeds the size of the allowed
+field or a branch reference is out of range.
+ 
+.UNL +4
+U - Undefined symbol.
+ 
+.UNL +4
+X - External symbol counter overflow.  A maximum of 126
+EXT/REF symbols may be defined.
+ 
+.INL -4
+.UNL +4
+llll - Contains the location counter, in hexadecimal (or octal).
+ 
+.UNL +4
+xxx... - Contains the generated code (if any), up to 8 bytes per
+line.  If more than 8 bytes are generated by this statement,
+successive lines are used.  In OCTAL mode, only 4 bytes are
+printed per line.
+ 
+.UNL +4
+t - Contains an X if the value is external to the program or an R
+if the address field is relocatable.  Otherwise, it is blank.
+ 
+.UNL +4
+nnnn - Contains the sequential line number of the source input
+statement.  Numbering is restarted at 1 for each INCL file.
+ 
+.UNL +4
+f - Contains a blank if the input statement came from the user's
+source file, a plus sign (+) if the statement is part of an
+expanded macro statement, an asterisk (*) if the statement is
+being skipped, and a hyphen (-) if the statement comes from an
+INCL file.
+ 
+.UNL +4
+sss... - Contains the source statement.  If the output device platen
+width is 72 or less, only 39 characters are printed and the
+"ccc" field is omitted; if it is 73-80, 47 characters are
+printed and the "ccc" field is omitted; if it is 81 or greater,
+76 characters are printed along with the "ccc" field.
+ 
+.UNL +4
+ccc... - If the output device width is sufficiently large, timing
+information is printed in columns 110-132.  Times are printed
+in microseconds.  If the instruction has variable timings
+(such as branch instructions), the choices are separated by
+slashes (e.g., 1.0/1.5/2.0).
+ 
+.INL 0
+.UNL -4
+Each listing page is headed by the time and date of the run and the
+user-supplied title, if any.
+ 
+.UNL -4
+The online user may hit the BREAK key to determine the status of an
+assembly.  ASMZ80 will respond with the total number of errors so far
+in this pass, the pass number (0, 1, or 2), the line number which was
+last processed, and whether the line came from the user's input file,
+an INCL file, or from a macro expansion.  If ASMZ80 does not respond,
+it is formatting the cross-reference.
+.BRP
+.FIF
+.ALC
+.*K* OBJECT_UNIT_FORMAT
+Object Unit Format
+------ ---- ------
+ 
+.FIN
+.ALB
+.UNL -4
+Object unit records
+have the basic format of
+ 
+.FIF
+.ALL
+    :aabbbbcc[dd]...ee[<CR>][<LF>]
+ 
+.FIN
+.ALB
+.UNL -4
+Each record begins with a colon (:) as a resync character.  Pairs
+of characters follow, in "printable hex"; that is, the internal
+hexadecimal representation of the byte is converted to two printable
+characters, 0-9 and A-F, in the host's character set.  Up to 78
+characters (representing 39 bytes) may follow the colon character;
+each record may be followed by carriage return (CR), line feed (LF),
+or both, dependent on the host.  Each record is divided into five
+fields, indicated above.  Record types may be written to the file in
+any order and may be intermixed.
+ 
+.INL +8
+.UNL +4
+aa - is the count of the number of dd bytes (not characters) in
+the record, 0 to 34 (00 to 22 hex).
+ 
+.UNL +4
+bbbb - is normally used as an address field, MSB first (reverse of
+normal Z80 address format).
+ 
+.UNL +4
+cc - contains the record type or command (see below).
+ 
+.UNL +4
+dd[dd]... - are data bytes, depending on the
+record type.
+ 
+.UNL +4
+ee - is a checksum, defined as the arithmetic inverse of the sum of
+all the bytes in the record, modulo 256.  To verify the
+checksum, sum the hexadecimal (internal) values of all the
+fields, aa through dd, then add to the checksum, ee.  The
+result should be zero, modulo 256.
+ 
+.INL 0
+The record types are defined as follows:
+ 
+.INL +8
+.UNL +4
+cc = 00 or 10 - Load data
+ 
+The dd data bytes are to be loaded, starting at bbbb for aa
+bytes.  If cc=10, these data are in a relocatable section.
+ 
+.UNL +4
+cc = 01 - Define entry
+ 
+bbbb defines the entry point for the program.  aa is zero,
+and there are no dd bytes.
+ 
+.UNL +4
+cc = 02 or 12 - Advance to boundary
+ 
+bbbb is the "old" value of the location counter which is to be
+advanced to a multiple of dddd.  The linker may use the two values
+to determine the value to be added to the current location counter
+to advance to the new boundary.  All 00, 03, 04, 05, 10, and 15
+data generated prior to the BOUND command have already been written
+to the OU file.  cc=12 specifies a relocatable section.
+ 
+.UNL +4
+cc = 03 - Relocate long
+ 
+bbbb is not used.  aa must be a multiple of three.  The dd
+field is divided into 3-byte commands:
+ 
+.UNL -4
+    mmmmxx
+ 
+mmmm defines the left-most (LSB in normal Z80 addressing)
+byte of a 2-byte address which must be relocated.  xx defines
+the relocation base (0-127) and whether the base is to be
+added (+0) or subtracted (+128) from (mmmm).  Relocation base
+zero is page zero; relocation base 1 is non-page zero memory.
+Relocation bases 2-127 are externally-referenced symbols, which
+will be defined by external reference definition records (see
+below).
+ 
+.UNL +4
+cc = 04 - Relocate short
+ 
+These records are formatted exactly as 03-type records, except
+that the mmmm fields address single-byte address fields.
+ 
+.UNL +4
+cc = 05 or 15 - Reserve memory
+ 
+aa contains 02.  dddd bytes of memory are to be reserved for
+non-initialized data beginning at bbbb.  dddd is expressed as
+an unsigned integer, MSB first.  cc=15 specifies relocatability.
+ 
+.UNL +4
+cc = 80 - Define symbol
+ 
+aa contains 09.  Eight dd bytes are the host's internal
+representation of a symbol, expressed in hexadecimal.  The 9th
+byte is the assembler's flag byte:  16=relocatable symbol,
+8=EXT/REF, 4=ENT/DEF, 2=SET, 1=defined symbol.  bbbb is
+the unrelocated value of the symbol, as defined on the last
+assembler pass.  Type 80 records are only present if schema was
+requested at assembly time.
+ 
+.UNL +4
+cc = 81 - Entry or symbol definition
+ 
+This record is formatted exactly the same as the type 80 record.
+One type 81 record will be written for every ENT or DEF symbol
+defined in the program.
+ 
+.UNL +4
+cc = 82 - External reference
+ 
+aa and dd are formatted exactly the same as the type 80 record.
+bbbb contains (right-justified) the relocation base number that
+was assigned by the assembler, range 2-127 (0002 to 007F hex).
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* ZILOG_MNEMONICS
+TDL to ZILOG Mnemonic Conversion Table
+--- -- ----- -------- ---------- -----
+.SPB 1
+.ALL
+TDL Mnemonic   ZILOG Mnemonic      TDL Mnemonic   ZILOG Mnemonic
+------------   --------------      ------------   --------------
+MOV r,r'       LD r,r'             LDDR           LDDR
+MOV r,M        LD r,(HL)           CCI            CPI
+MOV r,d(ii)    LD r,(Iii+d)        CCIR           CPIR
+MOV M,r        LD (HL),r           CCD            CPD
+MOV d(ii),r    LD (Iii+d),r        CCDR           CPDR
+MVI r,n        LD r,n
+MVI M,n        LD (HL),n           ADD r          ADD A,r
+MVI d(ii),n    LD (Iii+d),n        ADD M          ADD A,(HL)
+LDA nn         LD A,(nn)           ADD d(ii)      ADD A,(Iii+d)
+STA nn         LD (nn),A           ADI n          ADD A,n
+LDAX zz        LD A,(zz)           ADC s          ADC A,s
+STAX zz        LD (zz),A           ACI n          ADC A,n
+LDAI           LD A,I              SUB s          SUB s
+LDAR           LD A,R              SUI            SUB n
+STAI           LD I,A              SBB s          SBC A,s
+STAR           LD R,A              SBI n          SBC A,n
+                                   ANA s          AND s
+LXI rr,nn      LD rr,nn            ANI n          AND n
+LXI ii,nn      LD ii,nn            ORA s          OR s
+LBCD nn        LD BC,(nn)          ORI n          OR n
+LDED nn        LD DE,(nn)          XRA s          XOR s
+LHLD nn        LD HL,(nn)          XRI n          XOR n
+LIXD nn        LD IX,(nn)          CMP s          CP s
+LIYD nn        LD IY,(nn)          CPI n          CP n
+LSPD nn        LD SP,(nn)          INR r          INC r
+SBCD nn        LD (nn),BC          INR M          INC (HL)
+SDED nn        LD (nn),DE          INR d(ii)      INC (Iii+d)
+SHLD nn        LD (nn),HL          DCR r          DEC r
+SIXD nn        LD (nn),IX          DCR M          DEC (HL)
+SIYD nn        LD (nn),IY          DCR d(ii)      DEC (Iii+d)
+SSPD nn        LD (nn),SP
+SPHL           LD SP,HL            DAA            DAA
+SPIX           LD SP,IX            CMA            CPL
+SPIY           LD SP,IY            NEG            NEG
+PUSH qq        PUSH qq             CMC            CCF
+PUSH ii        PUSH ii             STC            SCF
+POP qq         POP qq              NOP            NOP
+POP ii         POP ii              HLT            HALT
+                                   DI             DI
+XCHG           EX DE,HL            EI             EI
+EXAF           EX AF,AF'           IM0            IM 0
+EXX            EXX                 IM1            IM 1
+XTHL           EX (SP),HL          IM2            IM 2
+XTIX           EX (SP),IX
+XTIY           EX (SP),IY          DAD rr         ADD HL,rr
+LDI            LDI                 DADC           ADC HL,rr
+LDIR           LDIR                DSBC rr        SBC HL,rr
+LDD            LDD                 DADX tt        ADD IX,tt
+TDL Mnemonic   ZILOG Mnemonic      TDL Mnemonic   ZILOG Mnemonic
+------------   --------------      ------------   --------------
+DADY uu        ADD IY,uu           JRNC nn        JR NC,e
+INX rr         INC rr              DJNZ nn        DJNZ e
+INX ii         INC ii              PCHL           JP (HL)
+DCX rr         DEC rr              PCIX           JP (IX)
+DCX ii         DEC ii              PCIY           JP (IY)
+ 
+RLC            RLCA                CALL nn        CALL nn
+RAL            RLA                 CZ nn          CALL Z,nn
+RRC            RRCA                CNZ nn         CALL NZ,nn
+RAR            RRA                 CC nn          CALL C,nn
+RLCR r         RLC r               CNC nn         CALL NC,nn
+RLCR M         RLC (HL)            CPO nn         CALL PO,nn
+RLCR d(ii)     RLC (Iii+d)         CPE nn         CALL PE,nn
+RALR s         RL s                CP nn          CALL P,nn
+RRCR s         RRC s               CM nn          CALL M,nn
+RARR s         RR s                CO nn          CALL PE,nn
+SLAR s         SLA s               CNO nn         CALL PO,nn
+SRAR s         SRA s               RET            RET
+SRLR s         SRL s               RZ             RET Z
+RLD            RLD                 RNZ            RET NZ
+RRD            RRD                 RC             RET C
+                                   RNC            RET NC
+BIT b,r        BIT B,r             RPO            RET PO
+BIT b,M        BIT b,(HL)          RPE            RET PE
+BIT b,d(ii)    BIT b,(Iii+d)       RP             RET P
+SET b,r        SET b,r             RM             RET M
+SET b,M        SET b,(HL)          RO             RET PE
+SET b,d(ii)    SET b,(Iii+d)       RNO            RET PO
+RES b,s        RES b,s             RETI           RETI
+                                   RETN           RETN
+JMP nn         JP nn               RST n          RST n
+JZ nn          JP Z,nn
+JNZ nn         JP NZ,nn            IN n           IN A,(n)
+JC nn          JP C,nn             INP r          IN r,(C)
+JNC nn         JP NC,nn            INI            INI
+JPO nn         JP PO,nn            INIR           INIR
+JPE nn         JP PE,nn            IND            IND
+JP nn          JP P,nn             INDR           INDR
+JM nn          JP M,nn             OUT n          OUT (n),A
+JO nn          JP PE,nn            OUTP r         OUT (C),r
+JNO nn         JP PO,nn            OUTI           OUTI
+JMPR nn        JR e                OUTIR          OTIR
+JRZ nn         JR Z,e              OUTD           OUTD
+JRNZ nn        JR NZ,e             OUTDR          OTDR
+JRC nn         JR C,e
+.BRP
+.INL 0
+.ALC
+.*K* KNOWN_PROBLEMS
+Known Problems
+----- --------
+.SPB 2
+.FIN
+.ALB
+The following known problem exists in the current version:
+.SPB 1
+The relocatable code option has not been thoroughly tested, and there
+are instances when reloaction information is not written out when it
+should be.  Since there is no linker for the assembler, users are
+advised to refrain from using the REL option.
+.BRP
+.INL 0
+.FIF
+.ALC
+.*K* INDEX
+Index
+-----
+ 
+.ALL
+.PDC 33,4,33,0
+=, 13
+.SPB 1
+ADDR, 12
+Argument formats, 6
+Arguments, 2
+Assembler directives, 12
+Assembler extensions, 11
+.SPB 1
+Binary constants, 3
+BOUND, 13
+BREAK key, 21
+BSS, 13
+BYTE, 12
+.SPB 1
+Changing options, 17
+Character constants, 3
+Comments, 2
+Constants, 3
+CP-6 interface, 18
+.SPB 1
+DATA, 12
+Decimal constants, 3
+DEF, 13
+DEFB, 12
+DEFM, 12
+DEFS, 13
+DEFW, 12
+.SPB 1
+EJECT, 14
+ELSE, 15
+END, 14
+ENT, 13
+EQU, 13
+Error codes, 20
+Expressions, 3
+EXT, 14
+EXTL, 14
+EXTS, 14
+.SPB 1
+Features, 2
+FI, 15
+.SPB 1
+GOTO, 16
+.SPB 1
+Hexadecimal constants, 3
+.SPB 1
+IF, 15
+INCL, 15
+Include files, 15
+.SPB 1
+Labels, 2
+LIST, 16
+Listing format, 20
+Location counter, 5
+.SPB 1
+MAC, 17
+Machine instructions, 7
+Macro definition, 17
+MEND, 17
+Mnemonic Conversion, 24
+.SPB 1
+NAME, 14
+NLIST, 16
+.SPB 1
+Object unit format, 22
+Octal constants, 3
+Opcodes, 2
+Operators, 4
+Options, 18
+OPTS, 17
+ORG, 13
+.SPB 1
+Packed decimal constants, 3
+PAGE, 14
+.SPB 1
+REF, 14
+REFL, 14
+REFS, 14
+.SPB 1
+SET, 13
+SKIP, 15
+SPACE, 15
+Split octal constants, 3
+.SPB 1
+TDL-ZILOG Mnemonic Conversion, 24
+TEXT, 12
+Text constants, 4
+TITLE, 14
+.SPB 1
+WORD, 12
+.SPB 1
+ZILOG-TDL Mnemonic Conversion, 24

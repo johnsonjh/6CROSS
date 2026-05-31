@@ -1,0 +1,214 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+MSA8748: PROC MAIN NOAUTO;
+%INCLUDE CP_6;
+%LIST;
+%INCLUDE MSA_C1;
+%EJECT;
+/**/
+/*  This table is indexed by the first byte of the instruction.               */
+/*  The table contains the mnemonic for the instruction.                      */
+/*  TWO uses are made of this table:                                          */
+/*     o MSA_C4 uses the beginning part of mnemonics in the DUMP command      */
+/*     o THIS module uses as much of the mnemonic as possible.                */
+/**/
+DCL TABLE0(0:255) CONSTANT         CHAR(10) INIT(
+  'NOP       ','...       ','OUTL BUS,A','ADD A,c   ', /* 00-03 */
+  'JMP a     ','EN I      ','...       ','DEC A     ', /* 04-07 */
+  'INS A,BUS ','IN A,P1   ','IN A,P2   ','...       ', /* 08-0B */
+  'MOVD A,P4 ','MOVD A,P5 ','MOVD A,P6 ','MOV A,P7  ', /* 0C-0F */
+  'INC M0    ','INC M1    ','JB0 s     ','ADDC A,c  ', /* 10-13 */
+  'CALL a    ','DIS I     ','JTF s     ','INC A     ', /* 14-17 */
+  'INC R0    ','INC R1    ','INC R2    ','INC R3    ', /* 18-1B */
+  'INC R4    ','INC R5    ','INC R6    ','INC R7    ', /* 1C-1F */
+  'XCH A,M0  ','XCH A,M1  ','...       ','MOV A,c   ', /* 20-23 */
+  'JMP a     ','EN TCNTI  ','JNT0 s    ','CLR A     ', /* 24-27 */
+  'XCHG A,R0 ','XCHG A,R1 ','XCHG A,R2 ','XCHG A,R3 ', /* 28-2B */
+  'XCHG A,R4 ','XCHG A,R5 ','XCHG A,R6 ','XCHG A,R7 ', /* 2C-2F */
+  'XCHD A,M0 ','XCHD A,M1 ','JB1 s     ','...       ', /* 30-33 */
+  'CALL a    ','DIS TCNTI ','JT0 s     ','CPL A     ', /* 34-37 */
+  '...       ','OUTL P1,A ','OUTL P2,A ','...       ', /* 38-3B */
+  'MOVD P0,A ','MOVD P1,A ','MOVD P2,A ','MOVD P3,A ', /* 3C-3F */
+  'ORL A,M0  ','ORL A,M1  ','MOV A,T   ','ORL A,c   ', /* 40-43 */
+  'JMP a     ','STRT CNT  ','JNT1 s    ','SWAP A    ', /* 44-47 */
+  'ORL A,R0  ','ORL A,R1  ','ORL A,R2  ','ORL A,R3  ', /* 48-4B */
+  'ORL A,R4  ','ORL A,R5  ','ORL A,R6  ','ORL A,R7  ', /* 4C-4F */
+  'ANL A,M0  ','ANL A,M1  ','JB2 s     ','ANL A,c   ', /* 50-53 */
+  'CALL a    ','STRT T    ','JT1 s     ','DA A      ', /* 54-57 */
+  'ANL A,R0  ','ANL A,R1  ','ANL A,R2  ','ANL A,R3  ', /* 58-5B */
+  'ANL A,R4  ','ANL A,R5  ','ANL A,R6  ','ANL A,R7  ', /* 5C-5F */
+  'ADD A,M0  ','ADD A,M1  ','MOV T,A   ','...       ', /* 60-63 */
+  'JMP a     ','STOP TCNT ','...       ','RRC A     ', /* 64-67 */
+  'ADD A,R0  ','ADD A,R1  ','ADD A,R2  ','ADD A,R3  ', /* 68-6B */
+  'ADD A,R4  ','ADD A,R5  ','ADD A,R6  ','ADD A,R7  ', /* 6C-6F */
+  'ADDC A,M0 ','ADDC A,M1 ','JB3 s     ','...       ', /* 70-73 */
+  'CALL a    ','ENTO CLK  ','JF1 s     ','RR A      ', /* 74-77 */
+  'ADDC A,R0 ','ADDC A,R1 ','ADDC A,R2 ','ADDC A,R3 ', /* 78-7B */
+  'ADDC A,R4 ','ADDC A,R5 ','ADDC A,R6 ','ADDC A,R7 ', /* 7C-7F */
+  'MOVX A,M0 ','MOVX A,M1 ','...       ','RET       ', /* 80-83 */
+  'JMP a     ','CLR F0    ','JNI s     ','...       ', /* 84-87 */
+  'ORL BUS,c ','ORL P1,c  ','ORL P2,c  ','...       ', /* 88-8B */
+  'ORLD P0,A ','ORLD P1,A ','ORLD P2,A ','ORLD P3,A ', /* 8C-8F */
+  'MOVX M0,A ','MOVX M1,A ','JB4 s     ','RETR      ', /* 90-93 */
+  'CALL a    ','CPL F0    ','JNZ s     ','CLR C     ', /* 94-97 */
+  'ANL BUS,c ','ANL P1,c  ','ANL P2,c  ','...       ', /* 98-9B */
+  'ANLD P0,A ','ANLD P1,A ','ANLD P2,A ','ANLD P3,A ', /* 9C-9F */
+  'MOV M0,A  ','MOV M1,A  ','...       ','MOVR A,M  ', /* A0-A3 */
+  'JMP a     ','CLR F1    ','...       ','CPL C     ', /* A4-A7 */
+  'MOV R0,A  ','MOV R1,A  ','MOV R2,A  ','MOV R3,A  ', /* A8-AB */
+  'MOV R4,A  ','MOV R5,A  ','MOV R6,A  ','MOV R7,A  ', /* AC-AF */
+  'MOV M0,c  ','MOV M1,c  ','JB5 s     ','JMPP @A   ', /* B0-B3 */
+  'CALL a    ','CPL F1    ','JF0 s     ','...       ', /* B4-B7 */
+  'MOV R0,c  ','MOV R1,c  ','MOV R2,c  ','MOV R3,c  ', /* B8-BB */
+  'MOV R4,c  ','MOV R5,c  ','MOV R6,c  ','MOV R7,c  ', /* BC-BF */
+  '...       ','...       ','...       ','...       ', /* C0-C3 */
+  'JMP a     ','SEL RB0   ','JZ s      ','MOV A,PSW ', /* C4-C7 */
+  'DEC R0    ','DEC R1    ','DEC R2    ','DEC R3    ', /* C8-CB */
+  'DEC R4    ','DEC R5    ','DEC R6    ','DEC R7    ', /* CC-CF */
+  'XRL A,M0  ','XRL A,M1  ','JB6 s     ','XRL A,c   ', /* D0-D3 */
+  'CALL a    ','SEL RB1   ','...       ','MOV PSW,A ', /* D4-D7 */
+  'XRL A,R0  ','XRL A,R1  ','XRL A,R2  ','XRL A,R3  ', /* D8-DB */
+  'XRL A,R4  ','XRL A,R5  ','XRL A,R6  ','XRL A,R7  ', /* DC-DF */
+  '...       ','...       ','...       ','MOVP3 A,M ', /* E0-E3 */
+  'JMP a     ','SEL MB0   ','JNC s     ','RL A      ', /* E4-E7 */
+  'DJNZ R0,s ','DJNZ R1,s ','DJNZ R2,s ','DJNZ R3,s ', /* E8-EB */
+  'DJNZ R4,s ','DJNZ R5,s ','DJNZ R6,s ','DJNZ R7,s ', /* EC-EF */
+  'MOV A,M0  ','MOV A,M1  ','JB7 s     ','...       ', /* F0-F3 */
+  'CALL a    ','SEL MB1   ','JC s      ','RLC A     ', /* F4-F7 */
+  'MOV A,R0  ','MOV A,R1  ','MOV A,R2  ','MOV A,R3  ', /* F8-FB */
+  'MOV A,R4  ','MOV A,R5  ','MOV A,R6  ','MOV A,R7  ');/* FC-FF */
+%EJECT;
+/**/
+/*  This table is indexed by the first byte of the instruction.               */
+/*  Each entry = TYPE*8 + LEN                                                 */
+/*  Where:  TYPE is the code number for the memory access performed           */
+/*               by this instruction.                                         */
+/*          LEN is the length of the instruction on bytes.                    */
+/**/
+DCL TABLE1(0:255) CONSTANT UNAL    SBIN BYTE INIT(
+             1,           0,           1,           2, /* 00-03 */
+     %(20*8+2),           1,           0,           1, /* 04-07 */
+             1,           1,           1,           0, /* 08-0B */
+             1,           1,           1,           1, /* 0C-0F */
+             1,           1,   %(19*8+2),           2, /* 10-13 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* 14-17 */
+             1,           1,           1,           1, /* 18-1B */
+             1,           1,           1,           1, /* 1C-1F */
+             1,           1,           0,           2, /* 20-23 */
+     %(20*8+2),           1,   %(19*8+2),           1, /* 24-27 */
+             1,           1,           1,           1, /* 28-2B */
+             1,           1,           1,           1, /* 2C-2F */
+             1,           1,   %(19*8+2),           0, /* 30-33 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* 34-37 */
+             0,           1,           1,           0, /* 38-3B */
+             1,           1,           1,           1, /* 3C-3F */
+             1,           1,           1,           2, /* 40-43 */
+     %(20*8+2),           1,   %(19*8+2),           1, /* 44-47 */
+             1,           1,           1,           1, /* 48-4B */
+             1,           1,           1,           1, /* 4C-4F */
+             1,           1,   %(19*8+2),           2, /* 50-53 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* 54-57 */
+             1,           1,           1,           1, /* 58-5B */
+             1,           1,           1,           1, /* 5C-5F */
+             1,           1,           1,           0, /* 60-63 */
+     %(20*8+2),           1,           0,           1, /* 64-67 */
+             1,           1,           1,           1, /* 68-6B */
+             1,           1,           1,           1, /* 6C-6F */
+             1,           1,   %(19*8+2),           0, /* 70-73 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* 74-77 */
+             1,           1,           1,           1, /* 78-7B */
+             1,           1,           1,           1, /* 7C-7F */
+             1,           1,           0,   %(08*8+1), /* 80-83 */
+     %(20*8+2),           1,   %(19*8+2),           0, /* 84-87 */
+             2,           2,           2,           0, /* 88-8B */
+             1,           1,           1,           1, /* 8C-8F */
+             1,           1,   %(19*8+2),   %(08*8+1), /* 90-93 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* 94-97 */
+             2,           2,           2,           0, /* 98-9B */
+             1,           1,           1,           1, /* 9C-9F */
+             1,           1,           0,           1, /* A0-A3 */
+     %(20*8+2),           1,           0,           1, /* A4-A7 */
+             1,           1,           1,           1, /* A8-AB */
+             1,           1,           1,           1, /* AC-AF */
+             2,           2,   %(19*8+2),   %(08*8+1), /* B0-B3 */
+     %(17*8+2),           1,   %(19*8+2),           0, /* B4-B7 */
+             2,           2,           2,           2, /* B8-BB */
+             2,           2,           2,           2, /* BC-BF */
+             0,           0,           0,           0, /* C0-C3 */
+     %(20*8+2),           1,   %(19*8+2),           1, /* C4-C7 */
+             1,           1,           1,           1, /* C8-CB */
+             1,           1,           1,           1, /* CC-CF */
+             1,           1,   %(19*8+2),           2, /* D0-D3 */
+     %(17*8+2),           1,           0,           1, /* D4-D7 */
+             1,           1,           1,           1, /* D8-DB */
+             1,           1,           1,           1, /* DC-DF */
+             0,           0,           0,           1, /* E0-E3 */
+     %(20*8+2),           1,   %(19*8+2),           1, /* E4-E7 */
+     %(19*8+2),   %(19*8+2),   %(19*8+2),   %(19*8+2), /* E8-EB */
+     %(19*8+2),   %(19*8+2),   %(19*8+2),   %(19*8+2), /* EC-EF */
+             1,           1,   %(19*8+2),           0, /* F0-F3 */
+     %(17*8+2),           1,   %(19*8+2),           1, /* F4-F7 */
+             1,           1,           1,           1, /* F8-FB */
+             1,           1,           1,           1);/* FC-FF */
+%EJECT;
+DCL STRT SBIN WORD;
+ 
+%EQU JSR='C';
+%EQU JMP='J';
+%EQU BY1=1;
+%EQU BY2=256;
+ 
+%EJECT;
+%INCLUDE MSA_C2;
+    MEBUF='Hello, MSA8748 here (10/20/83)';
+%INCLUDE MSA_C3;
+%INCLUDE MSA_C4;
+        SUBSTR(OUBUF,9,10)=TABLE0(I);
+%EJECT;
+/**/
+/*  Process 3/8 address field.                                                */
+/**/
+        CALL INDEX(STRT,'a',TABLE0(I)) ALTRET(AD3_8FINIS);
+        CALL GET3_8(ADRS,LOCTR);
+        CALL CVS(9+STRT,ADRS);
+        LOCTR = LOCTR +1;
+AD3_8FINIS: ;
+/**/
+/*  Process same-page address.                                                */
+/**/
+        CALL INDEX(STRT,'s',TABLE0(I)) ALTRET(ADSP_FINIS);
+        CALL GETSP(ADRS,LOCTR+1);
+        CALL CVS(9+STRT,ADRS);
+        LOCTR = LOCTR +1;
+ADSP_FINIS: ;
+/**/
+/*  Process one-byte constant (immediate).                                    */
+/**/
+        CALL INDEX(STRT,'c',TABLE0(I)) ALTRET(CONST_FINIS);
+        ADRS = PINCRC(MEM$,(LOCTR+1)*2)->CELL.VALUE;
+        CALL CVX(9+STRT,ADRS);
+        LOCTR = LOCTR +1;
+CONST_FINIS: ;
+%EJECT;
+%INCLUDE MSA_C5;
+END;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+BREAK: PROC ASYNC;
+ 
+%INCLUDE CP_6;
+%FPT_TRMPRG(RSTBRK=YES);
+ 
+    DCL BROKEN STATIC SYMDEF           SBIN;
+ 
+    BROKEN=BROKEN+1;
+    CALL M$TRMPRG(FPT_TRMPRG);
+    RETURN;
+END;

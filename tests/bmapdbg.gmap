@@ -1,0 +1,12 @@
+* phase-6 part-4: debug schema (enabled with -g).  Code-section labels become
+* EXST statement entries (with their statement line in LINENUM); the absolute
+* EQU symbol KON, a non-code symbol, becomes a VREBL variable entry.  One LOGBLK
+* descriptor frames both (STSIZE = #EXST, VASIZE = #VREBL); the names go in the
+* DBGNAM record and each EXST/VREBL entry points at its name.
+       OUNAME DBGTEST
+KON    EQU   5
+START  LDA   DAT
+       ADA   KON
+LOOP   TRA   LOOP
+DAT    OCT   7
+       END   START

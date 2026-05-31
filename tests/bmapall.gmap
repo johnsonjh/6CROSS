@@ -1,0 +1,16 @@
+* BMAP phase-9 integration test: macros + literals + EQU + relocation together,
+* exercising feature interactions the per-feature fixtures isolate.
+*   - DBL is a macro whose body uses its #1 argument (an EQU'd absolute symbol);
+*   - =5 is used inside the code twice (LDQ, ADQ) -> ONE deduped LITERALS word;
+*   - STA START references a code label -> a section-0 relocation.
+       OUNAME PROG9
+DBL    MACRO
+       LDA    #1
+       ADA    #1
+       ENDM
+TWO    EQU    2
+START  DBL    TWO
+       LDQ    =5
+       ADQ    =5
+       STA    START
+       END

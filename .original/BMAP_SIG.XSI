@@ -1,0 +1,321 @@
+*M* BMAP_SIG - BMAP Subroutines for BMAP
+*T***********************************************************
+*T*                                                         *
+*T* Copyright (c) Bull HN Information Systems Inc., 1989    *
+*T*                                                         *
+*T***********************************************************
+*
+* DEFINE REGISTERS
+*
+DEFREGS MACRO  REGNAME,REGNUMS
+       IDRP    #2
+#1#2   EQU     #2
+       IDRP
+       ENDM    DEFREGS
+*
+@AUTO  EQU     2                       AUTO PTR
+       DEFREGS P,(0,1,3,4,5,6,7)       ALL BUT AUTO PTR
+       DEFREGS X,(0,1,2,3,4,5,6)
+*
+*
+*
+ADJUST MACRO   EXPONENT,MULTIPLIER,ADJUSTMENT
+#4     CMPX0   #1,DU
+       IFG     #1,0
+       TMI     #5
+       IFL     #1,0
+       TPNZ    #5
+       IFE     '#3','=0'
+       DFMP    #2,X2
+       INE     '#3','=0',4
+       DFSTR   DTEMP
+       DFLD    #2,X2
+       ORQ     #3,DL
+       DFMP    DTEMP
+       IFG     #1,0
+       TEO     ERR2
+       IFL     #1,0
+       TEU     ERR3
+       SBLX0   #1,DU
+       TRA     #4
+#5     NULL
+       ENDM    ADJUST
+       CRSM    ON
+*
+       USE     ANSYM_DATA,0            STATIC DATA
+RET    BSS     8                       RETURN ADDRESS AND PARAMETER POINTERS
+DTEMP  EQU     RET                     TEMPORARY FOR SCALE
+*
+       USE     ANSYM_CONST,6           CONSTANT DATA
+ASCII6 ASCII   16, !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+       EVEN
+1E13   OCT     130443023471,240000000000,026443023471,240000000000
+1E4    OCT     034470400000,000000000000,010116100000,000000000000
+1E1    OCT     010500000000,000000000000,002500000000,000000000000
+BN10.0 EQU     1E1
+HX10.0 EQU     1E1+2
+1E_1   OCT     772631463146,314631463146,000063146314,631463146314
+1E_4   OCT     746643334272,616103131226,772321556135,307041454513
+1E_13  OCT     652702270232,044566403412,754070227023,204456640341
+HEXFP  OCT  400000000000
+       TTL     ANSYM - Analyze Symbol to Character String
+*
+* ANSYM: PROC (SYM,SL,S,L);
+*      DCL SYM(0:4) SBIN;              Symbol in ASCII6
+*      DCL SL SBIN;                    Length (words) of SYM
+*      DCL S CHAR(30);                 Character string (output)
+*      DCL L SBIN;                     Length (chars) of S (output)
+*
+       USE     ANSYM,1
+       ENTDEF  ANSYM
+ANSYM  LDP1    1,,P0
+       LDQ     0,,P1
+       MPY     6,DL                    6*SL
+       LDP1    2,,P0                   -> S
+       LDP3    3,,P0                   -> L
+       LDP0    0,,P0                   -> SYM
+       MVT     (1,1),(1,1),0           MOVE AND TRANSLATE SYM TO S
+       ADSC6   0,0,Q,P0
+       ADSC9   0,0,Q,P1
+       ARG     ASCII6
+       TRTN    1,IC
+       SCM     (1,1),(,,,DU),0         SCAN S FOR 1ST BLANK
+       ADSC9   0,0,Q,P1
+       ARG     =1A ,N
+       ARG     0,,P3                   RETURN INDEX IN L
+       TRA     1,X1
+       TTL     BITINSERT - Bit String Insert
+*
+* BITINSERT: PROC (DEST,DESTFB,DESTNB,SOURCE,SOURCEFB,SOURCENB) ALTRET(TRUNCATION);
+*
+* DCL DEST BIT(DESTFB+DESTNB);         Destination bit string
+* DCL DESTFB UBIN;
+* DCL DESTNB UBIN;
+* DCL SOURCE BIT(SOURCEFB+SOURCENB);   Source bit string
+* DCL SOURCEFB UBIN;
+* DCL SOURCENB UBIN;
+*
+       USE     ANSYM
+       ENTDEF  BITINSERT
+BITINSERT NULL
+       LDP1    1,,P0
+       LXL     X0,0,,P1                DESTFB
+       LDP1    2,,P0
+       LXL     X4,0,,P1                DESTNB
+       LDP1    3,,P0                   -> SOURCE
+       LDP3    4,,P0
+       LXL     X2,0,,P3                SOURCEFB
+       LDP3    5,,P0
+       LDP0    0,,P0                   -> DEST
+       LXL     X3,0,,P3                SOURCENB
+       CSL     (1,1,,X2),(1,1,,X0),03,0
+       BDSC    0,X3,0,0,P1
+       BDSC    0,X4,0,0,P0
+       TRTN    2,IC
+       TRA     1,X1
+       LDX0    1,DU
+       TRA     0,X1
+       TTL     CONVERTSTEP - 1 step of F.P. decimal-to-binary conversion
+*
+* CONVERTSTEP: PROC (V,D);
+*      DCL V BIT(72) DALIGNED;         Current DPFP value
+*      DCL D SBIN;                     Current digit
+*
+       USE     ANSYM
+       ENTDEF  CONVERTSTEP
+CONVERTSTEP LDP1 0,,P0
+       LDP3    1,,P0
+       LDA     0,,P3                   Fetch digit
+       SZN     HEXFP
+       TMI     CONVHX
+       LDI     =O4000,DL
+       LDE     =35B25,DU
+       LDQ     =0,DL
+       FNO
+       FST     2,,@AUTO                Save digit
+       FLD     BN10.0                  10*
+       TRA     CONV1
+*
+CONVHX NULL
+       LDI     =O4010,DL
+       ALS     31                      Align to first hex digit of FP accumulator
+       LDE     =1B25,DU                Set FP exponent to 1
+       FST     2,,@AUTO                Save digit
+       FLD     HX10.0                  10*
+CONV1  NULL
+       DFMP    0,,P1                   old value
+       FAD     2,,@AUTO                +digit
+       DFST    0,,P1                   =new value
+       TRA     1,X1                    Return
+       TTL     FIX - Fix F.P. number
+*
+* FIX: PROC (V,SC);
+*      DCL V BIT(72) DALIGNED;         DPFP number to fix, fixed-point number
+*      DCL SC SBIN;                    Binary scale factor
+*
+       USE     ANSYM
+       ENTDEF  FIX
+FIX    LDP1    0,,P0
+       LDP3    1,,P0                   2 PARAMS: P1->V, P3->SC
+       LDA     0,,P1                   Isolate exponent of FP value
+       ARS     28
+       SZN     HEXFP
+       TPL     2,IC
+       ALS     2                       Hex exponent * 4 = binary exponent
+       SBA     0,,P3                   Binary exponent - scale factor
+       EAX0    0,AL                    to X0
+       NEG                             - (exponent - scale factor)
+       EAX2    0,AL                    to X2
+       DFLD    0,,P1                   Fetch FP value
+       CMPX0   0,DU                    Exponent - scale factor is:
+       TMI     3,IC
+       LLS     0,X0                    Positive: shift left
+       TRA     2,IC
+       LRS     0,X2                    Negative: shift right
+       STAQ    0,,P1                   Save scaled fixed-point value
+       TRA     1,X1                    Return
+       TTL     MRL - Move Character String Right to Left
+*
+* MRL:    PROC (DEST,DESTFC,DESTNC,SOURCE,SOURCEFC,SOURCENC) ALTRET(TRUNCATION);
+*
+* DCL DEST CHAR(DESTFC+DESTNC);        Destination character string
+* DCL DESTFC UBIN;
+* DCL DESTNC UBIN;
+* DCL SOURCE CHAR(SOURCEFC+SOURCENC);  Source character string
+* DCL SOURCEFC UBIN;
+* DCL SOURCENC UBIN;
+*
+       USE     ANSYM
+       ENTDEF  MRL
+MRL    NULL
+       LDP1    1,,P0
+       LXL     X0,0,,P1                DESTFC
+       LDP1    2,,P0
+       LXL     X4,0,,P1                DESTNC
+       LDP1    3,,P0                   -> SOURCE
+       LDP3    4,,P0
+       LXL     X2,0,,P3                SOURCEFC
+       LDP3    5,,P0
+       LDP0    0,,P0                   -> DEST
+       LXL     X3,0,,P3                SOURCENC
+       MRL     (1,1,,X2),(1,1,,X0),40,0
+       ADSC9   0,0,X3,P1
+       ADSC9   0,0,X4,P0
+       TRTN    2,IC
+       TRA     1,X1
+       LDX0    1,DU
+       TRA     0,X1
+       TTL     NEG - Negate DPFP number
+*
+* NEG: PROC (V);
+*      DCL V BIT(72) DALIGNED;         DPFP value
+*
+       USE     ANSYM
+       ENTDEF  NEG
+NEG    LDP1    0,,P0                   1 PARAM: P1->V
+       LDI     =O4010,DL
+       SZN     HEXFP
+       TMI     2,IC
+       LDI     =O4000,DL
+       DFLD    0,,P1                   Fetch value
+       FNEG                            Negate it
+       DFST    0,,P1                   Save result
+       TRA     1,X1                    Return
+       TTL     SCALE - Apply decimal scale to F.P. number
+*
+* SCALE: PROC (V,SC);
+*      DCL V BIT(72) DALIGNED;         DPFP value
+*      DCL SC SBIN;                    Decimal scale factor
+*
+       USE     ANSYM
+       ENTDEF  SCALE
+SCALE  LDP1    0,,P0
+       LDP3    1,,P0                   2 PARAMS: P1->V, P3->SC
+       LDA     HEXFP
+       ARL     34
+       ANA     2,DL
+       EAX2    0,AL                    X2=2 IF HEX, 0 IF BIN
+       TZE     3,IC
+       LDI     =O4010,DL
+       TRA     2,IC
+       LDI     =O4000,DL
+       TOV     1,IC                    CLEAR OVERFLOW INDICATOR
+       DFLD    0,,P1                   FETCH V
+       LXL0    0,,P3                   Fetch scale factor; is it zero?
+       TZE     1,X1                    Yes: return
+       TPL     GREATER                 No: is it positive?
+       ADJUST  -13,1E_13,=0            NO: PROCESS NEGATIVE SCALE FACTORS
+       ADJUST  -4,1E_4,=0
+       CMPX2   0,DU
+       TNZ     SCALEHEX
+       ADJUST  -1,1E_1,=O146           BINARY FINE TUNING
+       TRA     DONE
+*
+SCALEHEX NULL
+       ADJUST  -1,1E_1,=O314           HEX FINE TUNING
+       TRA     DONE
+*
+GREATER NULL                           SCALE FACTOR > 0
+       ADJUST  13,1E13,=0
+       ADJUST  4,1E4,=0
+       ADJUST  1,1E1,=0
+DONE   NULL
+       DFSTR   0,,P1                   Save scaled value
+       TRA     1,X1                    Return
+*
+ERR2   NULL                            EXPONENT OVERFLOW
+       TMI     ERR2N
+       FLD     =O376777777777          MAX + VALUE
+       TRA     DONE
+*
+ERR2N  NULL
+       FLD     =O377000,DU             MAX - VALUE
+       TRA     DONE
+*
+ERR3   NULL                            EXPONENT UNDERFLOW
+       FLD     =O400000,DU             0.0
+       TRA     DONE
+       TTL     XLATEV - Translate to either 6- or 9-bit destination
+*
+* XLATEV: PROC (NB,DEST,DESTFC,DESTNC,TABLE,SOURCE,SOURCENC) ALTRET(TRUNCATION);
+*      DCL NB UBIN;                    #bits in destination characters
+*      DCL DEST CHAR(DESTFC+DESTNC) ALIGNED;     destination word location
+*      DCL DESTFC UBIN;                character offset from DEST
+*      DCL DESTNC UBIN;                # destination characters
+*      DCL TABLE CHAR(512) ALIGNED;    translation table
+*      DCL SOURCE CHAR(SOURCENC);      source character string
+*      DCL SOURCENC UBIN;              # source characters
+*
+       USE     ANSYM
+       ENTDEF  XLATEV
+XLATEV NULL
+       LDP1    2,,P0
+       LXL     X0,0,,P1                DESTFC
+       LDP1    3,,P0
+       LXL     X4,0,,P1                DESTNC
+       LDP1    4,,P0                   -> TABLE
+       LDP3    5,,P0                   -> SOURCE
+       LDP4    6,,P0
+       LXL     X2,0,,P4                SOURCENC
+       LDP4    0,,P0
+       LDP0    1,,P0                   -> DEST
+       LDQ     0,,P4                   NB
+       CMPQ    6,DL
+       TZE     MVT6
+       MVT     (1,1),(1,1,,X0),=O40
+       ADSC9   0,0,X2,P3
+       ADSC9   0,0,X4,P0
+       ARG     0,,P1
+EXIT   NULL
+       TRTN    2,IC
+       TRA     1,X1
+       LDX0    1,DU
+       TRA     0,X1
+*
+MVT6   NULL
+       MVT     (1,1),(1,1,,X0),=O40
+       ADSC9   0,0,X2,P3
+       ADSC6   0,0,X4,P0
+       ARG     0,,P1
+       TRA     EXIT
+       END                             BMAP_SIG

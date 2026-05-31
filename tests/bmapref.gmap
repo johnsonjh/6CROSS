@@ -1,0 +1,14 @@
+* phase-6 part-3c/finish: external references.  ENTREF/SYMREF/SEGREF declare
+* SUBR/DATA/SEG as external entry/symbol/segment references -- their names go in
+* the RNAM record and they get 0-based EREF/SREF/SEGREF entries.  Using one in an
+* address field emits a RELOC naming the entry (OPNDTYP OPEREREF=2 / OPERSREF=3 /
+* OPERSEGREF=6, OPERAND = the entry number); TRA START stays a section relocation.
+       OUNAME REFTEST
+       ENTREF SUBR
+       SYMREF DATA
+       SEGREF SEG
+START  LDA   DATA
+       ADA   SUBR
+       STA   SEG
+       TRA   START
+       END   START

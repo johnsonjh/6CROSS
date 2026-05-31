@@ -1,0 +1,11 @@
+* BMAP phase-8 cross-reference (run with the XR option): the listing gains a
+* statement-number column, and a cross-reference table lists each symbol's
+* value, definition line (marked *), and the lines that reference it.
+       OUNAME XREFT
+KON    EQU    5
+START  LDA    KON
+       ADA    KON
+       STA    START
+LOOP   LDQ    LOOP
+       TRA    START
+       END

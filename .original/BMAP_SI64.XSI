@@ -1,0 +1,525 @@
+/*M* BMAP_LINKOP - Build Op-code table for BMAP */
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+/*X* AIC,DMR,PLM=7,IND=4,DCI=4,THI=2,DTI=4 */
+/**/
+BMAP_LINKOP: PROC MAIN;
+%INCLUDE CP_6_C;
+%CP6$ENTS;
+/*
+/* BMAP COMMON DATA
+*/
+%EQU LSPOOL=3000;                       /* Upper limit of SPOOL resident */
+%EQU F='0'B;
+%EQU T='1'B;
+/*
+/* MACRO TO CONVERT CHARACTER STRING TO SYMBOL
+*/
+%MACRO CONSYM(#FC=CURRCH,#L=NEXTCH-CURRCH,#SYM=#SYM);
+       DO; #SYM(0)=(#L+5)/6;IF #SYM(0)>5 THEN #SYM(0)=5;
+           CALL XLATEV(6,#SYM(1),0,6*#SYM(0),ASCII,SUBSTR(XCARDS,#FC),#L);END;
+%MEND;
+DCL 1 ASCII(0:511) UBIN(9) UNAL CONSTANT INIT( /* TABLES FOR CONVERTING ASCII TO 6-BIT ASCII */
+      0*32,
+      0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+      16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+      32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+      48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,
+      32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+      48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,0,
+      0*384);
+DCL CURRCH SBIN STATIC;            /* Index in XCARD of 1st char of field */
+DCL IOP SBIN STATIC;                    /* Index in SPOOL to current op-code */
+DCL NEXTCH SBIN STATIC;                 /* Index in XCARD to next delimiter */
+DCL 1 OP BASED(OP$) ALIGNED,            /* Op-code packet */
+      2 LINKS(0:1) UBIN(18) UNAL,       /* Tree links */
+      2 LINK REDEF LINKS,
+        3 L UBIN(18) UNAL,              /* Index in SPOOL to left subtree */
+        3 R UBIN(18) UNAL,              /* Index in SPOOL to right subtree */
+      2 BAL SBIN(3) UNAL,               /* balance value */
+      2 LEN UBIN(3) UNAL,               /* Length(words) of SYM */
+      2 VAL UBIN(18) UNAL,              /* value */
+      2 MASK UBIN(2) UNAL,    /* Modifier field code (1=octal, 2=symbolic) */
+      2 AR BIT(1),                      /* AR field required */
+      2 RPL BIT(1),                     /* RPL instruction */
+      2 PRFS UBIN(2) UNAL, /* Print flags (2=print octal,1=print location if location field) */
+      2 TYPE UBIN(6) UNAL,              /* op-code type: */
+      2 SYM(0:0) SBIN;                  /* Mnemonic op-code */
+DCL OP$ PTR STATIC;                     /* -> current op-code entry */
+DCL OPROOT SBIN STATIC INIT(0);    /* Index in SPOOL to root of op-code table */
+DCL SPOOLB(0:%LSPOOL) BIT(36) STATIC ALIGNED INIT('0'B, /* index in SPOOL to lowest allocated dynamic word */
+'000000000002'O,'545164456241'O,'546300000000'O); /* LITERALS */
+%EQU BSPOOL=4;      /* Index in SPOOL to beginning of permanent op-code table */
+DCL SPOOL(0:%LSPOOL) REDEF SPOOLB UBIN;
+DCL SPOOLSZ SBIN STATIC INIT(%(LSPOOL+1)); /* Size of SPOOL (words) */
+DCL SYMTOP SBIN STATIC;       /* Index in SPOOL to last word allocated +1 */
+DCL SYMX SBIN STATIC;         /* Index in SPOOL to current symbol table entry */
+DCL XCARD(0:139) CHAR(1) STATIC;        /* current card image being processed */
+DCL XCARDS REDEF XCARD CHAR(140) ALIGNED;
+DCL XCARDL SBIN STATIC;                 /* Length(chars) of XCARD */
+/*
+/* END BMAP COMMON
+*/
+DCL M$SI DCB;
+DCL M$UI DCB;
+DCL M$OU DCB;
+DCL M$EO DCB;
+/**/
+DCL ANSYM ENTRY (4);
+DCL BITINSERT ENTRY (6) ALTRET;
+DCL XLATEV ENTRY (7) ALTRET;
+%F$DCB;
+%FPT_CLOSE(DISP=SAVE);
+%FPT_OPEN(FPTN=SIOPEN,ACS=SEQUEN);
+%FPT_OPEN(FPTN=OUOPEN,FUN=CREATE,DISP=NAMED,ORG=KEYED,ACS=SEQUEN,TYPE='S6');
+%FPT_READ(BUF=XCARDS,KEY=RKEY,KEYR=YES);
+%FPT_WRITE(BP=NO,BUF=XCARDS,KEY=WKEY,ONEWKEY=NO,NEWKEY=YES);
+DCL ALF(0:511) UBIN(9) CONSTANT UNAL INIT(0*32,
+       0*3,1*3,0,2,0,3,0*5,4,1*10,0*6,
+       1*27,0*4,1,
+       0,1*26,0*5,
+       0*384);
+DCL BQS(0:511) UBIN(9) CONSTANT UNAL INIT(0*32,1,0*6,2,0*7,3,0*464);
+DCL COMMENT SBIN;
+DCL FLAGS BIT(36);
+DCL I SBIN;
+DCL INITL SBIN;
+DCL J SBIN;
+DCL MACCT SBIN;
+%EQU NSOPS=11;
+DCL NAME(0:%(NSOPS-1)) CHAR(5) CONSTANT INIT('END','ENDM','ETC','IDRP',
+       'MARK','NONOP','REM','SET','SETB','TTL','TTLS');
+DCL NONALF(0:511) UBIN(9) CONSTANT UNAL INIT(1*32,
+       1*3,0*3,1*10,0*10,1*6,
+       0*27,1*4,0,
+       1,0*26,1*5,
+       1*384);
+DCL NONBLK(0:511) UBIN(9) UNAL CONSTANT INIT(0*33,1*94,0*385);
+DCL NONZERO(0:511) UBIN(9) CONSTANT UNAL INIT(1*48,0,1*463);
+DCL OPSYM(0:1) UBIN;
+DCL OPTYPE SBIN;
+DCL OPVAL SBIN;
+DCL QUOTE BIT(1);
+DCL RKEY SBIN STATIC;
+DCL SNAME CHAR(12);
+DCL SVAL SBIN;
+DCL TEMP SBIN;
+DCL VAL(0:%(NSOPS-1)) SBIN STATIC INIT(0*0);
+DCL WKEY SBIN STATIC;
+/**/
+       SIOPEN.V.DCB#=DCBNUM(M$UI);
+       CALL M$OPEN(SIOPEN);
+       FPT_READ.V.DCB#=DCBNUM(M$UI);
+       SYMTOP=%BSPOOL;
+NEXTOP:DO;
+           CALL M$READ(FPT_READ) ALTRET(ENDOPS);
+           CURRCH=0; NEXTCH=6;
+           %CONSYM(#SYM=OPSYM);
+           CURRCH=8; CALL CONVERT(8,OPVAL);
+           CURRCH=16; CALL CONVERT(2,FLAGS);
+           CURRCH=24+BITBIN(XCARD(24)=' ');
+           CALL CHARBIN(OPTYPE,SUBSTR(XCARDS,CURRCH,26-CURRCH));
+           CALL TREESRCH(OPROOT,OPSYM(1),OPSYM(0),IOP);
+           IF IOP>=0 THEN CALL M$XXX;
+           OP$=ADDR(SPOOL(-IOP));
+           OP.VAL=OPVAL;
+           CALL BITINSERT(OP.VAL,SIZEB(OP.VAL),6,FLAGS,30,6);
+           OP.TYPE=OPTYPE;
+           DO I=0 TO %(NSOPS-1);
+               IF SUBSTR(XCARDS,0,6)=NAME(I) THEN DO;
+                       VAL(I)=-IOP;
+                       GOTO NEXTOP;
+                      END;
+              END/* DO I */;
+           GOTO NEXTOP;
+          END NEXTOP;
+ENDOPS:
+       FPT_CLOSE.V.DCB#=DCBNUM(M$UI);
+       CALL M$CLOSE(FPT_CLOSE);
+       SIOPEN.V.DCB#=DCBNUM(M$SI);
+       CALL M$OPEN(SIOPEN);
+       FPT_READ.V.DCB#=DCBNUM(M$SI);
+       OUOPEN.V.DCB#=DCBNUM(M$OU);
+       CALL M$OPEN(OUOPEN);
+       OUOPEN.V.DCB#=DCBNUM(M$EO);
+       CALL M$OPEN(OUOPEN);
+       COMMENT=0;
+       INITL=0;
+       MACCT=0;
+       QUOTE=%F;
+       RKEY=BITBIN('003000000000'O);
+       WKEY=RKEY;
+NEXTSI:DO;
+           RKEY=RKEY+1000;
+           CALL M$READ(FPT_READ) ALTRET(ENDSI);
+           XCARDL=DCBADDR(DCBNUM(M$SI))->F$DCB.ARS#;
+           IF WKEY<RKEY THEN WKEY=RKEY;
+           NEXTCH=0;
+SCAN:      DO;
+               CALL INDEX1(CURRCH,'{',SUBSTR(XCARDS,0,XCARDL),NEXTCH) ALTRET(WROU);
+               CALL INDEX1(NEXTCH,'}',SUBSTR(XCARDS,0,XCARDL),CURRCH) ALTRET(WROU);
+               IF NEXTCH=CURRCH+1 THEN GOTO WROU;
+               SNAME=SUBSTR(XCARDS,CURRCH+1,NEXTCH-CURRCH-1);
+               DO I=0 TO %(NSOPS-1);
+                   IF SNAME=NAME(I) THEN DO;
+                           SVAL=VAL(I);
+                           GOTO FOUND;
+                          END;
+                  END/* DO I */;
+               IF SNAME='OPROOT' THEN SVAL=OPROOT;
+                 ELSE IF SNAME='SPOOL' THEN SVAL=SYMTOP-1;
+                     ELSE IF SNAME='OPS' THEN DO;
+                               XCARDS=
+                                 '       ''000000000000''O,''000000000000''O,''000000000000''O, /* nnnn xxxxxx */';
+                               FPT_WRITE.BUF_.BOUND=72;
+                               FPT_WRITE.V.DCB#=DCBNUM(M$OU);
+                               DO I=%BSPOOL TO SYMTOP-1 BY SIZEW(OP);
+                                   DO J=0 TO SIZEW(OP)-1;
+                                       CALL OCTAL(SPOOL(I+J),XCARD(8+16*J),12);
+                                      END;
+                                   CALL DECIMAL(I,XCARD(59),4);
+                                   CALL ANSYM(SPOOL(I+SIZEW(OP)-1),1,XCARD(64),J);
+                                   IF I+SIZEW(OP)>=SYMTOP THEN CALL INSERT(XCARDS,54,1,' ');
+                                   CALL M$WRITE(FPT_WRITE);
+                                   WKEY=WKEY+1;
+                                  END/* DO I */;
+                               XCARDS='       );';
+                               XCARDL=9;
+                               GOTO WROU;
+                              END/* IF SNAME='OPS' */;
+                         ELSE GOTO SCAN;
+FOUND:
+               CALL BINCHAR(SUBSTR(XCARDS,CURRCH,4),SVAL);
+               CALL SEARCH(I,J,NONZERO,SUBSTR(XCARDS,0,CURRCH+4),CURRCH) ALTRET(ZERO);
+               DO WHILE (%F);
+ZERO:
+                   I=CURRCH+3;
+                  END;
+               CALL INSERT(XCARDS,CURRCH,4,SUBSTR(XCARDS,I,4));
+               CURRCH=CURRCH+(CURRCH+4-I);
+               I=NEXTCH+1;
+SBLK:          DO;
+                   CALL SEARCH(I,J,BQS,SUBSTR(XCARDS,0,XCARDL),I) ALTRET(BLKFND);
+                   DO CASE(J);
+                    CASE(1);            /* BLANK */
+                       GOTO BLKFND;
+                    CASE(2);            /* QUOTE */
+                       CALL INDEX1(I,'''',SUBSTR(XCARDS,0,XCARDL),I+1) ALTRET(BLKFND);
+                       I=I+1;
+                    CASE(3);            /* SLASH */
+                       IF SUBSTR(XCARDS,I,2)='/*' THEN DO;
+                               CALL INDEX2(I,'*/',SUBSTR(XCARDS,0,XCARDL),I+2) ALTRET(BLKFND);
+                               I=I+2;
+                              END;
+                    END/* CASE J */;
+                   GOTO SBLK;
+                  END SBLK;
+BLKFND:
+               CALL INSERT(XCARDS,CURRCH,I-CURRCH,SUBSTR(XCARDS,NEXTCH+1,I-NEXTCH-1));
+               TEMP=NEXTCH+1-CURRCH;
+               IF I>=XCARDL THEN XCARDL=XCARDL-TEMP;
+               NEXTCH=NEXTCH-TEMP;
+               GOTO SCAN;
+              END SCAN;
+WROU:
+           IF SUBSTR(XCARDS,0,1)='[' THEN DO;
+                   XCARDS=SUBSTR(XCARDS,1);
+                   XCARDL=XCARDL-1;
+                  END;
+             ELSE DO;
+                   FPT_WRITE.BUF_.BOUND=XCARDL-1;
+                   FPT_WRITE.V.DCB#=DCBNUM(M$OU);
+                   CALL M$WRITE(FPT_WRITE);
+                  END;
+           I=0;
+           DO WHILE(%T);
+               IF COMMENT~=0 THEN DO;
+                       CALL INDEX2(I,'*/',SUBSTR(XCARDS,0,XCARDL),I) ALTRET(ENDCARD);
+                       I=I+2;
+                       IF COMMENT<0 THEN COMMENT=0;
+                         ELSE COMMENT=COMMENT-2;
+                       CALL INSERT(XCARDS,COMMENT,,SUBSTR(XCARDS,I));
+                       XCARDL=XCARDL+COMMENT-I;
+                       I=COMMENT;
+                       COMMENT=0;
+                      END;
+               CALL SEARCH(I,J,ALF,SUBSTR(XCARDS,0,XCARDL),I) ALTRET(ENDCARD);
+               DO CASE (J);
+                CASE(1);                /* ALPHABETIC */
+                   CALL SEARCH(J,TEMP,NONALF,SUBSTR(XCARDS,0,XCARDL),I);
+                   IF INITL=0 THEN DO;
+                           SNAME=SUBSTR(XCARDS,I,J-I);
+                           IF SNAME='STATIC' OR SNAME='CONSTANT' THEN DO;
+                                   CALL INSERT(XCARDS,I,XCARDL-I,SUBSTR(XCARDS,J,XCARDL-J));
+                                   XCARDL=XCARDL-J+I;
+                                   J=I;
+                                  END;
+                             ELSE IF SNAME='SYMDEF' THEN CALL INSERT(XCARDS,I,J-I,'SYMREF');
+                                 ELSE IF SNAME='INIT' AND SUBSTR(XCARDS,J,1)='(' THEN
+                                       INITL=I+1;
+                                     ELSE IF SNAME='%MAC' OR SNAME='%MACRO' THEN MACCT=MACCT+1;
+                                         ELSE IF SNAME='%MEND' THEN MACCT=MACCT-1;
+                                             ELSE IF MACCT=0 AND (SNAME='PROC'
+                                                 OR SNAME='END')
+                                                 OR SNAME='%INCLUDE' OR SNAME='%EJECT'
+                                                 OR SNAME='%LIST' OR SNAME='%PLIST'
+                                                 OR SNAME='%NLIST'
+                                                 THEN GOTO NOWREO;
+                          END/* IF INITL */;
+                   I=J;
+                CASE(2);                /* ' */
+                   CALL INDEX1(I,'''',SUBSTR(XCARDS,0,XCARDL),I+1);
+                   I=I+1;
+                CASE(3);                /* ) */
+                   I=I+1;
+                   IF INITL~=0 THEN DO;
+                           IF INITL<0 THEN INITL=0;
+                             ELSE INITL=INITL-1;
+                           CALL INSERT(XCARDS,INITL,,SUBSTR(XCARDS,I));
+                           XCARDL=XCARDL+INITL-I;
+                           I=INITL;
+                           INITL=0;
+                          END;
+                CASE(4);                /* / */
+                   IF SUBSTR(XCARDS,I,2)='/*' THEN DO;
+                           I=I+2;
+                           COMMENT=I;
+                          END;
+                     ELSE I=I+1;
+                END/* CASE J */;
+              END/* DO WHILE %T */;
+ENDCARD:
+           IF COMMENT>0 THEN XCARDL=COMMENT-2;
+           IF INITL>0 THEN XCARDL=INITL-1;
+           CALL SEARCHR(I,J,NONBLK,XCARDS,XCARDL) ALTRET(BLKCARD);
+           XCARDL=I+1;
+           IF COMMENT>=0 AND INITL>=0 AND XCARDL>0 THEN DO;
+                   FPT_WRITE.BUF_.BOUND=XCARDL-1;
+                   FPT_WRITE.V.DCB#=DCBNUM(M$EO);
+                   CALL M$WRITE(FPT_WRITE);
+                  END;
+BLKCARD:
+           IF COMMENT>0 THEN COMMENT=-1;
+           IF INITL>0 THEN INITL=-1;
+NOWREO:
+           WKEY=WKEY+1;
+           GOTO NEXTSI;
+          END NEXTSI;
+ENDSI:
+       FPT_CLOSE.V.DCB#=DCBNUM(M$SI);
+       CALL M$CLOSE(FPT_CLOSE);
+       FPT_CLOSE.V.DCB#=DCBNUM(M$OU);
+       CALL M$CLOSE(FPT_CLOSE);
+       FPT_CLOSE.V.DCB#=DCBNUM(M$EO);
+       CALL M$CLOSE(FPT_CLOSE);
+       RETURN;
+%EJECT;
+/* CONVERT DECIMAL INTEGER TO CHARACTER STRING */
+/**/
+DECIMAL: PROC (VAL,S,NC);
+DCL VAL SBIN;
+DCL S CHAR(12);
+DCL NC SBIN;
+%INCLUDE B_MICROPS_C;
+DCL 1 MVZ STATIC,
+      2 B UBIN(9) UNAL,
+      2 * BIT(9) INIT(%MVC1);
+/**/
+DCL TS CHAR(11);
+/**/
+       CALL BINCHAR(TS,VAL);
+       IF NC>1 THEN DO;
+               MVZ.B=BITBIN(%MVZB16)+NC-1;
+               CALL EDITSTR(S,,NC,MVZ,SUBSTR(TS,11-NC));
+              END;
+       RETURN;
+END DECIMAL;
+%EJECT;
+/*M*  CONVERT - Convert integer numeric string to binary */
+/**/
+CONVERT: PROC (B,V);
+DCL B SBIN;                             /* Base                               */
+DCL V SBIN;                             /* (Output) binary value              */
+/**/
+DCL BD CHAR(1);                         /* ASCII equivalent to base           */
+/**/
+       V=0;
+       BD=BINASC(ASCBIN('0')+B);
+       DO WHILE ('0'<=XCARD(CURRCH) AND XCARD(CURRCH)<BD);
+           V=V*B+ASCBIN(XCARD(CURRCH))-ASCBIN('0');
+           CURRCH=CURRCH+1;
+          END;
+       RETURN;
+END CONVERT;
+%EJECT;
+/* GET SYMBOL TABLE SPACE
+*/
+GETSYM: PROC (NW) ALTRET;
+DCL NW SBIN;
+/**/
+       SYMX=SYMTOP;
+       SYMTOP=SYMTOP+NW;
+       IF SYMTOP>SPOOLSZ THEN DO;
+               SYMTOP=SYMTOP-NW;
+               ALTRETURN;
+              END;
+       RETURN;
+END GETSYM;
+%EJECT;
+/* OUTPUT OCTAL TO LINE */
+/**/
+OCTAL: PROC (VAL,S,L);
+DCL 1 VAL ALIGNED,
+      2 O(0:11) UBIN(3) UNAL;
+DCL S(0:0) CHAR(1);
+DCL L SBIN;
+/**/
+DCL I SBIN;
+/**/
+       DO I=0 TO L-1;
+           S(I)=BINASC(ASCBIN('0')+VAL.O(12-L+I));
+          END;
+       RETURN;
+END OCTAL;
+%EJECT;
+/* TEST=SIGN(A-B) (+1,0,-1) */
+/**/
+TEST:  PROC (A,LA,B,LB,SW);
+DCL A(0:4) UBIN;                        /* 1st symbol                         */
+DCL LA UBIN;                            /* Length (words) of A                */
+DCL B(0:4) UBIN;                        /* 2nd symbol                         */
+DCL LB UBIN;                            /* Length (words) of B                */
+DCL SW SBIN;                            /* Return SIGN(A-B)                   */
+/**/
+DCL L SBIN;
+DCL I SBIN;
+/**/
+       IF LA<LB THEN L=LA; ELSE L=LB;
+       DO I=0 TO L-1;
+           IF A(I)~=B(I) THEN DO;
+                   SW=1-2*BITBIN(A(I)<B(I));
+                   RETURN;
+                  END;
+          END/* DO I */;
+       IF LA=LB THEN SW=0;
+         ELSE SW=1-2*BITBIN(LA<LB);
+       RETURN;
+END TEST;
+%EJECT;
+/* SEARCH BINARY TREE */
+/**/
+/* IF INSERT, INSERT NEW SYMBOL ON TREE */
+/**/
+/* RETURN POINTER TO SYMBOL */
+/*     + = OLD SYMBOL */
+/*     0 = SYMBOL NOT FOUND */
+/*     - = NEW SYMBOL */
+/**/
+TREESRCH: PROC (ROOT,SYMBOL,SL,SPTR);
+DCL ROOT SBIN;                          /* INDEX IN SPOOL OF ROOT OF TABLE    */
+DCL SYMBOL(0:5) UBIN;                   /* SYMBOL TO SEARCH FOR               */
+DCL SL SBIN;                            /* LENGTH(WORDS) OF SYMBOL            */
+DCL SPTR SBIN;                          /* (OUTPUT) INDEX IN SPOOL OF ENTRY:  */
+                                        /*   + = OLD ENTRY                    */
+                                        /*   - = NEW ENTRY                    */
+/**/
+DCL A SBIN;
+DCL D SBIN;
+DCL I SBIN;
+DCL J SBIN;
+DCL L SBIN;
+DCL P SBIN;
+DCL P$ PTR;
+DCL Q SBIN;
+DCL Q$ PTR;
+DCL R SBIN;
+DCL R$ PTR;
+DCL S SBIN;
+DCL S$ PTR;
+DCL T SBIN;
+DCL T$ PTR;
+/**/
+       T=0;
+       S=ROOT; P=ROOT;
+       IF P=0 THEN GOTO S50;
+S20:
+       P$=ADDR(SPOOL(P));
+       L=P$->OP.LEN;
+       CALL TEST(SYMBOL,SL,SPOOL(P+SIZEW(OP)-1),L,A);
+       IF A~=0 THEN GOTO S30;
+       SPTR=P;
+       RETURN;
+/**/
+S30:
+       Q=P$->OP.LINKS((A+1)/2);
+       IF Q=0 THEN GOTO S50;
+       Q$=ADDR(SPOOL(Q));
+       IF Q$->OP.BAL~=0 THEN DO; T=P; S=Q; END;
+       P=Q;
+       GOTO S20;
+/**/
+S50:
+       CALL GETSYM(SIZEW(OP)-1+SL) ALTRET(S95);
+       Q=SYMX;
+       SPTR=-Q;
+       DO I=1 TO SIZEW(OP)-1;
+           SPOOL(Q+I-1)=0;
+          END;
+       Q$=ADDR(SPOOL(Q));
+       Q$->OP.LEN=SL;
+       DO I=0 TO SL-1;
+           SPOOL(Q+SIZEW(OP)-1+I)=SYMBOL(I);
+          END;
+       IF P=0 THEN DO; P=Q; GOTO S90; END;
+       P$->OP.LINKS((A+1)/2)=Q;
+       S$=ADDR(SPOOL(S));
+       L=S$->OP.LEN;
+       CALL TEST(SYMBOL,SL,SPOOL(S+SIZEW(OP)-1),L,A);
+       P=S$->OP.LINKS((A+1)/2);
+       R=P;
+       DO WHILE (P~=Q);
+           P$=ADDR(SPOOL(P));
+           L=P$->OP.LEN;
+           CALL TEST(SYMBOL,SL,SPOOL(P+SIZEW(OP)-1),L,D);
+           P$->OP.BAL=D;
+           P=P$->OP.LINKS((D+1)/2);
+          END;
+       IF S$->OP.BAL=0 THEN DO; S$->OP.BAL=A; RETURN; END;
+       IF S$->OP.BAL~=A THEN DO; S$->OP.BAL=0; RETURN; END;
+       R$=ADDR(SPOOL(R));
+       IF R$->OP.BAL~=A THEN GOTO S80;
+       P=R;
+       S$->OP.LINKS((A+1)/2)=R$->OP.LINKS((1-A)/2);
+       R$->OP.LINKS((1-A)/2)=S;
+       R$->OP.BAL=0;
+       S$->OP.BAL=0;
+       GOTO S90;
+/**/
+S80:
+       P=R$->OP.LINKS((1-A)/2);
+       P$=ADDR(SPOOL(P));
+       R$->OP.LINKS((1-A)/2)=P$->OP.LINKS((A+1)/2);
+       P$->OP.LINKS((A+1)/2)=R;
+       S$->OP.LINKS((A+1)/2)=P$->OP.LINKS((1-A)/2);
+       P$->OP.LINKS((1-A)/2)=S;
+       I=0; J=0;
+       IF P$->OP.BAL=A THEN DO; I=-A; GOTO S85; END;
+       IF P$->OP.BAL~=0 THEN J=A;
+S85:
+       S$->OP.BAL=I;
+       R$->OP.BAL=J;
+       P$->OP.BAL=0;
+S90:
+       IF T=0 THEN DO; ROOT=P; RETURN; END;
+       T$=ADDR(SPOOL(T));
+       T$->OP.LINKS(BITBIN(S=T$->OP.LINK.R))=P;
+       RETURN;
+/**/
+S95:
+       SPTR=0;
+       RETURN;
+END TREESRCH;
+END BMAP_LINKOP;

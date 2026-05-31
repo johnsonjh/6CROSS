@@ -1,0 +1,17 @@
+* BMAP phase-2 scanner test fixture  (column-1 '*' = comment)
+                first 16 columns blank => this card is a comment
+       USE    .MAIN.,1
+START  LDA    X+1
+       ADA    Y,2
+       STA    Z(QU)
+       TRA    *+2
+COUNT  EQU    5
+       BSS    COUNT
+       DEC    1,2,3
+       OCT    777,0
+ARR    BLOCK  DATA,4
+       EVEN
+       VFD    18/X,18/Y
+DONE
+       DUP    2,1
+       END    START

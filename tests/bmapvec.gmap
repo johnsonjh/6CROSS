@@ -1,0 +1,7 @@
+* NSA vectors (VEC/SVEC/CVEC, type 34) + FLAGS.  VEC/CVEC are 2-word, SVEC
+* 4-word; the last VEC carries a parenthesized flag list (M,X).
+       VEC   1,2,3
+       SVEC  1,2,3
+       CVEC  1,2
+       VEC   1,2,3,(M,X)
+       END

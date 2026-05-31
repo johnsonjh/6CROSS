@@ -1,0 +1,4 @@
+       TITLE   ERRTST
+       BOGUS   1,2
+       MOVE    1,UNDEF
+       END

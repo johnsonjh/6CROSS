@@ -1,0 +1,295 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+NEXTADRS:
+        CALL NEXTONE(I);
+OUTPUT:
+        IF SUBSTR(OUBUF,9,1)~=' ' THEN DO;
+            CALL XLATE(OUBUF,ASCII,OUBUF);
+            CALL M$WRITE(WRITE_OU);
+            KEYBUF.C=KEYBUF.C+1000;
+        END;
+    END;
+    R=SYM$;
+    DO I=0 TO LASTSYM;
+        IF R->SYMBOL.TYPE<3 THEN DO;
+            CALL CONCAT(OUBUF,R->SYMBOL.NAME,' EQU      $');
+            J=R->SYMBOL.VALUE;
+            CALL PUTADRS(19,J);
+            CALL M$WRITE(WRITE_OU);
+            KEYBUF.C=KEYBUF.C+1000;
+        END;
+        R=PINCRC(R,SIZEC(SYMBOL));
+    END;
+    OUBUF='         END';
+    IF BEGIN>=0 THEN DO;
+        K=18;
+        CALL CVS(K,BEGIN);
+    END;
+    CALL M$WRITE(WRITE_OU);
+    KEYBUF.C=KEYBUF.C+1000;
+    GOTO PHASE2;
+ 
+%EJECT;
+GETADRS: PROC(R,L);
+/**/
+/*  This routine is used to fetch an address composed of two words.           */
+/*  L = address of first word                                                 */
+/*  R = returned address                                                      */
+/**/
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+ 
+    R=PINCRC(MEM$,L*2)->CELL.VALUE*%BY1+PINCRC(MEM$,MOD(L+1,65536)
+        *2)->CELL.VALUE*%BY2;
+    RETURN;
+END;
+ 
+%EJECT;
+GETSP: PROC(R,L);
+/**/
+/*  This routine is used to fetch an address that resides on the same         */
+/*  page.                                                                     */
+/*  L = address of new low portion of address                                 */
+/*  R = returned address                                                      */
+/**/
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+ 
+    R=(L/%BY2)*%BY2+PINCRC(MEM$,L*2)->CELL.VALUE;
+    RETURN;
+END;
+ 
+%EJECT;
+GET3_8: PROC(R,L);
+/**/
+/*  This routine is used to fetch an address in a funny form that is only     */
+/*  useful for the 8748.                                                      */
+/*  L = address of first portion of address                                   */
+/*  R = returned address                                                      */
+/*  BYTE L+0 = A10,A09,A08,X00,X00,X00,X00,X00                                */
+/*  BYTE L+1 = A07,A06,A05,A04,A03,A02,A01,A00                                */
+/**/
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+ 
+    R = (PINCRC(MEM$,(L+0)*2)->CELL.VALUE/32)*256
+       + PINCRC(MEM$,(L+1)*2)->CELL.VALUE;
+    RETURN;
+END;
+ 
+%EJECT;
+GETBYTE: PROC(R,L);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL W                              SBIN;
+ 
+    W=ASCBIN(SUBSTR(SIBUF,L,1));
+    IF W<ASCBIN('0') OR W>ASCBIN('F') OR
+        (W>ASCBIN('9') AND W<ASCBIN('A')) THEN DO;
+        R=-1;
+        RETURN;
+    END;
+    W=W-ASCBIN('0');
+    IF W>9 THEN
+        W=W-7;
+    R=16*W;
+    L=L+1;
+    W=ASCBIN(SUBSTR(SIBUF,L,1));
+    IF W<ASCBIN('0') OR W>ASCBIN('F') OR
+        (W>ASCBIN('9') AND W<ASCBIN('A')) THEN DO;
+        R=-1;
+        RETURN;
+    END;
+    W=W-ASCBIN('0');
+    IF W>9 THEN
+        W=W-7;
+    R=R+W;
+    L=L+1;
+    RETURN;
+END;
+ 
+%EJECT;
+PUTADRS: PROC(R,L);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL W                              SBIN;
+    DCL X                              SBIN;
+    DCL C                              SBIN;
+ 
+    W=L;
+    DO C=0 TO 3;
+        X=MOD(W,16);
+        W=W/16;
+        IF X>9 THEN
+            X=X+7;
+        SUBSTR(OUBUF,R+3-C,1)=BINASC(X+ASCBIN('0'));
+    END;
+    RETURN;
+END;
+ 
+%EJECT;
+PUTBYTE: PROC(R,L);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL W                              SBIN;
+    DCL X                              SBIN;
+ 
+    W=L;
+    X=MOD(W,16);
+    W=W/16;
+    IF X>9 THEN
+        X=X+7;
+    IF W>9 THEN
+        W=W+7;
+    CALL INSERT(OUBUF,R,2,BINASC(W+ASCBIN('0')),BINASC(X+ASCBIN('0')));
+    RETURN;
+END;
+ 
+%EJECT;
+NEXTTWO: PROC(R);
+    DCL R                              SBIN;
+ 
+    LOCTR=LOCTR+1;
+    P=PINCRC(MEM$,MOD(LOCTR,65536)*2);
+    R=P->CELL.VALUE*%BY1;
+    LOCTR=LOCTR+1;
+    P=PINCRC(MEM$,MOD(LOCTR,65536)*2);
+    R=R+P->CELL.VALUE*%BY2;
+    RETURN;
+END;
+ 
+%EJECT;
+NEXTONE: PROC(R);
+    DCL R                              SBIN;
+ 
+    LOCTR=LOCTR+1;
+    P=PINCRC(MEM$,MOD(LOCTR,65536)*2);
+    R=P->CELL.VALUE;
+    RETURN;
+END;
+ 
+%EJECT;
+MEMREF: PROC(R);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL O                              SBIN;
+ 
+    CALL NEXTTWO(L);
+    O=PINCRC(MEM$,2*L)->CELL.BNO;
+    L=L-O;
+    CALL CVS(R,L);
+    IF O>0 THEN DO;
+        CALL INSERT(OUBUF,R,2,'+',BINASC(O+ASCBIN('0')));
+        R=R+2;
+    END;
+    RETURN;
+END;
+ 
+%EJECT;
+PG0REF: PROC(R);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL O                              SBIN;
+ 
+    CALL NEXTONE(L);
+    O=PINCRC(MEM$,2*L)->CELL.BNO;
+    L=L-O;
+    CALL CVS(R,L);
+    IF O>0 THEN DO;
+        CALL INSERT(OUBUF,R,2,'+',BINASC(O+ASCBIN('0')));
+        R=R+2;
+    END;
+    RETURN;
+END;
+ 
+%EJECT;
+SDISP: PROC(R,L);
+    DCL R                              SBIN;
+    DCL L                              SBIN;
+    DCL I                              SBIN;
+    DCL J                              SBIN;
+    DCL WRK                            CHAR(4);
+ 
+    J=L;
+    IF J=0 THEN
+        RETURN;
+    IF J>127 THEN DO;
+        J=256-J;
+        SUBSTR(OUBUF,R,1)='-';
+    END;
+    ELSE
+        SUBSTR(OUBUF,R,1)='+';
+    R=R+1;
+    CALL BINCHAR(WRK,J);
+    I=0;
+    DO WHILE(SUBSTR(WRK,I,1)='0');
+        I=I+1;
+    END;
+    CALL INSERT(OUBUF,R,4-I,SUBSTR(WRK,I,4-I));
+    R=R+4-I;
+    RETURN;
+END;
+ 
+%EJECT;
+CVS: PROC(R,V);
+    DCL R                              SBIN;
+    DCL V                              SBIN;
+    DCL I                              SBIN;
+    DCL P                              PTR;
+ 
+    P=SYM$;
+    I=0;
+    DO WHILE(I<=LASTSYM AND (P->SYMBOL.VALUE<V OR P->SYMBOL.TYPE=2));
+        I=I+1;
+        P=PINCRC(P,SIZEC(SYMBOL));
+    END;
+    IF I<=LASTSYM AND P->SYMBOL.VALUE=V THEN DO;
+        CALL INSERT(OUBUF,R,8,P->SYMBOL.NAME);
+        IF R=0 THEN
+            P->SYMBOL.TYPE=3;
+        CALL INDEX1(R,' ',OUBUF,R);
+    END;
+    ELSE DO;
+        CALL INSERT(OUBUF,R,1,'L');
+        R=R+1;
+        CALL PUTADRS(R,V);
+        R=R+4;
+    END;
+    RETURN;
+END;
+ 
+%EJECT;
+CVX: PROC(R,V);
+    DCL R                              SBIN;
+    DCL V                              SBIN;
+    DCL I                              SBIN;
+    DCL P                              PTR;
+ 
+    P=SYM$;
+    I=0;
+    DO WHILE(I<=LASTSYM AND P->SYMBOL.VALUE<V AND P->SYMBOL.TYPE<2);
+        I=I+1;
+        P=PINCRC(P,SIZEC(SYMBOL));
+    END;
+    IF I<=LASTSYM AND P->SYMBOL.VALUE=V THEN DO;
+        CALL INSERT(OUBUF,R,8,P->SYMBOL.NAME);
+        CALL INDEX1(R,' ',OUBUF,R);
+    END;
+    ELSE DO;
+        CALL INSERT(OUBUF,R,1,'$');
+        R=R+1;
+        IF V>255 THEN DO;
+            CALL PUTADRS(R,V);
+            R=R+4;
+        END;
+        ELSE DO;
+            CALL PUTBYTE(R,V);
+            R=R+2;
+        END;
+    END;
+    RETURN;
+END;
+ 

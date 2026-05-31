@@ -1,0 +1,13 @@
+* phase-6 part-3b: entry/symbol definitions.
+* ENTDEF exports MAIN as an entry point (-> EDEF; first ENTDEF also names the
+* object unit, with PRI=1).  SYMDEF exports KOUNT (an absolute EQU -> SDEF
+* constant form) and BUF (a section-relative label -> SDEF address form).  The
+* names go in the DNAM record; each EDEF/SDEF entry points at its name by word
+* displacement.
+       ENTDEF MAIN
+       SYMDEF KOUNT,BUF
+KOUNT  EQU   5
+MAIN   LDA   BUF
+       TRA   MAIN
+BUF    BSS   KOUNT
+       END   MAIN

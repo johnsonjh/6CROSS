@@ -1,0 +1,8 @@
+* BMAP error handling: an invalid operation mnemonic (ZORCHQ) is flagged.  bmap
+* exits nonzero and records severity 4 in the object's HEAD record -- the object
+* is still written (the CP-6 model: the linker sees the severity).  Checked
+* behaviorally by run_tests.sh, not by a byte-for-byte fixture.
+       OUNAME ERRTST
+       ZORCHQ 1
+       LDA    0
+       END

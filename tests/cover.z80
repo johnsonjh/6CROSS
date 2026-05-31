@@ -1,0 +1,15 @@
+        ORG 100H
+COUNT   EQU 10
+        LD B,COUNT
+        LD HL,0
+LOOP    ADD HL,DE
+        DEC B
+        JR NZ,LOOP
+        LD A,(HL)
+        CP 0FFH
+        JP Z,DONE
+        XOR A
+DONE    LD (HL),A
+        DEFW 1234H
+        DEFB 0AAH
+        END

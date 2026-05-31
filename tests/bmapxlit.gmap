@@ -1,0 +1,13 @@
+* BMAP extended literals: character literals and the LITORG pool flush.
+*   =HABCDEF -> 6 BCD chars (A=021..F=026) = 212223242526
+*   =4AWXYZ  -> 4 ASCII chars W=0127 X=0130 Y=0131 Z=0132 = 127130131132
+*   =5       -> 000000000005
+*   LIT (LITORG) flushes the pool, so the =5 AFTER it is a SEPARATE word
+*   (no dedup across the flush): the LITERALS section gets 5 twice.
+       OUNAME XLIT
+       LDQ    =HABCDEF
+       STA    =4AWXYZ
+       LDA    =5
+       LIT
+       ADA    =5
+       END

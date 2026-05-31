@@ -1,0 +1,62 @@
+convert:
+  0             base 10 -> 0 = 00 type=0
+  5             base 10 -> 5 = 05 type=0
+  123           base 10 -> 123 = 0173 type=0
+  68719476735   base 10 -> 68719476735 = 0777777777777 type=0
+  7             base  8 -> 7 = 07 type=0
+  10            base  8 -> 8 = 010 type=0
+  777           base  8 -> 511 = 0777 type=0
+  777777777777  base  8 -> 68719476735 = 0777777777777 type=0
+  1.5           base 10 -> float 002600000000 type=1
+  1E3           base 10 -> float 024764000000 type=1
+  3B17          base 10 -> 393216 = 01400000 type=0
+symtab:
+  sorted:
+  AAA      v000001  DEF  opndtyp=4
+  ALPHA    v000005  DEF  opndtyp=4
+  BETA     v000012  DEF  opndtyp=4
+  DELTA    v000004  DEF  opndtyp=4
+  GAMMA    v000017  DEF  opndtyp=4
+  MIDDLE   v000007  DEF  opndtyp=4
+  lookup ALPHA -> val=5 opndtyp=4
+  lookup ZZZ   -> val=0 opndtyp=9 (undefined)
+  redefine ALPHA=5 then ALPHA=999 -> errors=1
+varscan:
+  5+3       t0 -> 8 = 0000000000010  abs
+  10-2      t0 -> 8 = 0000000000010  abs
+  5*3       t0 -> 15 = 0000000000017  abs
+  17/3      t0 -> 5 = 0000000000005  abs
+  2+3*4     t0 -> 14 = 0000000000016  abs
+  (2+3)*4   t0 -> 20 = 0000000000024  abs
+  -5        t0 -> -5 = 0777777777773  abs
+  L1        t0 -> 100 = 0000000000144  reloc(opndtyp=1 operand=0 relocop=1)
+  L1+5      t0 -> 105 = 0000000000151  reloc(opndtyp=1 operand=0 relocop=1)
+  L1+L2     t0 -> 140 = 0000000000214  reloc(opndtyp=1 operand=0 relocop=1 S[opndtyp=1 operand=0 relocop=1])
+  L1-L2     t0 -> 60 = 0000000000074  abs
+  K*4       t0 -> 32 = 0000000000040  abs
+  L1*2      t0 -> 200 = 0000000000310  reloc(opndtyp=1 operand=0 relocop=1 evalop=3 value=2)
+  L1*L2     t0 -> 4000 = 0000000007640  reloc(opndtyp=1 operand=0 relocop=1 evalop=3 value=40)  [err]
+  5+2       t1 -> 7 = 0000000000007  abs
+inst:
+  LDA   5      00/000000: 000005235000   000005  2350  00
+  ADA   KON    00/000001: 000005075000   000005  0750  00
+  STA   LOOP   00/000002: 000100755000  0000100  7550  00
+  LDA   10,1   00/000003: 000012235011   000012  2350  11
+  STQ   LOOP,QU 00/000004: 000100756002  0000100  7560  02
+  LDA   5,QU,1 00/000005: 100005235102   1  00005  2351  02
+  ADX   3,5    00/000006: 000005063000   000005  0630  00
+  NOP          00/000007: 000000011000   000000  0110  00
+  TRA   UNDEF  00/000010: 000000710000  F000000  7100  00 (fref)
+data:
+  FIVE   EQU   5 (defined)
+  MASK   BOOL  777 (defined)
+  CTR    SET   1 (defined)
+  CTR    SET   2 (defined)
+  DEC   1,2,3  -> 000000000001 000000000002 000000000003
+  OCT   777,0  -> 000000000777 000000000000
+  DEC   -7     -> 777777777771
+  ZERO  4,5    -> 000004000005
+  symbols:
+  CTR      v000002  DEF  opndtyp=0
+  FIVE     v000005  DEF  opndtyp=0
+  MASK     v000777  DEF  opndtyp=0

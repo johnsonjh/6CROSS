@@ -1,0 +1,6 @@
+* NSA descriptors (ODSC/DDSC/ODSB, type 35) + entry descriptor (EDSC16, type 36).
+       ODSC  1,2,3
+       DDSC  4,5,6
+       ODSB  7,1
+       EDSC16 1,2,3,4,5
+       END

@@ -1,0 +1,128 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+ 
+%FPT_READ(FPTN=READ_ME,
+          DCB=M$ME,
+          BUF=MEBUF);
+%FPT_WRITE(FPTN=WRITE_ME,
+           DCB=M$ME,
+           BUF=MEBUF);
+%FPT_READ(FPTN=READ_SI,
+          DCB=M$SI,
+          KEYR=YES,
+          KEY=SIKEY,
+          BUF=SIBUF);
+%FPT_OPEN(FPTN=OPEN_OU,
+          DCB=M$OU,
+          FUN=CREATE,
+          EXIST=NEWFILE,
+          ORG=KEYED);
+%FPT_WRITE(FPTN=WRITE_OU,
+           DCB=M$OU,
+           KEY=KEYBUF,
+           ONEWKEY=YES,
+           BUF=OUBUF);
+%FPT_CLOSE(FPTN=CLOSE_OU,
+           DCB=M$OU,
+           DISP=SAVE);
+%FPT_PROMPT(PROMPT=WHAT_NEXT);
+%FPT_GDS(RESULTS=VLP_VECTOR,
+         SEGSIZE=32768,
+         FREE=NO);
+%VLP_VECTOR(SEGID='6006'O);
+%FPT_GDS(FPTN=SYMTAB_GDS,
+         RESULTS=SYMTAB_VECTOR,
+         SEGSIZE=1024,
+         FREE=NO);
+%VLP_VECTOR(FPTN=SYMTAB_VECTOR,
+            SEGID='6007'O);
+%FPT_INT(UENTRY=BREAK);
+%F$DCB(DCBN=DUMMY);
+%LIST;
+ 
+    DCL M$ME                           DCB;
+    DCL M$SI                           DCB;
+    DCL M$OU                           DCB;
+    DCL BREAK                          ENTRY ASYNC;
+ 
+    DCL SIBUF STATIC                   CHAR(524);
+    DCL OUBUF STATIC                   CHAR(80);
+    DCL MEBUF STATIC                   CHAR(80);
+    DCL WHAT_NEXT CONSTANT             CHAR(9) INIT('What now?');
+    DCL DWORK                          CHAR(8);
+    DCL IR                             CHAR(2);
+ 
+    DCL I                              SBIN;
+    DCL J                              SBIN;
+    DCL K                              SBIN;
+    DCL ARS                            SBIN;
+    DCL LOCTR                          SBIN;
+    DCL ADRS                           SBIN;
+    DCL HOW                            SBIN;
+    DCL LEN                            SBIN;
+    DCL TYPE                           SBIN;
+    DCL TOTBYTES                       SBIN;
+    DCL LASTORG                        SBIN;
+    DCL BEGIN                          SBIN;
+    DCL LASTSYM                        SBIN;
+    DCL LIMIT                          SBIN;
+    DCL BROKEN SYMREF                  SBIN;
+ 
+    DCL MEM$                           PTR;
+    DCL SYM$                           PTR;
+    DCL P                              PTR;
+    DCL Q                              PTR;
+    DCL R                              PTR;
+ 
+    DCL 1 CELL BASED UNAL,
+          2 VALUE UNAL                 UBIN BYTE,
+          2 SOME UNAL                  BIT(1),
+          2 RD UNAL                    BIT(1),
+          2 WR UNAL                    BIT(1),
+          2 JMP UNAL                   BIT(1),
+          2 JSR UNAL                   BIT(1),
+          2 EXEC UNAL                  BIT(1),
+          2 VISIT UNAL                 BIT(1),
+          2 BNO UNAL                   UBIN(2);
+ 
+    DCL 1 SYMBOL BASED HALIGNED,
+          2 NAME HALIGNED              CHAR(8),
+          2 TYPE UNAL                  UBIN(2),
+          2 VALUE UNAL                 UBIN(16);
+ 
+    DCL 1 HOLD,
+          2 NAME HALIGNED              CHAR(8),
+          2 TYPE UNAL                  UBIN(2),
+          2 VALUE UNAL                 UBIN(16);
+ 
+    DCL 1 SIKEY STATIC,
+          2 * UNAL                     BIT(9),
+          2 C UNAL                     UBIN(27);
+ 
+    DCL 1 KEYBUF STATIC,
+          2 * UNAL                     UBIN BYTE INIT(3),
+          2 C UNAL                     UBIN(27) INIT(1000);
+ 
+%EJECT;
+    DCL ASCII(0:255) CONSTANT UNAL     CHAR(1) INIT(
+        '.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.',
+        '.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.',
+        ' ','!','"','#','$','%','&','''','(',')','*','+',',','-','.','/',
+        '0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?',
+        '@','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
+        'P','Q','R','S','T','U','V','W','X','Y','Z','[','\',']','^','_',
+        '`','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+        'p','q','r','s','t','u','v','w','x','y','z','{','|','}','~','.',
+        '.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.',
+        '.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.',
+        ' ','!','"','#','$','%','&','''','(',')','*','+',',','-','.','/',
+        '0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?',
+        '@','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
+        'P','Q','R','S','T','U','V','W','X','Y','Z','[','\',']','^','_',
+        '`','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
+        'p','q','r','s','t','u','v','w','x','y','z','{','|','}','~','.');
+ 
+%EJECT;

@@ -1,0 +1,20 @@
+* BMAP phase-5 octal-listing test (instructions + data, 2-pass)
+START  LDA    FIVE
+       ADA    DATA
+LOOP   STA    LOOP
+       TRA    START
+FIVE   EQU    5
+       ORG    100
+DATA   OCT    777,0
+       DEC    1,2,3
+       ZERO   4,5
+TABLE  BSS    1
+       EVEN
+       NOP
+MSG    ASCII  2,HELLO
+       BCI    1,ABCDEF
+       EBCDIC 1,AB
+       VFD    18/5,18/7
+       VFD    6/1,6/2,O12/77,12/9
+       RPT    3,1,TZE
+       END    START

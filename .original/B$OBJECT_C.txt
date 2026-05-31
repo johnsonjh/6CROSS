@@ -1,0 +1,3525 @@
+
+
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         1    
+    1      /*M* B$OBJECT_C Macros for CP-6 Object Language */
+    2      /*T***********************************************************/
+    3      /*T*                                                         */
+    4      /*T* Copyright (c) Bull HN Information Systems Inc., 1997    */
+    5      /*T*                                                         */
+    6      /*T***********************************************************/
+    7      /*X* DMR,PLM=5,IND=5,CSU=3,EXM=0,ECU=3,MOC,DCI=5,CRT=5 */
+    8      /*P* NAME:  B$OBJECT_C
+    9           PURPOSE:  Object Language Specifications
+   10           DESCRIPTION:
+   11           An object unit is a keyed file, whose file name was supplied to
+   12           the language processor by the user.  The keys of the object unit
+   13           reflect the class of information within the record.  When
+   14           object units are combined by the linker to form a run unit
+   15           file, the overall structure remains the same except that some
+   16           new keys are introduced and some old ones disappear.
+   17
+   18           An object file is a keyed file containing one or more object
+   19           units.  The key identifies the type of record associated with it.
+   20           A general description of the object unit records follows:
+   21
+   22                     Record type              Record contents
+   23                     -----------              ---------------
+   24
+   25                     HEAD                     Contains information about
+   26                                              the object unit as a whole.
+   27
+   28                     externally defined       A record containing an
+   29                     names                    alphanumeric stream of all
+   30                                              text names referred to by
+   31                                              section, ENTDEF, SYMDEF,
+   32                                              and SEGDEF tables.
+   33
+   34                     externally               A record containing an
+   35                     referenced names         alphanumeric stream of all
+   36                                              text names referred to by
+   37                                              ENTREF, SYMREF, and SEGREF
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         2    
+   38                                              tables.
+   39
+   40                     section                  Section allocation table
+   41                                              containing section sizes
+   42                                              (and, if appropriate,
+   43                                              name pointers).
+   44
+   45                     ENTDEF                   External procedure defi-
+   46                                              nition record containing
+   47                                              one entry per external pro-
+   48                                              cedure.
+   49
+   50                     ENTREF                   External procedure refer-
+   51                                              ence table.
+   52
+   53                     SYMDEF                   External data definition
+   54                                              table.
+   55
+   56                     SYMREF                   External data reference
+   57                                              table.
+   58
+   59                     SEGDEF                   Segment definition table.
+   60
+   61                     SEGREF                   Segment reference table.
+   62
+   63                     program                  Records containing pure
+   64                                              code or procedure and
+   65                                              initialized data (i.e.,
+   66                                              no embedded control
+   67                                              information).
+   68
+   69                     relocation               Relocation directives for
+   70                                              the program specified by
+   71                                              section, offset.
+   72
+   73                     logical block            Logical block table gen-
+   74                                              erated with schema option
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         3    
+   75                                              (for debugger).
+   76
+   77                     variable table           Variable table generated
+   78                                              with schema option (for
+   79                                              debugger).
+   80
+   81                     statement table          Statement table generated
+   82                                              with schema option (for
+   83                                              debugger).
+   84
+   85                     internal entries         Internal entry table gen-
+   86                                              erated with schema option
+   87                                              (for debugger).
+   88
+   89                     debug names              Name table generated with
+   90                                              schema option (for debugger).
+   91
+   92      */
+   93
+   94      /*F* NAME:  B$RECORDSUBS
+   95           PURPOSE:  Macro for record type subs     */
+   96
+   97      %MACRO B$RECORDSUBS;
+   98      %EQU TYPHEAD=0 ;
+   99      %EQU TYPDNAM=1 ;
+  100      %EQU TYPRNAM=2 ;
+  101      %EQU TYPSECT=3 ;
+  102      %EQU TYPEDEF=4 ;
+  103      %EQU TYPEREF=5 ;
+  104      %EQU TYPSDEF=6 ;
+  105      %EQU TYPSREF=7 ;
+  106      %EQU TYPSEGDEF=8 ;
+  107      %EQU TYPSEGREF=9 ;
+  108      %EQU TYPPROG=10 ;
+  109      %EQU SUBTYPPROG=0 ;
+  110      %EQU SUBTYPREL=1 ;
+  111      %EQU TYPLOGBLK=11 ;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         4    
+  112      %EQU TYPINTNTRY=12 ;
+  113      %EQU TYPEXST=13 ;
+  114      %EQU TYPVREBL=14 ;
+  115      %EQU TYPDBGNAM=15 ;
+  116      %EQU TYPLV1LB=16 ;
+  117      %EQU TYPLV1=17 ;
+  118      %EQU TYPDATASEG=18 ;
+  119      %EQU TYPRUM=20 ;
+  120      %EQU TYPBIRTH=21 ;
+  121      %EQU TYPPLOVER=22 ;
+  122      %EQU TYPCOMPID=23 ;
+  123      %EQU TYPROS=30 ;
+  124      %MEND;
+  125
+  126      /*F* NAME:  B$HEADKEY
+  127           PURPOSE:
+  128           Key for object unit head record
+  129           DESCRIPTION:
+  130           The records within an object unit are named with keys which
+  131           are organized to provide ease and efficiency of processing, while
+  132           allowing multiple object units per object file.  Each object unit
+  133           is uniquely identified by its head record with a key of the form:  */
+  134
+  135      %MACRO B$HEADKEY (NAME=B$HEADKEY,STCLASS=STATIC SYMDEF,HFLAGINIT="INIT('042'O)");
+  136      DCL 1 NAME STCLASS ALIGNED,
+  137            2 KEYSIZ UBIN BYTE UNAL,
+  138              /*K*  KEYSIZ is the number of bytes in the object unit name
+  139                    plus one. */
+  140
+  141            2 HFLAG BIT(9) UNAL HFLAGINIT,
+  142              /*K*  HFLAG is always 0'042'. */
+  143
+  144            2 TEXT CHAR(31);
+  145              /*K*  TEXT is the character string which is the object unit
+  146                    name.  This name is equal to the entry definition
+  147                    name with the attribute 'object unit name'. */
+  148      %MEND;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         5    
+  149
+  150      /*F* NAME:  B$OUKEY
+  151           DESCRIPTION:
+  152           All control, linkage, and debug records have keys of the form:  */
+  153
+  154      %MACRO B$OUKEY (NAME=B$OUKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="INIT(7)",NOTHDINIT="INIT('777'O)");
+  155      DCL 1 NAME STCLASS ALIGNED,
+  156            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+  157              /*K*  KEYSIZ specifies the length of the key in bytes.
+  158                    KEYSIZ is 7 for this key. */
+  159
+  160            2 NOTHD BIT(9) UNAL NOTHDINIT,
+  161              /*K*  NOTHD is always O'777'. */
+  162
+  163            2 UTS UBIN UNAL,
+  164              /*K*  UTS is the 36-bit Universal Time Stamp as returned by the
+  165                    monitor. */
+  166
+  167            2 TYPE UBIN BYTE UNAL,
+  168              /*K*  TYPE (record type)
+  169                    (byte 6)             Record meaning
+  170                    ---------            --------------
+  171                       1                 Externally defined names
+  172
+  173                       2                 Externally referenced names
+  174
+  175                       3                 Sections
+  176
+  177                       4                 ENTDEF
+  178
+  179                       5                 ENTREF
+  180
+  181                       6                 SYMDEF
+  182
+  183                       7                 SYMREF
+  184
+  185                       8                 SEGDEF
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         6    
+  186
+  187                       9                 SEGREF
+  188
+  189                      11                 Debug logical block table
+  190
+  191                      12                 Debug internal entry table
+  192
+  193                      13                 Debug statement table
+  194
+  195                      14                 Debug variable table
+  196
+  197                      15                 Debug names            */
+  198
+  199            2 PAGE UBIN BYTE UNAL;
+  200              /*K*  PAGE provides for 'paging' of records of a particular
+  201                    type which can be arbitrarily large.  PAGE specifies that
+  202                    the record is the n th piece of the specified record type
+  203                    each of which is the 'page' size as specified in the
+  204                    head record (the final piece must contain only the
+  205                    residue). */
+  206      %MEND;
+  207
+  208      /*F* NAME:  B$PRGRELKEY
+  209           DESCRIPTION:
+  210           All program and relocation records have keys of the form:   */
+  211
+  212      %MACRO B$PRGRELKEY (NAME=B$PRGRELKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="INIT(11)",NOTHDINIT="INIT('777'O)",
+  213      TYPEINIT="INIT(10)");
+  214      DCL 1 NAME STCLASS ALIGNED,
+  215            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+  216              /*K*  KEYSIZ specifies the length of the key in bytes.
+  217                    For this key KEYSIZ is 11 or 12, depending on whether
+  218                    SEQUENCE is specified. */
+  219
+  220            2 NOTHD BIT(9) UNAL NOTHDINIT,
+  221              /*K*  NOTHD is always O'777'. */
+  222
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         7    
+  223            2 UTS UBIN UNAL,
+  224              /*K*  UTS is the 36-bit Universal Time Stamp as returned by the
+  225                    monitor. */
+  226
+  227            2 TYPE UBIN BYTE UNAL TYPEINIT,
+  228              /*K*  TYPE (record type) must be 10.  */
+  229
+  230            2 SECTNUM UBIN HALF UNAL,
+  231              /*K*  SECTNUM (bytes 7-8) contains I, where I is an entry
+  232                    number in the section table (TYPE 3). */
+  233
+  234            2 OFFSET UBIN HALF UNAL,
+  235              /*K*  OFFSET (bytes 9-10) is the offset from the origin of
+  236                    section I. */
+  237
+  238            2 SUBTYPE UBIN BYTE UNAL,
+  239              /*K*  SUBTYPE (record sub-type)
+  240                    (byte 11)
+  241
+  242                       0                 Program (procedure or data)
+  243
+  244                       1                 Relocation directives     */
+  245
+  246            2 SEQUENCE UBIN BYTE UNAL;
+  247              /*K*  SEQUENCE is used only if more than one program or
+  248                    relocation record have keys which are otherwise
+  249                    identical.  In this case, KEYSIZ must be 12 bytes and
+  250                    the sequence specifies the order in which the records are to
+  251                    be applied. */
+  252      %MEND;
+  253
+  254      /*F* NAME:  B$OUHEAD
+  255           PURPOSE:  Object Unit Head Record Contents  */
+  256
+  257      %MACRO B$OUHEAD (NAME=B$OUHEAD,STCLASS=STATIC SYMDEF);
+  258      DCL 1 NAME STCLASS ALIGNED,
+  259            2 UTS UBIN,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         8    
+  260              /*K*  UTS is the 36-bit Universal Time Stamp as returned by the
+  261                    monitor.    */
+  262
+  263            2 WORDSIZE UBIN BYTE UNAL,
+  264              /*K*  WORDSIZE is 36 for L66 and 16 for FEP.  */
+  265
+  266            2 COMPILER UBIN BYTE UNAL,
+  267              /*K*  COMPILER is supplied by the compiler according to
+  268                    convention and identifies the language as follows:
+  269                         0 - Assembler
+  270                         1 - PL-6
+  271                         2 - FORTRAN
+  272                         3 - COBOL
+  273                         4 - PL/I
+  274                         5 - RPG
+  275                         6 - Pascal
+  276                         7 - MOMUS
+  277                         8 - FPL                     */
+  278
+  279            2 VERSION UBIN HALF UNAL,
+  280              /*K*  VERSION is supplied by the compiler.    */
+  281
+  282            2 VERS REDEF VERSION,
+  283              /*K* X00 = 'X',0 ; X100 = 'X',100  */
+  284
+  285              3 LETTER CHAR(1) UNAL,
+  286                /*K*  LETTER is the Release identifying letter.  */
+  287
+  288              3 NUMBER UBIN BYTE UNAL,
+  289                /*K*  NUMBER is version number.  0-99 external, 100-511 internal.  */
+  290
+  291            2 START,
+  292              /*K*  START -  If OPNDTYP (operand type) is 0, the object unit
+  293                             is not a main program.  For the main program,
+  294                             the fields are defined below. */
+  295
+  296              3 OPNDTYP UBIN(4) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         9    
+  297                /*K*  OPNDTYP -
+  298                      (operand type)   = 1 section
+  299                                       = 2 ENTREF
+  300                                       = 3 SYMREF
+  301                                       = 4 CONSTANT
+  302                                       = 5 SEGDEF
+  303                                       = 6 SEGREF       */
+  304
+  305              3 * UBIN(5) UNAL,
+  306                /*K*  * is reserved for future use and must be zero.  */
+  307
+  308              3 OPERAND UBIN BYTE UNAL,
+  309                /*K*  OPERAND -  If operand TYPE = 4, the operand field is an
+  310                                 unsigned constant.
+  311                                 If operand TYPE ~= 4 (or 0), the operand field
+  312                                 is an entry number in the table specified by
+  313                                 OPNDTYP.     */
+  314
+  315              3 OFFSET UBIN HALF UNAL,
+  316                /*K*  OFFSET -  The word displacement from OFFSET (in the key)
+  317                                to the relocatable item.  */
+  318
+  319            2 SEVLEV UBIN HALF UNAL,
+  320              /*K*  SEVLEV indicates the severity of errors encountered
+  321                    during compilation.  */
+  322
+  323            2 LOGBLKSIZ UBIN HALF UNAL,
+  324              /*K*  LOGBLKSIZ is the size in words of logical block table.
+  325                    If this field is 0, no debug schema is present.  */
+  326
+  327            2 PROGPSIZ UBIN HALF UNAL,
+  328              /*K*  PROGPSIZ is the maximum size in words of Program Records. */
+  329
+  330            2 RELPSIZ UBIN HALF UNAL,
+  331              /*K*  RELPSIZ is the maximum size in words of Relocation Records. */
+  332
+  333            2 DNAMSIZ UBIN HALF UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         10   
+  334              /*K*  DNAMSIZ is the total size in words of Definition
+  335                    Name Table.  */
+  336
+  337            2 DNAMPSIZ UBIN HALF UNAL,
+  338              /*K*  DNAMPSIZ is the page size in words of Definition
+  339                    Name Table.  */
+  340
+  341            2 RNAMSIZ UBIN HALF UNAL,
+  342              /*K*  RNAMSIZ is the total size in words of Reference
+  343                    Name Table.  */
+  344
+  345            2 RNAMPSIZ UBIN HALF UNAL,
+  346              /*K*  RNAMPSIZ is the page size in words of Reference
+  347                    Name Table.  */
+  348
+  349            2 EDEFSIZ UBIN HALF UNAL,
+  350              /*K*  EDEFSIZ is the total size in words of Procedure Definition. */
+  351
+  352            2 EDEFPSIZ UBIN HALF UNAL,
+  353              /*K*  EDEFPSIZ is the page size in words of Procedure Definition. */
+  354
+  355            2 EREFSIZ UBIN HALF UNAL,
+  356              /*K*  EREFSIZ is the total size in words of Procedure
+  357                    Reference Table. */
+  358
+  359            2 EREFPSIZ UBIN HALF UNAL,
+  360              /*K*  EREFPSIZ is the page size in words of Procedure
+  361                    Reference Table.  */
+  362
+  363            2 SDEFSIZ UBIN HALF UNAL,
+  364              /*K*  SDEFSIZ is the total size in words of Data
+  365                    Definition Table.  */
+  366
+  367            2 SDEFPSIZ UBIN HALF UNAL,
+  368              /*K*  SDEFPSIZ is the page size in words of Data
+  369                    Definition Table. */
+  370
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         11   
+  371            2 SREFSIZ UBIN HALF UNAL,
+  372              /*K*  SREFSIZ is the total size in words of Data
+  373                    Reference Table.  */
+  374
+  375            2 SREFPSIZ UBIN HALF UNAL,
+  376              /*K*  SREFPSIZ is the page size in words of Data
+  377                    Reference Table.  */
+  378
+  379            2 SEGDEFSIZ UBIN HALF UNAL,
+  380              /*K*  SEGDEFSIZ is the total size in words of Segment
+  381                    Definition Table.  */
+  382
+  383            2 SEGDEFPSIZ UBIN HALF UNAL,
+  384              /*K*  SEGDEFPSIZ is the page size in words of Segment
+  385                    Definition Table.  */
+  386
+  387            2 SEGREFSIZ UBIN HALF UNAL,
+  388              /*K*  SEGREFSIZ is the total size in words of Segment
+  389                    Reference Table.  */
+  390
+  391            2 SEGREFPSIZ UBIN HALF UNAL,
+  392              /*K*  SEGREFPSIZ is the page size in words of Segment
+  393                    Reference Table.  */
+  394
+  395            2 LNAMSIZ UBIN BYTE UNAL,
+  396              /*K*  LNAMESIZ is the number of bytes in the library name. */
+  397
+  398            2 LNAM CHAR(31),
+  399              /*K*  LNAM is the character string that is the name of the
+  400                    shared system library to be associated.  */
+  401
+  402            2 ASLNAMSIZ UBIN BYTE UNAL,
+  403              /*K*  ASLNAMSIZ is the number of bytes in the alternate
+  404                    shared library name.  */
+  405
+  406            2 ASLNAM CHAR(31);
+  407              /*K*  ASLNAM is the character string that is the name of the
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         12   
+  408                    alternate shared library to be associated.  */
+  409      %MEND;
+  410
+  411      /*F* NAME:  COMPILERIDSUBS
+  412           PURPOSE:  Macro for compiler id subs      */
+  413
+  414      %MACRO COMPILERIDSUBS;
+  415      %EQU GMAPID=0 ;
+  416      %EQU PL6ID=1 ;
+  417      %EQU FORTRANID=2 ;
+  418      %EQU COBOLID=3 ;
+  419      %EQU PL1ID=4 ;
+  420      %EQU RPGID=5 ;
+  421      %EQU PASCALID=6 ;
+  422      %EQU MOMUSID=7 ;
+  423      %EQU FPLID=8 ;
+  424      %EQU PARTRGEID=9 ;
+  425      %EQU IDLID=10 ;
+  426      %EQU ELSIEID=11 ;
+  427      %EQU CALFID=12 ;
+  428      %EQU CID=13 ;
+  429      %MEND;
+  430
+  431      /*F* NAME: B$COMPILER_ID
+  432           PURPOSE: Record containing the actual compiler name.  */
+  433
+  434      %MACRO B$COMPILER_ID (NAME=B$COMPILER_ID, STCLASS=BASED);
+  435
+  436      DCL 1 NAME STCLASS ALIGNED,
+  437            2 COUNT UBIN HALF HALIGNED,
+  438              /*K*  COUNT is the number of characters in the compiler name */
+  439
+  440            2 TEXT CHAR(NAME.COUNT) CALIGNED;
+  441              /*K*  TEXT=C1C2...Cn, the character string that is the compiler
+  442                    name.   */
+  443      %MEND;
+  444
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         13   
+  445      /*F* NAME:  B$DNAME
+  446           PURPOSE:  Def or debug names record (type 1, 2 or 15)
+  447           DESCRIPTION:
+  448           This record is the collection of names pointed to by the
+  449           following records:
+  450                 Sections (TYPE 3)
+  451                 ENTDEF (TYPE 4)
+  452                 SYMDEF (TYPE 6)
+  453                 SEGDEF (TYPE 8)
+  454                 ENTREF (TYPE 5)
+  455                 SYMREF (TYPE 7)
+  456                 SEGREF (TYPE 9)
+  457
+  458           Each name of length n begins on a word boundary and is
+  459           of the form:   */
+  460
+  461      %MACRO B$DNAME (NAME=B$DNAME,STCLASS=BASED,TEXT=' ');
+  462
+  463          %LSET STR=CONCAT(TEXTCHAR(STCLASS),'        ');
+  464          %IF (SUBSTR(STR,0,6)='STATIC')OR(SUBSTR(STR,0,8)='CONSTANT')OR
+  465              (SUBSTR(STR,0,3)='EXT');
+  466              %LSET INIT=CHARTEXT('INIT');
+  467          %ELSE;
+  468              %LSET INIT=CHARTEXT('/*');
+  469          %ENDIF;
+  470
+  471      DCL 1 NAME STCLASS ALIGNED,
+  472            2 COUNT UBIN HALF UNAL %INIT(SIZEC(TEXT)) %CHARTEXT('/**/'),
+  473              /*K*  COUNT is the number of characters in the name */
+  474
+  475          %IF (SUBSTR(STR,0,6)='STATIC')OR(SUBSTR(STR,0,8)='CONSTANT')OR
+  476              (SUBSTR(STR,0,3)='EXT');
+  477
+  478            2 %CHARTEXT('TEXT') CHAR(0) UNAL INIT(TEXT);
+  479              /*K*  TEXT=C1C2...Cn, the character string that is the name. */
+  480
+  481          %ELSE;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         14   
+  482
+  483            2 %CHARTEXT('TEXT') CHAR(NAME.COUNT) UNAL;
+  484
+  485          %ENDIF;
+  486      %MEND;
+  487
+  488      /*F* NAME:  B$SECTION
+  489           PURPOSE:  Sections (Record Type 3)
+  490           DESCRIPTION:
+  491           There is one record per object unit which defines the size
+  492           and type of sections.
+  493           The section record contains one entry per section within the
+  494           object unit.    */
+  495
+  496      %MACRO B$SECTION (NAME=B$SECTION,STCLASS=BASED);
+  497      DCL 1 NAME STCLASS ALIGNED,
+  498            2 TYPE UBIN BYTE UNAL,
+  499              /*K*  TYPE -
+  500                    Type code      Section type
+  501                    ---------      ------------
+  502                        0          Data control section with write access.
+  503                        1          Procedure control section.
+  504                        2          Unlabeled common, name pointer must be zero.
+  505                        3          Labeled common, with mandatory name pointer.
+  506                                   This is for labeled common which must be
+  507                                   in the root.
+  508                        4          Labeled common, with mandatory name pointer.
+  509                                   This is for labeled common which need not
+  510                                   be in the root.
+  511                        5          DCB, word 1 is name pointer.
+  512                        6          Data control section with read only access,
+  513                                   word 1 = 0 or name pointer.
+  514                        7          Constant labeled common, with mandatory name pointer.
+  515                                   This is for labeled common which must be
+  516                                   in the root.
+  517                        8          Constant labeled common, with mandatory name pointer.
+  518                                   This is for labeled common which need not
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         15   
+  519                                   be in the root.                        */
+  520
+  521            2 * BIT(1),
+  522              /*K*  * is reserved for future use and must be zero. */
+  523
+  524            2 INITZERO BIT(1),
+  525              /*K*  INITZERO - if 1, initialize with zero.  */
+  526
+  527            2 INITUTS BIT(1),
+  528              /*K*  INITUTS - if 1, initialize with UTS.  */
+  529
+  530            2 SEGMENT BIT(1),
+  531              /*K*  SEGMENT - if 1, specifies that this section is
+  532                              to be placed in the segment specified by
+  533                              SEG_NPOINTER.  */
+  534
+  535            2 * BIT(3),
+  536              /*K*  * is reserved for future use and must be zero. */
+  537
+  538            2 BOUND UBIN(2) UNAL,
+  539              /*K*  BOUND - bits 6-7 - defines starting location.
+  540                            00 - starts on even word
+  541                            01 - starts on odd word
+  542                            10 - starts on multiple of 8
+  543                            11 - starts on page boundary     */
+  544
+  545            2 SIZE UBIN HALF UNAL,
+  546              /*K*  SIZE is the size, in words, of the section.  */
+  547
+  548            2 NPOINTER SBIN HALF UNAL,
+  549              /*K*  NPOINTER is the word displacement into the name record
+  550                    (TYPE 1) locating the name of this section.  If the
+  551                    field is negative, the section has no name.  */
+  552
+  553            2 MBZ UBIN HALF UNAL,
+  554              /*K*  MBZ is reserved for future expansion and must be zero. */
+  555
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         16   
+  556            2 SEG_NPOINTER REDEF MBZ SBIN HALF UNAL,
+  557              /*K*  SEG_NPOINTER locates a name in the Definition Names
+  558                    Section.  The name must be a valid segment name
+  559                    recognized by the linker.  */
+  560
+  561            2 G66 REDEF MBZ,
+  562              /*K*  G66 is not used on CP-6. */
+  563
+  564              3 * BIT(9),
+  565              3 NSAB BIT(9);
+  566      %MEND;
+  567
+  568      /*F* NAME:  B$SECTIONSUBS
+  569           PURPOSE:  Macro for section subs     */
+  570
+  571      %MACRO B$SECTIONSUBS;
+  572      %EQU DATASECTION=0 ;
+  573      %EQU CODESECTION=1 ;
+  574      %EQU UCOMSECTION=2 ;
+  575      %EQU RLCOMSECTION=3 ;
+  576      %EQU LCOMSECTION=4 ;
+  577      %EQU DCBSECTION=5 ;
+  578      %EQU ROSECTION=6 ;
+  579      %EQU RORLCOMSECTION=7 ;
+  580      %EQU ROLCOMSECTION=8 ;
+  581      %EQU EVENBOUNDSECTION=0 ;
+  582      %EQU ODDBOUNDSECTION=1 ;
+  583      %EQU EIGHTBOUNDSECTION=2 ;
+  584      %EQU PAGEBOUNDSECTION=3 ;
+  585      %MEND;
+  586
+  587      /*F* NAME:  B$EDEF
+  588           PURPOSE:  External Procedure Definition (Record Type 4)
+  589           DESCRIPTION:
+  590           There is one record per object unit which defines the external
+  591           procedure definitions.
+  592           The record for External Procedure Definition (ENTDEF) contains
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         17   
+  593           one entry per external procedure name within the object unit.  A
+  594           PL/6 module with no ENTRY statements will contain one entry.
+  595           Three level-0 ENTRY statements would produce an ENTDEF record
+  596           with four entries (one for the primary procedure name, three
+  597           for the three ENTRY names).        */
+  598
+  599      %MACRO B$EDEF (NAME=B$EDEF,STCLASS=BASED);
+  600      DCL 1 NAME STCLASS ALIGNED,
+  601            2 LFLAGS UNAL,
+  602              /*K*  LFLAGS is the field reserved for loader to flag load
+  603                    time attributes of the definition and must be zero
+  604                    in the object unit. */
+  605
+  606              3 SOURCE UBIN(3) UNAL,
+  607                /*K*  SOURCE - Source of this ENTDEF */
+  608              3 DEFINED BIT(1)  UNAL,
+  609                /*K*  DEFINED - Set if this ENTDEF defined */
+  610              3 MULTIPLE BIT(1) UNAL,
+  611                /*K*  MULTIPLE - Set if this ENTDEF is multiply defined. */
+  612              3 USED BIT(1) UNAL,
+  613                /*K*  USED - Set if this ENTDEF is used. */
+  614              3 * BIT(2) UNAL,
+  615                /*K*  * - Unused and must be zero. */
+  616              3 FAULTAGS BIT(1) UNAL,
+  617                /*K*  FAULTAGS - Internal calls fault tags flag. */
+  618
+  619            2 OU UNAL,
+  620              3 SECTNUM UBIN BYTE UNAL,
+  621                /*K*  SECTNUM contains an entry number into the section
+  622                      table (TYPE 3).  */
+  623              3 OFFSET UBIN HALF UNAL,
+  624                /*K*  OFFSET is the word offset from the origin of the section. */
+  625
+  626            2 ISADDR REDEF OU UBIN(27) UNAL,
+  627              /*K*  ISADDR - Is Address (RU)  */
+  628
+  629            2 NPOINTER SBIN HALF UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         18   
+  630              /*K*  NPOINTER is a word displacement into the name record
+  631                    (TYPE 1) locating the name (of this entry). */
+  632
+  633            2 PRI BIT(1) UNAL,
+  634              /*K*  PRI is a one-bit flag denoting primary entry
+  635                    definition.
+  636                       PRI = 1, primary name (object unit name)
+  637                           = 0, not primary name                 */
+  638
+  639            2 ALT BIT(1) UNAL,
+  640              /*K*  ALT is a one-bit flag denoting permissible alternate
+  641                    return.
+  642                       ALT = 1, alternate return allowed
+  643                           = 0, alternate return not allowed        */
+  644
+  645            2 CHECK BIT(1) UNAL,
+  646              /*K*  CHECK is a one-bit flag denoting arguments/parameter
+  647                    check and alternate return specification check.
+  648                       CHECK = 0, do not check for matching
+  649                                  arguments/parameters and alternate
+  650                                  return specification check.
+  651                             = 1, check for matching arguments/parameters
+  652                                  and alternate return specification.  */
+  653
+  654            2 CST UBIN(4) UNAL,
+  655              /*K*  CST is a 4-bit field denoting calling sequence type.
+  656                       CST =  0, Standard CP-6 Callable Procedure
+  657                       CST =  1, Nonstandard Call Type
+  658                       CST =  2, Standard CP-6 Procedure with MAIN attribute
+  659                       CST =  3, Standard CP-6 Procedure with ASYNC attribute
+  660                       CST =  4, Standard CP-6 Function Procedure; a
+  661                                 variable table entry will be present to
+  662                                 define the attributes of the function
+  663                       CST =  5, Same as 0, except USE, AVOID, or
+  664                                 MATERIALIZE attributes specified
+  665                       CST =  7, Same as 2, except USE, AVOID, or
+  666                                 MATERIALIZE attributes specified
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         19   
+  667                       CST =  8, Same as 3, except USE, AVOID, or
+  668                                 MATERIALIZE attributes specified
+  669                       CST =  9, Same as 4, except USE, AVOID, or
+  670                                 MATERIALIZE attributes specified
+  671                       CST = 13, GCOS domain, save
+  672                       CST = 14, GCOS domain, no save
+  673                       CST = 15, Non-Callable Procedure.          */
+  674
+  675            2 NPARAM UBIN(11) UNAL;
+  676              /*K*  NPARAM is an 11-bit field denoting number of parameters. */
+  677      %MEND;
+  678
+  679      /*F* NAME:  SUB_CST
+  680           PURPOSE:  Macro for calling sequence type subs     */
+  681
+  682      %MACRO SUB_CST;
+  683      %EQU STD#=0 ;                           /* Standard CP6 callable procedure */
+  684      %EQU NSTD#=1 ;                          /* Non-standard Call Type  */
+  685      %EQU MAIN#=2 ;                /* Standard CP6 Procedure with MAIN attribute */
+  686      %EQU ASYNC#=3 ;               /* Standard CP6 Procedure with ASYNC attribute */
+  687      %EQU FUNC#=4 ;                /* Standard CP6 Function procedure; a variable */
+  688                                    /* table entry will be present to define the   */
+  689                                    /* attributes of the function.                 */
+  690      %EQU XSTD#=5 ;           /* Same as 0, except AVOID or MATERIALIZE specified */
+  691      %EQU XMAIN#=7 ;          /* Same as 2, except AVOID or MATERIALIZE specified */
+  692      %EQU XASYNC#=8 ;         /* Same as 3, except AVOID or MATERIALIZE specified */
+  693      %EQU XFUNC#=9 ;          /* Same as 4, except AVOID or MATERIALIZE specified */
+  694      %EQU DOMSAV#=13 ;                       /* GCOS domain, save  */
+  695      %EQU DOMNOSAV#=14 ;                     /* GCOS domain, no save  */
+  696      %EQU NOTPROC#=15 ;                      /* Non-callable procedure  */
+  697      %MEND;
+  698
+  699      /*F* NAME:  SUB_LINKFLAGS
+  700           PURPOSE:  Macro for loader flags    */
+  701
+  702      %MACRO SUB_LINKFLAGS;
+  703      %EQU SOURCE_OBJECT#=0 ;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         20   
+  704      %EQU SOURCE_SLIB#=1 ;
+  705      %EQU SOURCE_ALIB#=2 ;
+  706      %EQU SOURCE_ULIB#=3 ;
+  707      %EQU SOURCE_RLIB#=4 ;
+  708      %EQU SOURCE_REMOVED#=5 ;
+  709      %EQU SOURCE_LINKER#=6 ;
+  710      %MEND;
+  711
+  712      /*F* NAME:  B$EREF
+  713           PURPOSE:  External Procedure Reference (Record Type 5)
+  714           DESCRIPTION:
+  715           There is one record per object unit for external procedure
+  716           references (ENTREF).      */
+  717
+  718      %MACRO   B$EREF (NAME=B$EREF,STCLASS=BASED);
+  719      DCL 1 NAME STCLASS ALIGNED,
+  720            2 NPOINTER SBIN HALF UNAL,
+  721              /*K*  NPOINTER is the word displacement into the record
+  722                    of REF names (TYPE 2) locating the ENTREF name.   */
+  723
+  724            2 SREF BIT(1),
+  725              /*K*  SREF indicates that the reference is a secondary
+  726                    reference and should not cause loading of a library routine. */
+  727
+  728            2 ALT BIT(1),
+  729              /*K*  ALT is a one-bit flag denoting permissible alternate return.
+  730                       ALT = 1, alternate return allowed
+  731                           = 0, alternate return not allowed    */
+  732
+  733            2 CHECK BIT(1),
+  734              /*K*  CHECK is a one-bit flag denoting arguments/parameter check
+  735                    and alternate return specification check.
+  736                       CHECK = 0, do not check for matching
+  737                                  arguments/parameters and
+  738                                  alternate return specification.
+  739                             = 1, check for matching arguments/parameters
+  740                                  and alternate return specification.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         21   
+  741
+  742            2 CST UBIN(4) UNAL,
+  743              /*K*  CST is a 4-bit field denoting calling sequence type.
+  744                       CST =  0, Standard CP-6 Callable Procedure.
+  745                       CST =  1, Nonstandard Call Type.
+  746                       CST =  2, Standard CP-6 Procedure with MAIN attribute
+  747                       CST =  3, Standard CP-6 Procedure with ASYNC attribute
+  748                       CST =  4, Standard CP-6 Function Procedure; a
+  749                                 variable table entry will be present to
+  750                                 define the attributes of the function.
+  751                       CST =  5, Same as 0, except USE, AVOID, or
+  752                                 MATERIALIZE attributes specified.
+  753                       CST =  7, Same as 2, except USE, AVOID, or
+  754                                 MATERIALIZE attributes specified.
+  755                       CST =  8, Same as 3, except USE, AVOID, or
+  756                                 MATERIALIZE attributes specified.
+  757                       CST =  9, Same as 4, except USE, AVOID, or
+  758                                 MATERIALIZE attributes specified.
+  759                       CST = 13, GCOS domain, save
+  760                       CST = 14, GCOS domain, no save
+  761                       CST = 15, Non-Callable Procedure.       */
+  762
+  763            2 NPARAM UBIN(11) UNAL;
+  764              /*K*  NPARAM is an 11-bit field denoting number of parameters. */
+  765      %MEND;
+  766
+  767      /*F* NAME:  B$SDEF
+  768           PURPOSE:  External Data Definition (Record Type 6)
+  769           DESCRIPTION:
+  770           There is one record per object unit which defines the external
+  771           data definitions (SYMDEF).    */
+  772
+  773      %MACRO B$SDEF (NAME=B$SDEF,STCLASS=BASED);
+  774      DCL 1 NAME STCLASS ALIGNED,
+  775            2 VALUE SBIN UNAL,
+  776              /*K*  VALUE is the value of the constant segment definition
+  777                    pointer if CONSTNT=1.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         22   
+  778
+  779            2 AD REDEF VALUE,
+  780              /*K*  AD - Address (not constant)  */
+  781              3 LFLAGS UNAL,
+  782                /*K*  LFLAGS is the field reserved for loader to flag load
+  783                      time attributes of the definition and must be zero
+  784                      in object unit.  */
+  785
+  786                4 SOURCE UBIN(3) UNAL,
+  787                  /*K*  SOURCE - Source of this SYMDEF */
+  788                4 DEFINED BIT(1) UNAL,
+  789                  /*K*  DEFINED - Set if this SYMDEF is defined */
+  790                4 MULTIPLE BIT(1) UNAL,
+  791                  /*K*  MULTIPLE - Set if this SYMDEF is multiply defined. */
+  792                4 USED BIT(1) UNAL,
+  793                  /*K*  USED - Set if this SYMDEF is used */
+  794                4 * BIT(3) UNAL,
+  795                  /*K*  * - Unused */
+  796
+  797              3 OU UNAL,
+  798                4 SECTNUM UBIN BYTE UNAL,
+  799                  /*K*  SECTNUM contains I, where I is an entry number in the
+  800                        section table (TYPE 3).  */
+  801                4 OFFSET UBIN HALF UNAL,
+  802                  /*K*  OFFSET is the offset from the origin of section I (See SECTNUM). */
+  803
+  804              3 ISADDR REDEF OU UBIN(27) UNAL,
+  805                /*K*  ISADDR - IS Address (RU)  */
+  806
+  807            2 NPOINTER SBIN HALF UNAL,
+  808              /*K*  NPOINTER is the word displacement into the record of
+  809                    names (TYPE 1) locating the SYMDEF name. */
+  810
+  811            2 CONSTNT BIT(1) UNAL,
+  812              /*K*  CONSTNT is a flag bit to determine the interpretation
+  813                    of word 0.
+  814                    If CONSTNT=0, word 0 is AD which contains LFLAGS,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         23   
+  815                                  SECTNUM, and ISADDR or OFFSET.
+  816                    If CONSTNT=1, word 0 is a constant value (VALUE)  */
+  817
+  818            2 LFLAGS UNAL,
+  819              /*K*  LFLAGS is the field reserved for loader to flag load
+  820                    time attributes and must be zero in the object unit. */
+  821
+  822              3 MULTIPLE BIT(1) UNAL,
+  823                /*K*  MULTIPLE - Set if this SYMDEF is multiply defined. */
+  824              3 USED BIT(1) UNAL,
+  825                /*K*  USED - Set if this SYMDEF is used. */
+  826              3 SOURCE UBIN(4) UNAL,
+  827                /*K*  SOURCE - Source of this SYMDEF */
+  828              3 IS_DCB BIT(1) UNAL,
+  829                /*K* IS_DCB - Set if this is a DCB */
+  830              3 * BIT(4) UNAL,
+  831                /*K*  * - Unused */
+  832            2 * BIT(6) UNAL;
+  833              /*K*  * is reserved for future use and must be zero. */
+  834      %MEND;
+  835
+  836      /*F* NAME:  B$SREF
+  837           PURPOSE:  External Data Reference (Record Type 7)
+  838           DESCRIPTION:
+  839           There is one record per object unit for external data references
+  840           (SYMREF).    */
+  841
+  842      %MACRO B$SREF (NAME=B$SREF,STCLASS=BASED);
+  843      DCL 1 NAME STCLASS ALIGNED,
+  844            2 NPOINTER SBIN HALF UNAL,
+  845              /*K*  NPOINTER is a word displacement into the record of
+  846                    REF names (TYPE 2) locating the SYMREF name. */
+  847
+  848            2 SREF BIT(1),
+  849              /*K*  SREF indicates that the reference is a secondary
+  850                    reference and should not cause loading of a library routine. */
+  851
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         24   
+  852            2 READ_ONLY BIT(1) UNAL,
+  853              /*K*  READ_ONLY - If 1, specifies that corresponding SYMDEF
+  854                    must be in a constant section.  */
+  855
+  856            2 MBZ BIT(16);
+  857              /*K*  MBZ is reserved for future use and must be zero.  */
+  858      %MEND;
+  859
+  860      /*F* NAME:  B$SEGDEF
+  861           PURPOSE:  External Segment Definition (Record Type 8)
+  862           DESCRIPTION:
+  863           There is one record per object unit for Initialized Segment
+  864           Definitions.    */
+  865
+  866      %MACRO B$SEGDEF (NAME=B$SEGDEF,STCLASS=BASED);
+  867      DCL 1 NAME STCLASS ALIGNED,
+  868            2 VALUE SBIN UNAL,
+  869              /*K*  VALUE is the value of the constant segment definition
+  870                    pointer if CONSTANT=1.  */
+  871
+  872            2 S REDEF VALUE,
+  873              3 * UBIN(24) UNAL,
+  874              3 SEGID UBIN(12) UNAL,
+  875                /*K*  SEGID - Segid of constant value */
+  876            2 AD REDEF VALUE,
+  877              /*K*  AD - Address (not constant )  */
+  878              3 LFLAGS UNAL,
+  879                /*K*  LFLAGS is the field reserved for loader to flag load
+  880                      time attributes of the definition and must be zero
+  881                      in object unit.  */
+  882
+  883                4 SOURCE UBIN(3) UNAL,
+  884                  /*K*  SOURCE - Source of this SEGDEF */
+  885
+  886                4 DEFINED BIT(1) UNAL,
+  887                  /*K*  DEFINED - Set if this SEGDEF is defined */
+  888
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         25   
+  889                4 MULTIPLE BIT(1) UNAL,
+  890                  /*K*  MULTIPLE - Set if this SEGDEF is multiply defined */
+  891
+  892                4 USED BIT(1) UNAL,
+  893                  /*K*  USED - Set if this SEGDEF is used */
+  894
+  895                4 * BIT(3) UNAL,
+  896                  /*K*  * is reserved for future use and must be zero. */
+  897
+  898              3 OU UNAL,
+  899                4 SECTNUM UBIN BYTE UNAL,
+  900                  /*K*  SECTNUM is the Section number.  */
+  901
+  902                4 OFFSET UBIN HALF UNAL,
+  903                  /*K*  OFFSET is the offset within section. */
+  904
+  905              3 ISADDR REDEF OU UBIN(27) UNAL,
+  906                /*K*  ISADDR - IS Address (RU)  */
+  907
+  908            2 NPOINTER SBIN HALF UNAL,
+  909              /*K*  NPOINTER is the word displacement into DEFNAMES record. */
+  910
+  911            2 CONSTNT BIT(1) UNAL,
+  912              /*K*  CONSTNT is a flag bit to determine the interpretation
+  913                    of word 0.
+  914                    If CONSTNT=0, word 0 is AD which contains LFLAGS,
+  915                                  SECTNUM, and ISADDR or OFFSET.
+  916                    If CONSTNT=1, word 0 is a constant value (VALUE)  */
+  917
+  918            2 LFLAGS UNAL,
+  919              /*K*  LFLAGS is the field reserved for loader to flag load time
+  920                    attributes and must be zero in the object unit.  */
+  921
+  922              3 MULTIPLE BIT(1) UNAL,
+  923                /*K*  MULTIPLE - Set if this SEGDEF is multiply defined */
+  924
+  925              3 USED BIT(1) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         26   
+  926                /*K*  USED - Set if this SEGDEF is used */
+  927
+  928              3 SOURCE UBIN(4) UNAL,
+  929                /*K*  SOURCE - Source of this SEGDEF */
+  930
+  931              3 * BIT(11) UNAL,
+  932                /*K*  * is reserved for future use and must be zero. */
+  933
+  934            2 SEG REDEF LFLAGS UNAL,          /* Not constant SEGDEF (RU) */
+  935              3 TYPE UBIN(5) UNAL,            /* Segment protection type (RU) */
+  936              3 SEGID UBIN(12) UNAL;          /* Segid of segment (RU) */
+  937      %MEND;
+  938
+  939      /*F* NAME:  B$SEGREF
+  940           PURPOSE:  External Segment Reference (Record Type 9)
+  941           DESCRIPTION:
+  942           There is one record per object unit for external references to
+  943           segment names.  The value of a segment name is a segid.  The
+  944           definitions of all referenced segids will be provided by the
+  945           linker.  A set of conventional segment names will be established
+  946           (which do not conflict with any other type of name) for such
+  947           things as dcb segment, automatic segment, instruction segment,
+  948           JIT segment, etc.     */
+  949
+  950      %MACRO B$SEGREF (NAME=B$SEGREF,STCLASS=BASED);
+  951      DCL 1 NAME STCLASS ALIGNED,
+  952            2 NPOINTER SBIN HALF UNAL,
+  953              /*K*  NPOINTER is a word displacement into the record of names
+  954                    (TYPE 2) locating the segment reference name.  */
+  955
+  956            2 SREF BIT(1) UNAL,
+  957              /*K*  SREF indicates that the reference is a secondary
+  958                    reference and should not cause loading of a library
+  959                    routine.  */
+  960
+  961            2 READ_ONLY BIT(1) UNAL,
+  962              /*K*  READ_ONLY - If 1, specifies that corresponding SYMDEF
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         27   
+  963                    must be in a constant section.  */
+  964
+  965            2 G66_NSAB,
+  966              /*K*  G66_NSAB is not used for CP-6.  */
+  967
+  968              3 PRESENT BIT(1) UNAL,
+  969              3 DESC_BITS BIT(3);
+  970      %MEND;
+  971
+  972      /*F* NAME:  B$RELOC1
+  973           PURPOSE:  Relocation Directives (Record Type 10, Subtype 1)
+  974           DESCRIPTION:
+  975           Relocation directives are keyed to the program area.  That is,
+  976           the key describes the section and offset to which this record of
+  977           relocation directives applies.
+  978           Note:  Multiple relocation records can be generated to
+  979           apply to one program record but the converse is not true.
+  980           Program records are required if relocation records are present.
+  981           Records are one of two forms, depending on bits 0-3 of word 0.
+  982           Form 1 (bits 0-3 ~= 0) - Form 1 is a 1 word directive.  */
+  983
+  984      %MACRO B$RELOC1 (NAME=B$RELOC1,STCLASS=BASED);
+  985      DCL 1 NAME STCLASS ALIGNED,
+  986            2 OPNDTYP UBIN(4) UNAL,
+  987              /*K*  OPNDTYP -
+  988                    (operand type) = 1 section
+  989                                   = 2 ENTREF
+  990                                   = 3 SYMREF
+  991                                   = 4 CONSTANT
+  992                                   = 5 SEGDEF
+  993                                   = 6 SEGREF    */
+  994
+  995            2 OP BIT(1),
+  996              /*K*  OP -   = 0 operand is an addend
+  997                               (field) + (operand) -> field
+  998                           = 1 operand is a subtrahend
+  999                               (field) - (operand) -> field   */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         28   
+ 1000
+ 1001            2 FIELD UBIN(4) UNAL,
+ 1002              /*K*  FIELD identifies common relocatable fields
+ 1003                       = 0 left-half 1/2 word length left
+ 1004                       = 1 right-half 1/2 word length right
+ 1005                       = 2 SEGID
+ 1006                       = 3 Y field (bits 3-17) FEP long address form
+ 1007                       = 4 whole word      */
+ 1008
+ 1009            2 OPERAND UBIN BYTE UNAL,
+ 1010              /*K*  OPERAND - If operand TYPE = 4, the operand field is
+ 1011                              an unsigned constant.
+ 1012                              If operand TYPE ~= 4 (or 0), the operand field
+ 1013                              is an entry number in the table specified by TYPE. */
+ 1014
+ 1015            2 DISP UBIN HALF UNAL;
+ 1016              /*K*  DISP is the word displacement from OFFSET (in the key)
+ 1017                    to the relocatable item.  */
+ 1018      %MEND;
+ 1019
+ 1020      /*F* NAME:  B$RELOC2
+ 1021           PURPOSE:  Relocation Directives (Record Type 10, Subtype 2)
+ 1022           DESCRIPTION:
+ 1023           Relocation directives are keyed to the program area.  That is,
+ 1024           the key describes the section and offset to which this record of
+ 1025           relocation directives applies.
+ 1026           Note:  Multiple relocation records can be generated to
+ 1027           apply to one program record but the converse is not true.
+ 1028           Program records are required if relocation records are present.
+ 1029           Records are one of two forms, depending on bits 0-3 of word 0.
+ 1030           Form 2 (bits 0-5 = 0) - Form 2 is a 2 or 3 word directive.  */
+ 1031
+ 1032      %MACRO B$RELOC2 (NAME=B$RELOC2,STCLASS=BASED);
+ 1033      DCL 1 NAME STCLASS ALIGNED,
+ 1034            2 MBZ UBIN(6) UNAL,
+ 1035              /*K*  MBZ is reserved for future use and must be zero. */
+ 1036
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         29   
+ 1037            2 OPNDTYP UBIN(4) UNAL,
+ 1038              /*K*  OPNDTYP -
+ 1039                    (operand type)  = 1 section
+ 1040                                    = 2 ENTREF
+ 1041                                    = 3 SYMREF
+ 1042                                    = 4 CONSTANT
+ 1043                                    = 5 SEGDEF
+ 1044                                    = 6 SEGREF    */
+ 1045
+ 1046            2 EVALOP UBIN(4) UNAL,
+ 1047              /*K*  EVALOP is the operator to be applied to the VALUE and
+ 1048                    the evaluation of the operand (yeilding an intermediate
+ 1049                    result, r).
+ 1050                    (Evaluation Op)     Meaning
+ 1051                    ---------------     -------
+ 1052                           0            indicates VALUE word is not present
+ 1053                                        (r = E(operand))
+ 1054                           1            add:  r = E(operand)+VALUE
+ 1055                           2            subtract:  r = E(operand)-VALUE
+ 1056                           3            multiply:  r = E(operand)*VALUE
+ 1057                           4            divide:  r = E(operand)/VALUE
+ 1058                           5            Shift right
+ 1059                                        r = E(operand) shifted right by
+ 1060                                        VALUE (i.e., VALUE = Shift count)
+ 1061                           6            Shift left
+ 1062                                        r = E(operand shifted left by
+ 1063                                        VALUE (i.e., VALUE = Shift count)
+ 1064                           7            Repeat:  The operand is a repeat
+ 1065                                        count, n.  Repeat VALUE n times.  */
+ 1066
+ 1067            2 RELOCOP UBIN(4) UNAL,
+ 1068              /*K*  RELOCOP is the operator to be applied to the intermediate
+ 1069                    result; r, and the field (defined by DISP, STBIT, and
+ 1070                    ENDBIT within the current program record).
+ 1071                    (Relocation Op)     Meaning
+ 1072                    ---------------     -------
+ 1073                           0            undefined
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         30   
+ 1074                           1            add:  field+r -> field
+ 1075                           2            subtract:  field-r -> field
+ 1076                           3            multiply:  field*r -> field
+ 1077                           4            divide:  field/r -> field
+ 1078                         5-0'15'        undefined
+ 1079                           0'16'        Store right justified:
+ 1080                                        r right justified -> field
+ 1081                           0'17'        Store left justified:
+ 1082                                        r left justified -> field  */
+ 1083
+ 1084            2 OPERAND UBIN HALF UNAL,
+ 1085              /*K*  OPERAND - If operand TYPE = 4, the operand field is
+ 1086                              an unsigned constant.
+ 1087                              If operand TYPE ~= 4 (or 0), the operand field
+ 1088                              is an entry number in the table specified by TYPE. */
+ 1089
+ 1090            2 DISP UBIN HALF UNAL,
+ 1091              /*K*  DISP is the word displacement from OFFSET (in the key)
+ 1092                    to the relocatable item.  */
+ 1093
+ 1094            2 STBIT UBIN BYTE UNAL,
+ 1095              /*K*  STBIT is the starting bit offset from the word located
+ 1096                    by DISP.  */
+ 1097
+ 1098            2 ENDBIT UBIN BYTE UNAL,
+ 1099              /*K*  ENDBIT is the ending bit offset from the word located
+ 1100                    by DISP.   */
+ 1101
+ 1102            2 VALUE SBIN;
+ 1103              /*K*  VALUE is a 36-bit constant to be used in the
+ 1104                    intermediate result, r.  This word is present only if
+ 1105                    EVALOP ~= 0.   */
+ 1106      %MEND;
+ 1107
+ 1108      /*F* NAME:  B$RELOCSUBS
+ 1109           PURPOSE:  Macro for relocation subs      */
+ 1110
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         31   
+ 1111      %MACRO B$RELOCSUBS;
+ 1112      %EQU OPERSECT=1 ;
+ 1113      %EQU OPEREREF=2 ;
+ 1114      %EQU OPERSREF=3 ;
+ 1115      %EQU OPERCONST=4 ;
+ 1116      %EQU OPERSEGID=5 ;
+ 1117      %EQU OPERSEGREF=6 ;
+ 1118      %EQU OPERFREF=15 ;
+ 1119      %EQU FIELDLH=0 ;
+ 1120      %EQU FIELDRH=1 ;
+ 1121      %EQU FIELDSEGID=2 ;
+ 1122      %EQU FIELDY=3 ;
+ 1123      %EQU FIELDLAF=3 ;
+ 1124      %EQU FIELDWORD=4 ;
+ 1125      %EQU EVALOPIGNORE=0 ;                   /* Value not present, r = E(operand)  */
+ 1126      %EQU EVALOPADD=1 ;                      /* Add: r = E(operand) + Value  */
+ 1127      %EQU EVALOPSUB=2 ;                      /* Subtract: r = E(operand) - Value */
+ 1128      %EQU EVALOPMULT=3 ;                     /* Multiply: r = E(operand) * Value */
+ 1129      %EQU EVALOPDIV=4 ;                      /* Divide:   r = E(operand) / Value */
+ 1130      %EQU EVALOPSHFTR=5 ;               /* Shift right: r = E(operand) SR by Value */
+ 1131      %EQU EVALOPSHFTL=6 ;               /* Shift left:  r = E(operand) SL by Value */
+ 1132      %EQU EVALOPRPT=7 ;       /* Operand is a repeat count. Repeat Value n times*/
+ 1133      %EQU EVALOPFREF=8 ;
+ 1134      %EQU RELOCOPADD=1 ;
+ 1135      %EQU RELOCOPSUB=2 ;
+ 1136      %EQU RELOCOPMULT=3 ;
+ 1137      %EQU RELOCOPDIV=4 ;
+ 1138      %EQU RELOCOPSTORER=14 ;
+ 1139      %EQU RELOCOPSTOREL=15 ;
+ 1140      %MEND;
+ 1141
+ 1142      /*F* NAME:  B$LOGBLK
+ 1143           PURPOSE:  Logical block record (type 11)
+ 1144           DESCRIPTION:
+ 1145           The record contains n+2 entries, where n = number of logical
+ 1146           blocks in the module.  The entries describing logical blocks
+ 1147           are preceded by two entries describing the sizes of all the
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         32   
+ 1148           debug records for the module - B$LBNTRY0 and B$LBNTRY1.
+ 1149           The logical block structure of the module is represented by
+ 1150           ordering of the entries.  The logical block table may
+ 1151           not be paged.  */
+ 1152
+ 1153      %MACRO B$LOGBLK (NAME=B$LOGBLK,STCLASS=BASED);
+ 1154      DCL 1 NAME STCLASS ALIGNED,
+ 1155            2 STLINE UBIN HALF UNAL,
+ 1156              /*K*  STLINE is the beginning line number for this logical
+ 1157                    block.     */
+ 1158
+ 1159            2 ENLINE UBIN HALF UNAL,
+ 1160              /*K*  ENLINE is the ending line number for this logical block. */
+ 1161
+ 1162            2 NPOINTER SBIN HALF UNAL,
+ 1163              /*K*  NPOINTER is a word displacement into the debug name
+ 1164                    record (TYPE 15) locating the name of this logical block. */
+ 1165
+ 1166            2 * BIT(9) UNAL,
+ 1167              /*K*  * is reserved for future use and must be zero. */
+ 1168
+ 1169            2 LEXLVL UBIN BYTE UNAL,
+ 1170              /*K*  LEXLVL is the nesting level of a block.
+ 1171                    A contained procedure has a higher lexical level than
+ 1172                    the procedure which contains it.  */
+ 1173
+ 1174            2 STOFFST UBIN HALF UNAL,
+ 1175              /*K*  STOFFST is a word offset into the statement record
+ 1176                    (TYPE 13) to the statement descriptions for this logical
+ 1177                     block.  */
+ 1178
+ 1179            2 STSIZE UBIN HALF UNAL,
+ 1180              /*K*  STSIZE is the size (in entries) of the statement
+ 1181                    descriptions for this logical block.   */
+ 1182
+ 1183            2 VAOFFST UBIN HALF UNAL,
+ 1184              /*K*  VAOFFST is a word offset into the variable record
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         33   
+ 1185                    (TYPE 14) to the variable descriptions for this logical
+ 1186                    block.  */
+ 1187
+ 1188            2 VASIZE UBIN HALF UNAL;
+ 1189              /*K*  VASIZE is the size (in entries) of the variable
+ 1190                    descriptions for this logical block.  */
+ 1191      %MEND;
+ 1192
+ 1193      /*F* NAME:  B$LBNTRY0
+ 1194           PURPOSE:  Logical block record - entry 0 */
+ 1195
+ 1196      %MACRO B$LBNTRY0 (NAME=B$LBNTRY0,STCLASS=BASED);
+ 1197      DCL 1 NAME STCLASS ALIGNED,
+ 1198            2 * BIT(9) UNAL,
+ 1199              /*K*  * is reserved for future use and must be zero. */
+ 1200
+ 1201            2 COMPILER UBIN BYTE UNAL,
+ 1202              /*K*  COMPILER is supplied by the compiler according to
+ 1203                    convention and identifies the language as follows:
+ 1204                         0 - Assembler
+ 1205                         1 - PL-6
+ 1206                         2 - FORTRAN
+ 1207                         3 - COBOL
+ 1208                         4 - PL/I
+ 1209                         5 - RPG
+ 1210                         6 - Pascal
+ 1211                         7 - MOMUS
+ 1212                         8 - FPL                     */
+ 1213
+ 1214            2 VERSION UBIN HALF UNAL,
+ 1215              /*K*  VERSION is supplied by the compiler.    */
+ 1216
+ 1217            2 VERS REDEF VERSION,
+ 1218              /*K* X00 = 'X',0 ; X100 = 'X',100  */
+ 1219
+ 1220              3 LETTER CHAR(1) UNAL,
+ 1221                /*K*  LETTER is the Release identifying letter.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         34   
+ 1222
+ 1223              3 NUMBER UBIN BYTE UNAL,
+ 1224                /*K*  NUMBER is version number.  0-99 external, 100-511 internal.  */
+ 1225
+ 1226            2 UTS UBIN UNAL,
+ 1227              /*K*  UTS is the CP-6 universal time stamp as recorded at
+ 1228                    time of compilation.    */
+ 1229
+ 1230            2 NO_AUTO,                        /* Noauto frame address */
+ 1231              3 OPNDTYP UBIN(4) UNAL,
+ 1232              3 * UBIN(5) UNAL,
+ 1233              3 OPERAND UBIN BYTE UNAL,
+ 1234              3 OFFSET UBIN HALF UNAL,
+ 1235            2 FRAME REDEF NO_AUTO UBIN,       /* Noauto frame address */
+ 1236            2 * BIT(36) UNAL;
+ 1237              /*K*  * is reserved for future use and must be zero.  */
+ 1238      %MEND;
+ 1239
+ 1240      /*F* NAME:  B$LBNTRY1
+ 1241           PURPOSE:  Logical block record - entry 1 */
+ 1242
+ 1243      %MACRO B$LBNTRY1 (NAME=B$LBNTRY1,STCLASS=BASED);
+ 1244      DCL 1 NAME STCLASS ALIGNED,
+ 1245            2 NAMESIZ UBIN HALF UNAL,
+ 1246              /*K*  NAMESIZE is the total size in words, of the debug name
+ 1247                    table (TYPE 15) for this object unit.  */
+ 1248
+ 1249            2 NAMPSIZ UBIN HALF UNAL,
+ 1250              /*K*  NAMPSIZ is the page size, in words, of individual
+ 1251                    records of the debug name table.  */
+ 1252
+ 1253            2 STMNTSIZ UBIN HALF UNAL,
+ 1254              /*K*  STMNTSIZ is the total size, in words, of the statement
+ 1255                    table (TYPE 13) for this object unit.  */
+ 1256
+ 1257            2 STMNTPSIZ UBIN HALF UNAL,
+ 1258              /*K*  STMNTPSIZ is the page size, in words, of individual
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         35   
+ 1259                    records of the statement table.  */
+ 1260
+ 1261            2 VREBLSIZ UBIN HALF UNAL,
+ 1262              /*K*  VREBLSIZ is the total size, in words, of the variable
+ 1263                    table (TYPE 14) for this object unit.   */
+ 1264
+ 1265            2 VREBLPSIZ UBIN HALF UNAL,
+ 1266              /*K*  VREBLPSIZ is the page size, in words, of individual
+ 1267                    records of the variable table.  */
+ 1268
+ 1269            2 INTRYSIZ UBIN HALF UNAL,
+ 1270              /*K*  INTRYSIZ is the total size, in words, of the internal
+ 1271                    entry table (TYPE 12) for this object unit.  */
+ 1272
+ 1273            2 INTRYPSIZ UBIN HALF UNAL;
+ 1274              /*K*  INTRYPSIZ is the page size, in words, of individual
+ 1275                    records of the internal entry table.  */
+ 1276      %MEND;
+ 1277
+ 1278      /*F* NAME:  B$INTNTRY
+ 1279           PURPOSE:  Internal entrys record (type 12)
+ 1280           DESCRIPTION:
+ 1281           The record contains an entry for every internal procedure entry
+ 1282           point within the module.  In PL-6, these are generated by PROC
+ 1283           and ENTRY statements.  Entries are ordered such that the
+ 1284           internal logical block structure of the module is reflected.  */
+ 1285
+ 1286      %MACRO B$INTNTRY (NAME=B$INTNTRY,STCLASS=BASED);
+ 1287      DCL 1 NAME STCLASS ALIGNED,
+ 1288            2 LBE UBIN BYTE UNAL,
+ 1289              /*K*  LBE is the entry number of the logical block table entry
+ 1290                    which describes this procedure.   */
+ 1291
+ 1292            2 OU UNAL,
+ 1293              3 SECTNUM UBIN BYTE UNAL,
+ 1294                /*K*  SECTNUM contains an entry number into the control
+ 1295                      section table (TYPE 3) (OU only).  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         36   
+ 1296              3 OFFSET UBIN HALF UNAL,
+ 1297                /*K*  OFFSET is the word offset from the origin of the section
+ 1298                      (OU).   */
+ 1299
+ 1300            2 ISADDR REDEF OU UBIN(27) UNAL,
+ 1301              /*K*  ISADDR is the address within the instruction segment
+ 1302                    (RU).    */
+ 1303
+ 1304
+ 1305            2 NPOINTER SBIN HALF UNAL,
+ 1306              /*K*  NPOINTER is a word displacement into the debug name
+ 1307                    record (TYPE 15) locating the name of this entry.  */
+ 1308
+ 1309            2 PRI BIT(1) UNAL,
+ 1310              /*K*  PRI is a one-bit flag denoting primary name of the
+ 1311                    logical block.
+ 1312                    If PRI= 1, is primary name
+ 1313                          = 0, is not primary name    */
+ 1314
+ 1315            2 ALT BIT(1) UNAL,
+ 1316              /*K*  ALT is a one-bit flag denoting permissible alternate return.
+ 1317                       ALT = 1, alternate return allowed
+ 1318                           = 0, alternate return not allowed    */
+ 1319
+ 1320            2 CHECK BIT(1) UNAL,
+ 1321              /*K*  CHECK is a one-bit flag denoting arguments/parameter check
+ 1322                    and alternate return specification check.
+ 1323                       CHECK = 0, do not check for matching
+ 1324                                  arguments/parameters and
+ 1325                                  alternate return specification.
+ 1326                             = 1, check for matching arguments/parameters
+ 1327                                  and alternate return specification.  */
+ 1328
+ 1329            2 CST UBIN(6) UNAL,
+ 1330              /*K*  CST is a 4-bit field denoting calling sequence type.
+ 1331                       CST =  0, Standard CP-6 Callable Procedure.
+ 1332                       CST =  1, Nonstandard Call Type.
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         37   
+ 1333                       CST =  2, Standard CP-6 Procedure with MAIN attribute
+ 1334                       CST =  3, Standard CP-6 Procedure with ASYNC attribute
+ 1335                       CST =  4, Standard CP-6 Function Procedure; a
+ 1336                                 variable table entry will be present to
+ 1337                                 define the attributes of the function.
+ 1338                       CST =  5, Same as 0, except USE, AVOID, or
+ 1339                                 MATERIALIZE attributes specified.
+ 1340                       CST =  7, Same as 2, except USE, AVOID, or
+ 1341                                 MATERIALIZE attributes specified.
+ 1342                       CST =  8, Same as 3, except USE, AVOID, or
+ 1343                                 MATERIALIZE attributes specified.
+ 1344                       CST =  9, Same as 4, except USE, AVOID, or
+ 1345                                 MATERIALIZE attributes specified.
+ 1346                       CST = 13, GCOS domain, save
+ 1347                       CST = 14, GCOS domain, no save
+ 1348                       CST = 15, Non-Callable Procedure.       */
+ 1349
+ 1350            2 NPARAM UBIN BYTE UNAL;
+ 1351              /*K*  NPARAM is a 9-bit field denoting number of parameters.  */
+ 1352      %MEND;
+ 1353
+ 1354      /*F* NAME:  B$EXST
+ 1355           PURPOSE:  Executable statements record (type 13)
+ 1356           DESCRIPTION:
+ 1357           The record contains one entry for every executable statement and
+ 1358           substatement in the module.  Note that the logical block table
+ 1359           scopes the statement set for every logical block.  The statement
+ 1360           table must be in order of ascending line numbers, and includes
+ 1361           all labeled statements that can be branched to.
+ 1362           An entry is of the form:      */
+ 1363
+ 1364      %MACRO B$EXST (NAME=B$EXST,STCLASS=BASED);
+ 1365      DCL 1 NAME STCLASS ALIGNED,
+ 1366            2 LA BIT(1) UNAL,
+ 1367              /*K*  LA is the label array indicator; when =1, SUBSCRIPT
+ 1368                    contains the associated subscript value, else SUBSCRIPT
+ 1369                    contains all zeros.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         38   
+ 1370
+ 1371            2 SUBSCRIPT SBIN(8) UNAL,
+ 1372              /*K*  SUBSCRIPT : when LA is 1, SUBSCRIPT contains the
+ 1373                    associated subscript value; otherwise, SUBSCRIPT is
+ 1374                    all zeros.   */
+ 1375
+ 1376            2 OU UNAL,
+ 1377              3 SECTNUM UBIN BYTE UNAL,
+ 1378                /*K*  SECTNUM contains an entry number into the control
+ 1379                      section table (TYPE 3) (OU only).  */
+ 1380              3 OFFSET UBIN HALF UNAL,
+ 1381                /*K*  OFFSET is a word offset from the origin of the section (OU).  */
+ 1382
+ 1383            2 ISADDR REDEF OU UBIN(27) UNAL,
+ 1384              /*K*  ISADDR is the address within instruction segment (RU). */
+ 1385
+ 1386            2 NPOINTER SBIN HALF UNAL,
+ 1387              /*K*  NPOINTER is a word displacement into the debug name
+ 1388                    record (TYPE 15) locating the statement label.  A value
+ 1389                    of -1 indicates no label.  */
+ 1390
+ 1391            2 LBE UBIN HALF UNAL,
+ 1392              /*K*  LBE is the entry number (in the logical block table) of
+ 1393                    the logical block of the highest lexical level containing
+ 1394                    this statement.  */
+ 1395
+ 1396            2 COS BIT(1) UNAL,
+ 1397              /*K*  COS indicates a compiler optimized statement; when set,
+ 1398                    indicates this statement may not produce correct results
+ 1399                    if the compiled in program flow has been altered.  */
+ 1400
+ 1401            2 SUBSTTYPE UBIN(10) UNAL,
+ 1402              /*K*  SUBSTTYPE (Substatement Type) - This field may be used
+ 1403                    by compilers to elaborate on statement type.  This
+ 1404                    field is not used by the debugger.  */
+ 1405
+ 1406            2 STTYPE UBIN(7) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         39   
+ 1407              /*K*  STTYPE (Statement Type) is a code which indicates the
+ 1408                    generic class of statement for use by the dubugger.
+ 1409
+ 1410                    The statement types and their value for STTYPE are:
+ 1411
+ 1412                     0 - Null Statement
+ 1413                     1 - Assignments
+ 1414                     2 - Call
+ 1415                     3 - Monitor Call
+ 1416                     4 - Alternate Shared Library Call
+ 1417                     5 - If
+ 1418                     6 - Else
+ 1419                     7 - Case
+ 1420                     8 - GOTO
+ 1421                     9 - Return
+ 1422                    10 - Altreturn
+ 1423                    11 - Remember
+ 1424                    12 - Unwind
+ 1425                    13 - Report Writer
+ 1426                    14 - Alter
+ 1427                    15 - Evaluate
+ 1428                    16 - Intrinsic Call
+ 1429                    17 - Spoil
+ 1430                    18 - GOTO Subscripted
+ 1431                    19 - Assigned GOTO
+ 1432                    20 - If Logical
+ 1433                    21 - If Arithmetic
+ 1434                    22 - Pause
+ 1435                    23 - Perform
+ 1436                    24 - Stop Program
+ 1437                    25 - I/O Statement
+ 1438                    26 - Else If
+ 1439                    27 - Assigned
+ 1440                    28 - Do Select
+ 1441                    29 - Do Select End
+ 1442                    30 - Select
+ 1443                    31 - Do Uninhibit
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         40   
+ 1444                    32 - Inspect
+ 1445                    33 - Do Until
+ 1446                    34 - Do Index
+ 1447                    35 - Do While
+ 1448                    36 - Do Case
+ 1449                    37 - DO
+ 1450                    38 - DO INHIBIT
+ 1451                    39 - Set
+ 1452                    40 - Exit
+ 1453                    41 - Do Uninhibit End
+ 1454                    42 - Purge
+ 1455                    43 - Do Until End
+ 1456                    44 - Do Index End
+ 1457                    45 - Do While End
+ 1458                    46 - Do Case End
+ 1459                    47 - DO END
+ 1460                    48 - DO INHIBIT END
+ 1461                    49 - Release
+ 1462                    50 - Send
+ 1463                    51 - Data Base
+ 1464                    52 - Cancel
+ 1465                    53 - Initialize
+ 1466                    54 - Merge
+ 1467                    55 - Receive
+ 1468                    56 - Search
+ 1469                    57 - Sort
+ 1470                    58 - String
+ 1471                    59 - Unstring
+ 1472                    60 - Use
+ 1473                    61 - 100 Reserved for future use
+ 1474                   101 - Proc
+ 1475                   102 - Proc End
+ 1476                   103 - Entry
+ 1477                   104 - Compiler Miscellaneous     */
+ 1478
+ 1479            2 LINENUM UBIN HALF UNAL;
+ 1480              /*K*  LINENUM is the line number of this executable statement.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         41   
+ 1481      %MEND;
+ 1482
+ 1483      /*F*  NAME:  B$STTYPESUBS
+ 1484            PURPOSE:  Macro for statement type subs */
+ 1485
+ 1486      %MACRO B$STTYPESUBS;
+ 1487      %EQU S@NULL=0 ;
+ 1488      %EQU S@ASSIGNMENT=1 ;
+ 1489      %EQU S@CALL=2 ;
+ 1490      %EQU S@MONITOR_CALL=3 ;
+ 1491      %EQU S@ASL_CALL=4 ;
+ 1492      %EQU S@IF=5 ;
+ 1493      %EQU S@ELSE=6 ;
+ 1494      %EQU S@CASE=7 ;
+ 1495      %EQU S@GOTO=8 ;
+ 1496      %EQU S@RETURN=9 ;
+ 1497      %EQU S@ALTRETURN=10 ;
+ 1498      %EQU S@REMEMBER=11 ;
+ 1499      %EQU S@UNWIND=12 ;
+ 1500      %EQU S@REPORT_WRITER=13 ;
+ 1501      %EQU S@ALTER=14 ;
+ 1502      %EQU S@EVALUATE=15 ;
+ 1503      %EQU S@INTRINSIC_CALL=16 ;
+ 1504      %EQU S@SPOIL=17 ;
+ 1505      %EQU S@GOTO_SUBSCRIPTED=18 ;
+ 1506      %EQU S@ASSIGNED_GOTO=19 ;
+ 1507      %EQU S@IF_LOGICAL=20 ;
+ 1508      %EQU S@IF_ARITHMETIC=21 ;
+ 1509      %EQU S@PAUSE=22 ;
+ 1510      %EQU S@PERFORM=23 ;
+ 1511      %EQU S@STOP=24 ;
+ 1512      %EQU S@I_O=25 ;
+ 1513      %EQU S@ELSE_IF=26 ;
+ 1514      %EQU S@ASSIGNED=27 ;
+ 1515      %EQU S@DO_SELECT=28 ;
+ 1516      %EQU S@DO_SELECT_END=29 ;
+ 1517      %EQU S@SELECT=30 ;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         42   
+ 1518      %EQU S@DO_UNINHIBIT=31 ;
+ 1519      %EQU S@INSPECT=32 ;
+ 1520      %EQU S@DO_UNTIL=33 ;
+ 1521      %EQU S@DO_INDEX=34 ;
+ 1522      %EQU S@DO_WHILE=35 ;
+ 1523      %EQU S@DO_CASE=36 ;
+ 1524      %EQU S@DO=37 ;
+ 1525      %EQU S@DO_INHIBIT=38 ;
+ 1526      %EQU S@SET=39 ;
+ 1527      %EQU S@EXIT=40 ;
+ 1528      %EQU S@DO_UNINHIBIT_END=41 ;
+ 1529      %EQU S@PURGE=42 ;
+ 1530      %EQU S@DO_UNTIL_END=43 ;
+ 1531      %EQU S@DO_INDEX_END=44 ;
+ 1532      %EQU S@DO_WHILE_END=45 ;
+ 1533      %EQU S@DO_CASE_END=46 ;
+ 1534      %EQU S@DO_END=47 ;
+ 1535      %EQU S@DO_INHIBIT_END=48 ;
+ 1536      %EQU S@RELEASE=49 ;
+ 1537      %EQU S@SEND=50 ;
+ 1538      %EQU S@DATA_BASE=51 ;
+ 1539      %EQU S@CANCEL=52 ;
+ 1540      %EQU S@INITIALIZE=53 ;
+ 1541      %EQU S@MERGE=54 ;
+ 1542      %EQU S@RECEIVE=55 ;
+ 1543      %EQU S@SEARCH=56 ;
+ 1544      %EQU S@SORT=57 ;
+ 1545      %EQU S@STRING=58 ;
+ 1546      %EQU S@UNSTRING=59 ;
+ 1547      %EQU S@USE=60 ;
+ 1548      %EQU S@LOAD=61 ;
+ 1549      /* 62 - 100 UNUSED */
+ 1550      %EQU S@PROC=101 ;
+ 1551      %EQU S@PROC_END=102 ;
+ 1552      %EQU S@ENTRY=103 ;
+ 1553      %EQU S@MISC=104 ;
+ 1554      %MEND;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         43   
+ 1555
+ 1556      /*F* NAME:  B$STXTYPESUBS
+ 1557           PURPOSE:  Macro for statement type text subs */
+ 1558
+ 1559      %MACRO B$STXTYPESUBS;
+ 1560      %EQU T@NULL='NULL' ;
+ 1561      %EQU T@ASSIGNMENT='ASSIGNMENT' ;
+ 1562      %EQU T@CALL='CALL' ;
+ 1563      %EQU T@MONITOR_CALL='MONITOR CALL' ;
+ 1564      %EQU T@ASL_CALL='ASL CALL' ;
+ 1565      %EQU T@IF='IF' ;
+ 1566      %EQU T@ELSE='ELSE' ;
+ 1567      %EQU T@CASE='CASE' ;
+ 1568      %EQU T@GOTO='GOTO' ;
+ 1569      %EQU T@RETURN='RETURN' ;
+ 1570      %EQU T@ALTRETURN='ALTRETURN' ;
+ 1571      %EQU T@REMEMBER='REMEMBER' ;
+ 1572      %EQU T@UNWIND='UNWIND' ;
+ 1573      %EQU T@REPORT_WRITER='REPORT WRITER' ;
+ 1574      %EQU T@ALTER='ALTER' ;
+ 1575      %EQU T@EVALUATE='EVALUATE' ;
+ 1576      %EQU T@INTRINSIC_CALL='INTRINSIC CALL' ;
+ 1577      %EQU T@SPOIL='SPOIL' ;
+ 1578      %EQU T@GOTO_SUBSCRIPTED='GOTO SUBSCRIPTED' ;
+ 1579      %EQU T@ASSIGNED_GOTO='ASSIGNED GOTO' ;
+ 1580      %EQU T@IF_LOGICAL='IF LOGICAL' ;
+ 1581      %EQU T@IF_ARITHMETIC='IF ARITHMETIC' ;
+ 1582      %EQU T@PAUSE='PAUSE' ;
+ 1583      %EQU T@PERFORM='PERFORM' ;
+ 1584      %EQU T@STOP='STOP' ;
+ 1585      %EQU T@I_O='I/O' ;
+ 1586      %EQU T@ELSE_IF='ELSEIF' ;
+ 1587      %EQU T@ASSIGNED='ASSIGNED' ;
+ 1588      %EQU T@DO_SELECT='DO SELECT' ;
+ 1589      %EQU T@DO_SELECT_END='DO SELECT END' ;
+ 1590      %EQU T@SELECT='SELECT' ;
+ 1591      %EQU T@DO_UNINHIBIT='DO UNINHIBIT';
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         44   
+ 1592      %EQU T@INSPECT='INSPECT' ;
+ 1593      %EQU T@DO_UNTIL='DO UNTIL';
+ 1594      %EQU T@DO_INDEX='DO INDEX' ;
+ 1595      %EQU T@DO_WHILE='DO WHILE' ;
+ 1596      %EQU T@DO_CASE='DO CASE' ;
+ 1597      %EQU T@DO='DO' ;
+ 1598      %EQU T@DO_INHIBIT='DO INHIBIT' ;
+ 1599      %EQU T@SET='SET' ;
+ 1600      %EQU T@EXIT='EXIT' ;
+ 1601      %EQU T@DO_UNINHIBIT_END='DO UNINHIBIT END';
+ 1602      %EQU T@PURGE='PURGE' ;
+ 1603      %EQU T@DO_UNTIL_END='DO UNTIL END';
+ 1604      %EQU T@DO_INDEX_END='DO INDEX END' ;
+ 1605      %EQU T@DO_WHILE_END='DO WHILE END' ;
+ 1606      %EQU T@DO_CASE_END='DO CASE END' ;
+ 1607      %EQU T@DO_END='DO END' ;
+ 1608      %EQU T@DO_INHIBIT_END='DO INHIBIT END' ;
+ 1609      %EQU T@RELEASE='RELEASE' ;
+ 1610      %EQU T@SEND='SEND' ;
+ 1611      %EQU T@DATA_BASE='DATA BASE' ;
+ 1612      %EQU T@CANCEL='CANCEL' ;
+ 1613      %EQU T@INITIALIZE='INITIALIZE' ;
+ 1614      %EQU T@MERGE='MERGE' ;
+ 1615      %EQU T@RECEIVE='RECEIVE' ;
+ 1616      %EQU T@SEARCH='SEARCH' ;
+ 1617      %EQU T@SORT='SORT' ;
+ 1618      %EQU T@STRING='STRING' ;
+ 1619      %EQU T@UNSTRING='UNSTRING' ;
+ 1620      %EQU T@USE='USE' ;
+ 1621      %EQU T@LOAD='LOAD' ;
+ 1622      %EQU T@PROC='PROC' ;
+ 1623      %EQU T@PROC_END='PROC END' ;
+ 1624      %EQU T@ENTRY='ENTRY' ;
+ 1625      %EQU T@MISC='MISC' ;
+ 1626      %MEND;
+ 1627
+ 1628      /*F* NAME:  B$VREBL
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         45   
+ 1629           PURPOSE:  Variables record (type 14)
+ 1630           DECRIPTION:
+ 1631           The record contains descriptions for every variable in the module.
+ 1632           Note that the logical block table scopes the variable set for
+ 1633           each logical block.  An entry is 5 words long; a complete
+ 1634           variable description may require more than one entry.  The
+ 1635           complete description of a variable is always contained in one
+ 1636           Variable Table Page.  For this purpose null entries must be used
+ 1637           to fill the end of a page.
+ 1638
+ 1639           The general form of the first (or only) entry of a description is:   */
+ 1640
+ 1641      %MACRO B$VREBL (NAME=B$VREBL,STCLASS=BASED);
+ 1642      DCL 1 NAME STCLASS ALIGNED,
+ 1643            2 ADR,
+ 1644              /*K*  ADR is a field containing an 18 bit word address
+ 1645                    (W), 2 bit byte address (C), and 4 bit bit address (B).
+ 1646                    Only the word portion is subject to relocation specified
+ 1647                    by OPNDTYP.  The meaning of ADR is dictated by the
+ 1648                    Address Type field.  */
+ 1649
+ 1650              3 W UBIN HALF UNAL,
+ 1651                /*K*  W is a field containing an 18 bit word address. */
+ 1652
+ 1653              3 C UBIN(2) UNAL,
+ 1654                /*K*  C is a field containing a 2 bit byte address.  */
+ 1655
+ 1656              3 B UBIN(4) UNAL,
+ 1657                /*K*  B is a field containing a 4 bit bit address.  */
+ 1658
+ 1659            2 ADR6 REDEF ADR,
+ 1660              /*K*  ADR6 is a field for the FEP containing an 20 bit word address
+ 1661                    (W), 1 bit byte address (C), and 3 bit bit address (B).
+ 1662                    Only the word portion is subject to relocation specified
+ 1663                    by OPNDTYP.  The meaning of ADR6 is dictated by the
+ 1664                    Address Type field.  Note that this form is only to
+ 1665                    be used in Run Units. The Object Unit always uses
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         46   
+ 1666                    the ADR format.  */
+ 1667
+ 1668              3 W UBIN(20) UNAL,
+ 1669                /*K*  W is a field containing an 20 bit word address. */
+ 1670
+ 1671              3 C UBIN(1) UNAL,
+ 1672                /*K*  C is a field containing a 1 bit byte address.  */
+ 1673
+ 1674              3 B UBIN(3) UNAL,
+ 1675                /*K*  B is a field containing a 3 bit bit address.  */
+ 1676
+ 1677            2 ADDRTYP UBIN(4) UNAL,
+ 1678              /*K*  ADDRTYP (Address Type) is a four bit field which
+ 1679                    determines how to use ADR (and possible other information)
+ 1680                    to locate the data described by the entry.  ADDRTYP can
+ 1681                    take on the following values:
+ 1682
+ 1683                    0 - No relocation to be done to this entry.
+ 1684                    1 - Static data - ADR is an offset within ISR.
+ 1685                    2 - Automatic Data - ADR is an offset within the current
+ 1686                        AUTO frame located by PR2.
+ 1687                    3 - Based data - ADR is an offset from user pointer
+ 1688                        (possibly defined by IMPTR).
+ 1689                    4 - DCB - ADR is an offset from the beginning of the DCB
+ 1690                        (which is located by IMPTR).
+ 1691                    5 - Parameter - ADR is an offset from the data located
+ 1692                        by the Implied Pointer into Automatic Storage.
+ 1693                    6 - Constant - ADR is a 18-bit constant.
+ 1694                    7 - Parameter in static - ADR is an offset from the data
+ 1695                        located by the Implied Point into Static Storage.
+ 1696                        In this case relocation information applies to IMPTR.
+ 1697                    8 - AREADEF - ADR is the offset into the segment for
+ 1698                        this item.
+ 1699                    9 - Virtual array - ADR is the IS offset in static of
+ 1700                        the descriptor block for this virtual array.
+ 1701                   10 - 15 - Reserved for future use.    */
+ 1702
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         47   
+ 1703            2 DATATYP UBIN(6) UNAL,
+ 1704              /*K*  DATATYP is a 6 bit field indicating the type of data
+ 1705                    described by this entry.  The defined data type codes
+ 1706                    can be found in the VREBL_DATATYPES macro.  */
+ 1707
+ 1708            2 REF BIT(1) UNAL,
+ 1709              /*K* REF is a one bit field which indicates whether the
+ 1710                   variable is referenced (REF=1) or not by this module.  */
+ 1711
+ 1712            2 MODF BIT(1) UNAL,
+ 1713              /*K*  MODF is a one bit field which indicates whether the
+ 1714                    variable is explicitely modified (MODF=1) or not by this
+ 1715                    module.    */
+ 1716
+ 1717            2 LOGSIZ UBIN HALF UNAL,
+ 1718              /*K* LOGSIZ is an 18 bit field containing the size of the data
+ 1719                   item or a locator of the variable containing the size.
+ 1720                   If SZTYP=0, this field contains the number of basic
+ 1721                   elements of this data type contained in the variable,
+ 1722                   e.g., the field contains five for a CHAR (5) variable.
+ 1723                   If SZTYP = 1, this field contains the entry number of
+ 1724                   the variable which contains the size.   */
+ 1725
+ 1726            2 LEVEL UBIN(6) UNAL,
+ 1727              /*K*  LEVEL is a 6 bit field containing the level number of
+ 1728                    the data item (for structures).   */
+ 1729
+ 1730            2 ALIGNTYP UBIN(3) UNAL,
+ 1731              /*K*  ALIGNTYP is a 3 bit field defining the explicit alignment
+ 1732                    of the data item.  The values and their meanings are:
+ 1733
+ 1734                    0 = Double Word Aligned
+ 1735                    1 = Word Aligned
+ 1736                    2 = Half Word Aligned
+ 1737                    3 = Byte Aligned
+ 1738                    4 = Bit Aligned
+ 1739                    5 = Digit Aligned  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         48   
+ 1740
+ 1741            2 SZTYP BIT(1) UNAL,
+ 1742              /*K*  SZTYP - If SZTYP = 0, LOGSIZ contains the number of
+ 1743                    basic elements of this data type contained in the variable,
+ 1744                    e.g., the field contains five for a CHAR (5) variable.
+ 1745                    If SZTYP = 1, LOGZIS contains the entry number of the
+ 1746                    variable which contains the size.  */
+ 1747
+ 1748            2 ARRAYTYP UBIN(4) UNAL,
+ 1749              /*K*  ARRAYTYP is a four bit field which determines the array
+ 1750                    characteristics of this variable and thus determines
+ 1751                    whether continuation entry(ies) exist for this item.
+ 1752                    The defined array types are:
+ 1753
+ 1754                    0 - The item is not dimensioned
+ 1755                    1 - The item is a single dimensional array with offset=0.
+ 1756                        DIMS contains the number of elements.  No continuation
+ 1757                        entry exists.
+ 1758                    2 - Same as type 1 except the offset (to be subtracted) =1.
+ 1759                    3 - All other arrays except virtual arrays.  DIMS,
+ 1760                        ELEMENTS, ELMNTSIZ, and OFFSET must be defined.  As
+ 1761                        many continuation entries as required will be present
+ 1762                        to accommodate the number of dimensions of the array
+ 1763                        with indeterminate number of elements, the ELEMENTS
+ 1764                        field will contain 0.
+ 1765                    4 - Virtual Array.  DIMS, ELEMENTS, ELMNTSIZ, and OFFSET
+ 1766                        must be defined.  As many continuation entries as
+ 1767                        required will be present to accommodate the number
+ 1768                        of dimensions of the array.
+ 1769                    5 - Adjustable dimensions uses continuation entries of
+ 1770                        the form of B$VREBLCA.    */
+ 1771
+ 1772            2 OPNDTYP UBIN(4) UNAL,
+ 1773              /*K*  OPNDTYP -
+ 1774                    (operand type) = 1 section
+ 1775                                   = 2 ENTREF
+ 1776                                   = 3 SYMREF
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         49   
+ 1777                                   = 4 CONSTANT
+ 1778                                   = 5 SEGDEF
+ 1779                                   = 6 SEGREF    */
+ 1780
+ 1781            2 IMPTR SBIN HALF UNAL,
+ 1782              /*K*  IMPTR is unused for ADDRTYP = 1, 2, or 6.  If ADDRTYP = 3
+ 1783                    (Based) and bit 0 = 1, this based variable has no implied
+ 1784                    pointer.  If ADDRTYP = 3 (Based) and bit 0 = 0, bits 1-17
+ 1785                    contain the entry number of the variable table entry
+ 1786                    for the implied pointer to this variable.
+ 1787
+ 1788                    If ADDRTYP = 4 (DCB), this field contains the SYMREF
+ 1789                    number of the DCB.  After linking, the field will
+ 1790                    contain the DCB number.
+ 1791
+ 1792                    If ADDRTYP = 5, this field contains the offset in the
+ 1793                    current automatic frame of the pointer to this parameter.
+ 1794
+ 1795                    If ADDRTYP = 7, this field contains the address in the
+ 1796                    Instruction Segment of the pointer to this parameter.  */
+ 1797
+ 1798            2 OPERAND UBIN HALF UNAL,
+ 1799              /*K*  OPERAND - If OPNDTYPE = 4, the OPERAND field is
+ 1800                              an unsigned constant.
+ 1801                              If OPNDTYPE ~= 4 (or 0), the OPERAND field
+ 1802                              is an entry number in the table specified by TYPE. */
+ 1803
+ 1804            2 ELMNTSIZ UBIN(24) UNAL,
+ 1805              /*K*  ELMNTSIZ is a 24 bit field defining the physical size
+ 1806                    (in bits) of the item or of an element of the item,
+ 1807                    if an array.  This includes all slack bits.  This is the
+ 1808                    multiplier needed to determine the bit offset
+ 1809                    in an array given the element offset.  */
+ 1810
+ 1811            2 STATUS_EXISTS BIT(1) UNAL,
+ 1812              /*K* STATUS EXISTS - If STATUS_EXISTS = 1,  */
+ 1813            2 * BIT(3) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         50   
+ 1814              /*K*  * is reserved for future use and must be zero.  */
+ 1815
+ 1816            2 SCALE SBIN(8) UNAL,
+ 1817              /*K*  SCALE is the number of units by which this datum is
+ 1818                    assumed to be scaled.  The units depend on the data type.
+ 1819                    If this is a binary data type, the units are binary
+ 1820                    digits.  If this is a decimal data type, the units are
+ 1821                    decimal digits.  The field is meaningless for other data
+ 1822                    types.  The value of SCALE is such that:
+ 1823
+ 1824                    actual value = (value of datum) * (radix) ** SCALE  */
+ 1825
+ 1826            2 DIMS UBIN HALF UNAL,
+ 1827              /*K*  DIMS is an 18 bit field containing the number of dimensions
+ 1828                    for an array if ARRAYTYP = 3 or 4.  If ARRAYTYP = 1 or 2,
+ 1829                    this field contains the number of elements in the array.  */
+ 1830
+ 1831            2 NPOINTER SBIN HALF UNAL;
+ 1832              /*K*  NPOINTER is an 18 bit field containing the word offset
+ 1833                    into the debug name record (type 15) locating
+ 1834                    the name of this variable.  */
+ 1835      %MEND;
+ 1836
+ 1837      /*F* NAME:  VREBLSUBS;
+ 1838           PURPOSE:  Macro for variables record ARRAYTYP subs */
+ 1839
+ 1840      %MACRO VREBLSUBS;
+ 1841      %EQU SCALAR_ARRAY=0 ;
+ 1842      %EQU VECTOR0_ARRAY=1 ;
+ 1843      %EQU VECTOR1_ARRAY=2 ;
+ 1844      %EQU REAL_ARRAY=3 ;
+ 1845      %EQU VIRTUAL_ARRAY=4 ;
+ 1846      %EQU ADJUSTABLE_ARRAY=5 ;
+ 1847      %MEND;
+ 1848
+ 1849      /*F* NAME:  B$VREBLC
+ 1850           PURPOSE:  Variables record (type 14) - continuation entry
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         51   
+ 1851           DESCRIPTION:
+ 1852           The form of continuation entries for ARRAYTYP = 3 or 4 is as follows:  */
+ 1853
+ 1854      %MACRO B$VREBLC (NAME=B$VREBLC,STCLASS=BASED);
+ 1855      DCL 1 NAME STCLASS ALIGNED,
+ 1856            2 OFFSET SBIN(28) UNAL,
+ 1857              /*K*  OFFSET is a 28 bit signed field containing the value to
+ 1858                    be subtracted from the composite index calculated from
+ 1859                    index values and multipliers before multiplying by
+ 1860                    ELMNTSIZ.  */
+ 1861
+ 1862            2 DATATYP UBIN(6) UNAL,
+ 1863              /*K*  DATATYP is a 6 bit field indicating the type of data
+ 1864                    described by this entry.  The defined data type codes
+ 1865                    can be found in the VREBL_DATATYPES macro.  */
+ 1866
+ 1867            2 * BIT(2) UNAL,
+ 1868              /*K*  * is reserved for future use and must be zero.  */
+ 1869
+ 1870            2 ELEMENTS UBIN(32) UNAL,
+ 1871              /*K*  ELEMENTS is a 32 bit field containing the total number of
+ 1872                    elements in an array, i.e., the product of all dimensions.  */
+ 1873
+ 1874            2 OPNDTYP UBIN(4) UNAL,
+ 1875              /*K*  OPNDTYP -
+ 1876                    (operand type) = 1 section
+ 1877                                   = 2 ENTREF
+ 1878                                   = 3 SYMREF
+ 1879                                   = 4 CONSTANT
+ 1880                                   = 5 SEGDEF
+ 1881                                   = 6 SEGREF    */
+ 1882
+ 1883            2 MULT_61(0:2) UBIN UNAL,
+ 1884              /*K*  MULT_61 is the coefficient to be applied to index n in
+ 1885                    an array reference to be used in locating a particular
+ 1886                    element of an array.  This coefficient is used for
+ 1887                    data type = 61, virtual arrays.
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         52   
+ 1888
+ 1889                    The following example is included to clarify the use of
+ 1890                    the various array parameters.
+ 1891
+ 1892                    Assume an array A(LB1:UB1,LB2:UB2,....,LBn:UBn).  Then
+ 1893                    for languages which vary the first dimension most rapidly
+ 1894                    (e.g., FORTRAN):
+ 1895
+ 1896                         MULT(1) = 1
+ 1897                         MULT(j) = MULT(j-1)*(UB(j-1)-LB(j-1)+1), 2 <= j <= N
+ 1898                         ELEMENTS = MULT(N)*(UB(N)-LB(N)*1)   
+ 1899
+ 1900                    And for languages which vary the last dimension most
+ 1901                    rapidly (e.g., PL/I):
+ 1902
+ 1903                         MULT(N) = 1
+ 1904                         MULT(j) = MULT(j+1)*(UB(j+1)-LB(j+1)+1), 1 <= j <= N-1
+ 1905                         ELEMENTS = MULT(1)*(UB(1)-LB(1)+1)
+ 1906
+ 1907                    In either case:
+ 1908
+ 1909                         OFFSET = The sum of (MULT(j)*LB(j)) for j = 1 to N
+ 1910
+ 1911                   and the bit displacement from ADR to any element
+ 1912                   A(X1,X2,...,Xn) is given by:
+ 1913
+ 1914                        Bit displacement = (The sum of (MULT(j)*X(j)-OFFSET)
+ 1915                                           for j = 1 to N) * ELMNTSIZ    */
+ 1916
+ 1917            2 MULT_62(0:5) REDEF MULT_61 UBIN(18) UNAL;
+ 1918              /*K*  MULT_62 is the coefficient to be applied to index n in
+ 1919                    an array reference to be used in locating a particular
+ 1920                    element of an array.  This coefficient is used for
+ 1921                    data type = 62, non-virtual arrays.
+ 1922
+ 1923                    The following example is included to clarify the use of
+ 1924                    the various array parameters.
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         53   
+ 1925
+ 1926                    Assume an array A(LB1:UB1,LB2:UB2,....,LBn:UBn).  Then
+ 1927                    for languages which vary the first dimension most rapidly
+ 1928                    (e.g., FORTRAN):
+ 1929
+ 1930                         MULT(1) = 1
+ 1931                         MULT(j) = MULT(j-1)*(UB(j-1)-LB(j-1)+1), 2 <= j <= N
+ 1932                         ELEMENTS = MULT(N)*(UB(N)-LB(N)*1)   
+ 1933
+ 1934                    And for languages which vary the last dimension most
+ 1935                    rapidly (e.g., PL/I):
+ 1936
+ 1937                         MULT(N) = 1
+ 1938                         MULT(j) = MULT(j+1)*(UB(j+1)-LB(j+1)+1), 1 <= j <= N-1
+ 1939                         ELEMENTS = MULT(1)*(UB(1)-LB(1)+1)
+ 1940
+ 1941                    In either case:
+ 1942
+ 1943                         OFFSET = The sum of (MULT(j)*LB(j)) for j = 1 to N
+ 1944
+ 1945                   and the bit displacement from ADR to any element
+ 1946                   A(X1,X2,...,Xn) is given by:
+ 1947
+ 1948                        Bit displacement = (The sum of (MULT(j)*X(j)-OFFSET)
+ 1949                                           for j = 1 to N) * ELMNTSIZ    */
+ 1950
+ 1951      %MEND;
+ 1952
+ 1953      /*F* NAME:  B$VREBLCA
+ 1954           PURPOSE:  Variables record (type 14) - continuation entry for arrays
+ 1955           DESCRIPTION:
+ 1956           The form of continuation entries for ARRAYTYP = 5 is as follows:  */
+ 1957
+ 1958      %MACRO B$VREBLCA (NAME=B$VREBLCA,STCLASS=BASED);
+ 1959      DCL 1 NAME STCLASS ALIGNED,
+ 1960            2 IOFFSET BIT(1) UNAL,
+ 1961              /*K*  IOFFSET is a one-bit flag denoting the interpretation
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         54   
+ 1962                    of OFFSET and OFF_V#.
+ 1963
+ 1964                    If IOFFSET = 0, OFFSET is a 27 bit signed field containing
+ 1965                    the value to be subtracted from the composite index
+ 1966                    calculated from index values and multipliers before
+ 1967                    multiplying by ELMNTSIZ.
+ 1968
+ 1969                    If IOFFSET = 1, OFF_V# is a 27 bit unsigned field
+ 1970                    containing the variable table entry number of the
+ 1971                    variable containing the value to be subtracted from the
+ 1972                    composite index calculated from index values and multipliers
+ 1973                    before multiplying by ELMNTSIZ.   */
+ 1974
+ 1975            2 OFFSET SBIN(27) UNAL,
+ 1976              /*K*  OFFSET is a 27 bit signed field containing the value to
+ 1977                    be subtracted from the composite index calculated from index
+ 1978                    values and multipliers before multiplying by ELMNTSIZ.  */
+ 1979
+ 1980            2 OFF_V# REDEF OFFSET UBIN(27) UNAL,
+ 1981              /*K*  OFF_V# is a 27 bit unsigned field containing the variable
+ 1982                    table entry number of the variable containing the value
+ 1983                    to be subtracted from the composite index calculated from
+ 1984                    index values and multipliers before multiplying by
+ 1985                    ELMNTSIZ.   */
+ 1986
+ 1987            2 DATATYP UBIN(6) UNAL,
+ 1988              /*K*  DATATYP is a 6 bit field indicating the type of data
+ 1989                    described by this entry.  The defined data type codes
+ 1990                    can be found in the VREBL_DATATYPES macro.  */
+ 1991
+ 1992            2 * BIT(2) UNAL,
+ 1993              /*K*  * is reserved for future use and must be zero.  */
+ 1994
+ 1995            2 IELEMENTS BIT(1) UNAL,
+ 1996              /*K*  IELEMENTS is a one-bit flag denoting the interpretation
+ 1997                    of ELEMENTS and ELEM_V#.
+ 1998
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         55   
+ 1999                    If IELEMENTS = 0, ELEMENTS is a 31 bit field containing
+ 2000                    the total number of elements in the array.
+ 2001
+ 2002                    If IELEMENTS = 1, ELEM_V# is a 31 bit field containing
+ 2003                    the variable table entry number of the variable
+ 2004                    containing the total number of elements in the array.  */
+ 2005
+ 2006            2 ELEMENTS UBIN(31) UNAL,
+ 2007              /*K*  ELEMENTS is a 31 bit field containing the total number of
+ 2008                    elements in an array, i.e., the product of all dimensions.  */
+ 2009
+ 2010            2 ELEM_V# REDEF ELEMENTS UBIN(31) UNAL,
+ 2011              /*K*  ELEM_V# is a 31 bit field containing the variable table
+ 2012                    entry number of the variable containing the total
+ 2013                    number of elements in the array.  */
+ 2014
+ 2015            2 OPNDTYP UBIN(4) UNAL,
+ 2016              /*K*  OPNDTYP -
+ 2017                    (operand type) = 1 section
+ 2018                                   = 2 ENTREF
+ 2019                                   = 3 SYMREF
+ 2020                                   = 4 CONSTANT
+ 2021                                   = 5 SEGDEF
+ 2022                                   = 6 SEGREF    */
+ 2023
+ 2024            2 MULT_A(0:2) UNAL,
+ 2025              /*K*  MULT_A is the coefficient to be applied to index n in
+ 2026                    an array reference to be used in locating a particular
+ 2027                    element of an array.  This coefficient is used for
+ 2028                    adjustable dimension arrays.
+ 2029
+ 2030                    The following example is included to clarify the use of
+ 2031                    the various array parameters.
+ 2032
+ 2033                    Assume an array A(LB1:UB1,LB2:UB2,....,LBn:UBn).  Then
+ 2034                    for languages which vary the first dimension most rapidly
+ 2035                    (e.g., FORTRAN):
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         56   
+ 2036
+ 2037                         MULT(1) = 1
+ 2038                         MULT(j) = MULT(j-1)*(UB(j-1)-LB(j-1)+1), 2 <= j <= N
+ 2039                         ELEMENTS = MULT(N)*(UB(N)-LB(N)*1)   
+ 2040
+ 2041                    And for languages which vary the last dimension most
+ 2042                    rapidly (e.g., PL/I):
+ 2043
+ 2044                         MULT(N) = 1
+ 2045                         MULT(j) = MULT(j+1)*(UB(j+1)-LB(j+1)+1), 1 <= j <= N-1
+ 2046                         ELEMENTS = MULT(1)*(UB(1)-LB(1)+1)
+ 2047
+ 2048                    In either case:
+ 2049
+ 2050                         OFFSET = The sum of (MULT(j)*LB(j)) for j = 1 to N
+ 2051
+ 2052                   and the bit displacement from ADR to any element
+ 2053                   A(X1,X2,...,Xn) is given by:
+ 2054
+ 2055                        Bit displacement = (The sum of (MULT(j)*X(j)-OFFSET)
+ 2056                                           for j = 1 to N) * ELMNTSIZ    */
+ 2057
+ 2058              3 I BIT(1) UNAL,
+ 2059                /*K*  I is a one-bit flag denoting the interpretation of N.
+ 2060
+ 2061                      If I = 0, N is the multiplier.
+ 2062
+ 2063                      If I = 1, N is the variable table entry number of
+ 2064                                the variable containing the multiplier.  */
+ 2065
+ 2066              3 N UBIN(35) UNAL;
+ 2067                /*K*  N - the meaning of N is determined by I.
+ 2068
+ 2069                      If I = 0, N is the multiplier.
+ 2070
+ 2071                      If I = 1, N is the variable table entry number of
+ 2072                                the variable containing the multiplier.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         57   
+ 2073
+ 2074      %MEND;
+ 2075
+ 2076      /*F* NAME: B$VREBLCET
+ 2077           PURPOSE:
+ 2078                    Variables record (type 14) continuation entry for variable
+ 2079                    with DATATYP = Enumerated Type.
+ 2080           DESCRIPTION:
+ 2081           If this variable is also an array, this continuation entry
+ 2082           should be the last continuation entry.
+ 2083           The form of the continuation entries for variables with
+ 2084           DATATYP = Enumerated Type is as follows:   */
+ 2085
+ 2086      %MACRO B$VREBLCET (NAME=B$VREBLCET, STCLASS=BASED);
+ 2087      DCL 1 NAME STCLASS ALIGNED,
+ 2088            2 * UBIN(24) UNAL,
+ 2089              /*K*  * is reserved for future use and must be zero. */
+ 2090
+ 2091            2 ADDRTYP UBIN(4) UNAL,
+ 2092              /*K*  ADDRTYP must be zero so no relocation is done to this
+ 2093                    entry.  */
+ 2094
+ 2095            2 * BIT(8) UNAL,
+ 2096              /*K*  * is reserved for future use and must be zero. */
+ 2097
+ 2098            2 MIN_VALUE UBIN WORD UNAL,
+ 2099            /*K*  MIN_VALUE contains the starting value for this
+ 2100                  variable */
+ 2101
+ 2102            2 MAX_VALUE UBIN WORD UNAL,
+ 2103            /*K*  MAX_VALUE contains the maximum value for this variable */
+ 2104
+ 2105            2 NPOINTER SBIN HALF UNAL,
+ 2106            /*K*  NPOINTER is an 18 bit field containing the word offset
+ 2107                  into the debug names record (type 15) locating the
+ 2108                  start of the text strings for the values of this
+ 2109                  variable.  The text strings for the values must be in
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         58   
+ 2110                  order in the debug names starting at NPOINTER. */
+ 2111
+ 2112            2 * (0:2) UBIN(18) UNAL;
+ 2113            /*K*  * is reserved for future use and must be zero. */
+ 2114      %MEND;
+ 2115
+ 2116      /*F* NAME: B$VREBLCSET
+ 2117           PURPOSE:
+ 2118                    Variables record (type 14) continuation entry for variable
+ 2119                    with DATATYP = Set.
+ 2120           DESCRIPTION:
+ 2121           If this variable is also an array, this continuation entry
+ 2122           should be the last continuation entry.  The form of the
+ 2123           continuation entry for variables with DATATYP = Set.  */
+ 2124
+ 2125      %MACRO B$VREBLCSET (NAME=B$VREBLCSET, STCLASS=BASED);
+ 2126      DCL 1 NAME STCLASS ALIGNED,
+ 2127            2 SIG_BITS UBIN HALF UNAL,
+ 2128            /*K*  SIG_BITS contains the number of significant bits in the
+ 2129                  value of this data item if the data type of the set is
+ 2130                  enumerated type.  For other data types, SIG_BITS contains
+ 2131                  the maximum value for this set.  */
+ 2132
+ 2133            2 * BIT(6) UNAL,
+ 2134              /*K*  * is reserved for future use and must be zero. */
+ 2135
+ 2136            2 ADDRTYP UBIN(4) UNAL,
+ 2137              /*K*  ADDRTYP must be zero so no relocation is done to this
+ 2138                    entry.  */
+ 2139
+ 2140            2 DATATYP UBIN(6) UNAL,
+ 2141            /*K*  DATATYP indicates the data type of the elements of the
+ 2142                  set.  */
+ 2143
+ 2144            2 * BIT(2) UNAL,
+ 2145              /*K*  * is reserved for future use and must be zero. */
+ 2146
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         59   
+ 2147            2 MIN_VALUE UBIN WORD UNAL,
+ 2148            /*K*  MIN_VALUE contains the ordinal value to which the zeroth
+ 2149                  bit corresponds.  */
+ 2150
+ 2151            2 NPOINTER_TRUE SBIN HALF UNAL,
+ 2152            /*K*  NPOINTER_TRUE is an 18 field containing the word
+ 2153                  offset into the debug names record (type 15) locating
+ 2154                  the start of the text strings for the true value of
+ 2155                  each bit in the Set.  The text strings for all
+ 2156                  significant bits must be in order in the debug names
+ 2157                  starting at NPOINTER_TRUE.  A value of -1 means not
+ 2158                  to print the text for the true value of each bit.
+ 2159                  NPOINTER_TRUE will only be used if DATATYP =
+ 2160                  %ENUMTYPE_DATATYPE.  */
+ 2161
+ 2162            2 NPOINTER_FALSE SBIN HALF UNAL,
+ 2163            /*K*  NPOINTER_FALSE is an 18 field containing the word
+ 2164                  offset into the debug names record (type 15) locating
+ 2165                  the start of the text strings for the false value of
+ 2166                  each bit in the Set.  The text strings for all
+ 2167                  significant bits must be in order in the debug names
+ 2168                  starting at NPOINTER_FALSE.  A value of -1 means not
+ 2169                  to print the text for the false value of each bit.
+ 2170                  NPOINTER_FALSE will only be used if DATATYP =
+ 2171                  %ENUMTYPE_DATATYPE.  */
+ 2172
+ 2173            2 * (0:3) UBIN(18) UNAL;
+ 2174            /*K*  * is reserved for future use and must be zero.  */
+ 2175      %MEND;
+ 2176
+ 2177      /*F* NAME:  VREBL_DATATYPES
+ 2178           PURPOSE:  Macro for variable data types  */
+ 2179
+ 2180      %MACRO VREBL_DATATYPES;
+ 2181      %EQU NO_DATATYPE             =  0;      /* No data type specified */
+ 2182      %EQU SBIN_DATATYPE           =  1;      /* Real binary fixed single precision */
+ 2183      %EQU DFIX_DATATYPE           =  2;      /* Real binary fixed double precision */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         60   
+ 2184      %EQU SFLT_DATATYPE           =  3;      /* Real binary float single precision */
+ 2185      %EQU DFLT_DATATYPE           =  4;      /* Real binary float double precision */
+ 2186      %EQU SCFIX_DATATYPE          =  5; /* Comlex binary fixed single precision */
+ 2187      %EQU DCFIX_DATATYPE          =  6; /* Comlex binary fixed double precision */
+ 2188      %EQU COMPLEX_DATATYPE        =  7; /* Comlex binary float single precision */
+ 2189      %EQU DCOMPLEX_DATATYPE       =  8; /* Comlex binary float double precision */
+ 2190      %EQU PDLA_DATATYPE           =  9; /* Packed decimal fixed, lead ASCII sign */
+ 2191      %EQU PDFLT_DATATYPE          = 10;      /* Packed decimal float */
+ 2192      %EQU PDCLA_DATATYPE = 11; /* Packed decimal fixed complex, lead ASCII sign */
+ 2193      %EQU PDCFLT_DATATYPE         = 12;      /* Packed decimal float complex */
+ 2194      %EQU POINTER_DATATYPE        = 13;      /* Pointer */
+ 2195      %EQU OFFSET_DATATYPE         = 14;      /* Offset */
+ 2196      %EQU LABEL_DATATYPE          = 15;      /* Label */
+ 2197      %EQU ENTRY_DATATYPE          = 16;      /* Entry */
+ 2198      %EQU STRUCTURE_DATATYPE      = 17;      /* Structure */
+ 2199      %EQU AREA_DATATYPE           = 18;      /* Area */
+ 2200      %EQU BIT_DATATYPE            = 19;      /* Bit string */
+ 2201      %EQU VBIT_DATATYPE           = 20;      /* Varying bit string */
+ 2202      %EQU CHAR_DATATYPE           = 21;      /* Character string */
+ 2203      %EQU VCHAR_DATATYPE          = 22;      /* Varying character string */
+ 2204      %EQU TEXTC_DATATYPE          = 22;      /* Different name for VCHAR */
+ 2205      %EQU FILE_DATATYPE           = 23;      /* File */
+ 2206      %EQU UBIN_DATATYPE           = 24;      /* UBIN */
+ 2207      %EQU PDTA_DATATYPE           = 25; /* Packed decimal fixed, trail ASCII sign */
+ 2208      %EQU ACHAR_DATATYPE          = 26;      /* Adjustable character string */
+ 2209      %EQU ABIT_DATATYPE           = 27;      /* Adjustable bit string */
+ 2210      %EQU EPTR_DATATYPE           = 28;      /* EPTR */
+ 2211      %EQU COMP1_DATATYPE          = 29;      /* 16 bit signed integer */
+ 2212      %EQU COMP2_DATATYPE          = 30;      /* 32 bit signed integer */
+ 2213      %EQU PDTE_DATATYPE           = 31; /* Packed decimal fixed, trail EBCDIC sign */
+ 2214      %EQU INDEX1_DATATYPE         = 32;      /* INDEX-1 */
+ 2215      %EQU INDEX2_DATATYPE         = 33;      /* INDEX-2 */
+ 2216      %EQU FEVERY_DATATYPE         = 34;      /* Fortran every */
+ 2217      %EQU FLOGICAL_DATATYPE       = 35;      /* Fortran logical */
+ 2218      %EQU FANY_DATATYPE           = 36;      /* Fortran any */
+ 2219      %EQU FLABEL_DATATYPE         = 37;      /* Fortran label */
+ 2220      %EQU FUCB_DATATYPE           = 38;      /* Fortran UCB */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         61   
+ 2221      %EQU INTCNST_DATATYPE        = 39;      /* Intrinsic constant */
+ 2222      %EQU PDNS_DATATYPE           = 40;      /* Packed decimal fixed, no sign */
+ 2223      %EQU UDNS_DATATYPE           = 41;      /* Unpacked decimal fixed, no sign */
+ 2224      %EQU UDLS_DATATYPE           = 42;      /* Unpacked decimal fixed, lead sign */
+ 2225      %EQU UDTS_DATATYPE           = 43;      /* Unpacked decimal fixed, trail sign */
+ 2226      %EQU UDLO_DATATYPE = 44; /* Unpacked decimal fixed, lead over punched sign */
+ 2227      %EQU UDTO_DATATYPE = 45; /* Unpacked decimal fixed, trail over punched sign */
+ 2228      %EQU ASTRUCTURE_DATATYPE     = 46;      /* Adjustable structure */
+ 2229      %EQU VECTOR_DATATYPE         = 47;      /* Vector - also used for
+ 2230                                                 an ARES type array       */
+ 2231      %EQU LIST_DATATYPE           = 47;      /* List - used for an ARES
+ 2232                                                 type array               */
+ 2233      %EQU REMEMBER_DATATYPE       = 48;      /* Remember */
+ 2234      %EQU VARVECTOR_DATATYPE      = 48;      /* ARES type variable length
+ 2235                                                 array                   */
+ 2236      %EQU VLIST_DATATYPE          = 48;      /* ARES type variable length
+ 2237                                                 array                   */
+ 2238      %EQU DSCR_DATATYPE           = 49;      /* Descriptor */
+ 2239      %EQU UDFLT_DATATYPE          = 50;      /* Unpacked decimal float */
+ 2240      %EQU PDLE_DATATYPE           = 51; /* Packed decimal fixed, lead EBCDIC sign */
+ 2241      %EQU ENUMTYPE_DATATYPE       = 52;      /* Enumerated Type */
+ 2242      %EQU SET_DATATYPE            = 53;      /* Set */
+ 2243      %EQU DATE_DATATYPE           = 54;      /* Date same as PDLA, len 16,
+ 2244                                                 byte aligned             */
+ 2245      %EQU UTS_DATATYPE            = 55;      /* UTS - a UBIN value */
+ 2246      %EQU TEXTH_DATATYPE          = 56;      /* Text with half-word size */
+ 2247      %EQU TIME_DATATYPE           = 57;      /* Time in 1/100 sec, PDLA,
+ 2248                                                 len 16, byte aligned     */
+ 2249      /* 58-59 unused */
+ 2250      %EQU NULL_DATATYPE           = 60;      /* Null entry */
+ 2251      %EQU VIRTUAL_ARRAY_DATATYPE = 61;       /* Virtural array dimension */
+ 2252      %EQU REAL_ARRAY_DATATYPE     = 62;      /* Array dimension entry */
+ 2253      /* 63 unused */
+ 2254      %MEND;
+ 2255
+ 2256      /*F* NAME:  B$RUHEADKEY
+ 2257           PURPOSE:  Key for the run unit head record */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         62   
+ 2258
+ 2259      %MACRO B$RUHEADKEY (NAME=B$RUHEADKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="INIT(4)",TEXTINIT="INIT('HEAD')");
+ 2260      DCL 1 NAME STCLASS ALIGNED,
+ 2261            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+ 2262              /*K*  KEYSIZ is always 4.   */
+ 2263
+ 2264            2 TEXT CHAR(0) UNAL TEXTINIT;
+ 2265              /*K*  TEXT is always 'HEAD'.  */
+ 2266      %MEND;
+ 2267
+ 2268      /*F* NAME:  B$HEAD
+ 2269           PURPOSE:  Based structure for run unit head record.
+ 2270           DESCRIPTION:
+ 2271           The linker will combine object units to form a run unit.  The
+ 2272           resultant (overlaid) program will have all intermodule references
+ 2273           satisfied as well as references to shared and alternate shared
+ 2274           libraries.  The run unit is made up of a head record describing
+ 2275           the run unit as a whole, several records for each overlay node
+ 2276           and, optionally, several debug records per object unit which made
+ 2277           up the run unit.  The run unit is a keyed file with all records
+ 2278           located by key.  The format of the head record is:   */
+ 2279
+ 2280      %MACRO B$HEAD (NAME=B$HEAD,STCLASS=BASED,SUBS(YES='1'B,NO='0'B)='1'B);
+ 2281      DCL 1 NAME STCLASS ALIGNED,
+ 2282            2 PRIV BIT(36),
+ 2283              /*K*  PRIV is a 36 bit field containing privilege flags.  */
+ 2284
+ 2285            2 VPPGS UBIN(14) UNAL,
+ 2286              /*K*  VPPGS is the number of virtual pages of procedure
+ 2287                    required for the longest overlay path.
+ 2288                    (256 words/page if FEP, 1024 words/page if Host)  */
+ 2289
+ 2290            2 * UBIN(2) UNAL,
+ 2291              /*K*  * is reserved for future use and must be zero.  */
+ 2292
+ 2293            2 RPROC UBIN(20) UNAL,
+ 2294              /*K*  RPROC is the size, in words, of the procedure for the root.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         63   
+ 2295
+ 2296            2 VDPGS UBIN(14) UNAL,
+ 2297              /*K*  VDPGS is the number of virtual pages of data required
+ 2298                    for the longest overlay path.
+ 2299                    (256 words/page if FEP, 1024 words/page if Host)
+ 2300                    This includes both library and user defined data.
+ 2301                     */
+ 2302
+ 2303            2 * UBIN(2) UNAL,
+ 2304              /*K*  * is reserved for future use and must be zero.  */
+ 2305
+ 2306            2 RDATA UBIN(20) UNAL,
+ 2307              /*K*  RDATA is the size, in words of the data for the root.
+ 2308                    This includes both library and user defined data.
+ 2309                    If this is a host run unit, all data records will be
+ 2310                    included in the run unit.
+ 2311
+ 2312                    If this is a FEP run unit,
+ 2313                    no library data will be included in the run unit itself.
+ 2314                    The ISADDR field of B$RUKEY for the first user data record
+ 2315                    may be determined by calculating the FEP word address of
+ 2316                    B$HEAD.BIAS rounded to the next lower 2048 FEP word boundry.
+ 2317                    (2048 FEP words is the maximum size of run unit records
+ 2318                    for FEP run units.)  The data in this record below
+ 2319                    BIAS will be padded with zeros.
+ 2320
+ 2321                    The word size of data contained in the FEP run unit
+ 2322                    may be calculated by subtracting the ISADDR value as
+ 2323                    calculated for the first data record from the word
+ 2324                    address of the last word of user data.  The last
+ 2325                    word of user data is the sum of the default FPRG
+ 2326                    bias (%GM_ISR1_BASE - EQU is in file GM_LCP6_E) and
+ 2327                    the total data size (B$HEAD.RDATA).
+ 2328                    */
+ 2329
+ 2330            2 SEV UBIN BYTE UNAL,
+ 2331              /*K*  SEV is the maximum severity level of the object units
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         64   
+ 2332                    making up the run unit.  */
+ 2333
+ 2334            2 * UBIN(7) UNAL,
+ 2335              /*K*  * is reserved for future use and must be zero.  */
+ 2336
+ 2337            2 START UBIN(20) UNAL,
+ 2338              /*K*  START is the address within the instruction segment at
+ 2339                    which execution will start.  */
+ 2340
+ 2341            2 UDCBNUM UBIN HALF UNAL,
+ 2342              /*K*  UDCBNUM is the number of DCBs in the Read-Only segment
+ 2343                    as generated by LINK.   */
+ 2344
+ 2345            2 DCBRES UBIN HALF UNAL,
+ 2346              /*K*  DCBRES is the number of pointers to DCBs as supplied by
+ 2347                    LINK.   */
+ 2348
+ 2349            2 TREEDISP UBIN HALF UNAL,
+ 2350              /*K*  TREEDISP is the displacement in words from the start of
+ 2351                    the variable portion of the Read-Only Segment locating
+ 2352                    the tree table.   */
+ 2353
+ 2354            2 TCBSIZE UBIN HALF UNAL,
+ 2355              /*K*  TCBSIZE specifies the number of frames of the Task Control Block;
+ 2356                    if the size is 0, then a two frame Task Control Block will be
+ 2357                    built by STEP.   */
+ 2358
+ 2359            2 PRECSIZE UBIN HALF UNAL,
+ 2360              /*K*  PRECSIZ is the maximum size of any program record
+ 2361                    in the run unit; words if Host, double words if FEP.
+ 2362                    */
+ 2363
+ 2364            2 NRECSIZE UBIN HALF UNAL,
+ 2365              /*K*  NRECSIZ is the maximum size of External Name records in
+ 2366                    the run unit.   */
+ 2367
+ 2368            2 EPRECSIZE UBIN HALF UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         65   
+ 2369              /*K*  EPRECSIZE is the maximum size of External Procedure
+ 2370                    Definition Records in the run unit.   */
+ 2371
+ 2372            2 EDRECSIZE UBIN HALF UNAL,
+ 2373              /*K*  EDRECSIZE is the maximum size of External Data Definition
+ 2374                    Records in the run unit.    */
+ 2375
+ 2376            2 SDRECSIZE UBIN HALF UNAL,
+ 2377              /*K*  SDRECSIZE is the maximum size of External Segment
+ 2378                    Definition Records in the run unit.   */
+ 2379
+ 2380            2 ROSIZE UBIN HALF UNAL,
+ 2381              /*K*  ROSIZE is the size of the Read Only Segment Record.  */
+ 2382
+ 2383            2 VERSION# UBIN BYTE UNAL,
+ 2384              /*K*  VERSION# is the LINK version number.  */
+ 2385
+ 2386            2 MAP_BITS_A(0:2) UNAL,
+ 2387              /*K*  MAP_BITS_A are used by the linker to produce MAP.  */
+ 2388
+ 2389              3 MULTIPLE BIT(1) UNAL,
+ 2390                /*K*  MULTIPLE is set if a multiply defined symbol exists.  */
+ 2391
+ 2392              3 CON BIT(1) UNAL,
+ 2393                /*K*  CON is set if a Constant symbol is defined.  */
+ 2394
+ 2395              3 PRIMARY BIT(1) UNAL,
+ 2396                /*K*  PRIMARY is set if an unresolved primary reference exists.  */
+ 2397
+ 2398              3 SECONDARY BIT(1) UNAL,
+ 2399                /*K*  SECONDARY is set if an unresolved secondary reference
+ 2400                      exists.  */
+ 2401
+ 2402            2 SECTABLESIZE UBIN(8) UNAL,
+ 2403              /*K*  SECTABLESIZE is the size in words of the record which
+ 2404                    contains the start location and size of all sections
+ 2405                    (for BIAS by OU for FEP)   */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         66   
+ 2406
+ 2407            2 NSTDINVOC BIT(1) UNAL,
+ 2408              /*K*  NSTDINVOC indicates that the RU will can tolerate invoking
+ 2409                    in nonstandard form.   */
+ 2410
+ 2411            2 REMOVE_ENTDEF BIT(1) UNAL,
+ 2412              /*K*  REMOVE_ENTDEF is set if ENTDEFs not in the transfer
+ 2413                    vector have been removed from the shared library.  */
+ 2414
+ 2415            2 REMOVE_SYMDEF BIT(1) UNAL,
+ 2416              /*K*  REMOVE_SYMDEF is set if SYMDEFs not in the transfer
+ 2417                    vector have been removed from the shared library.  */
+ 2418
+ 2419            2 STATS BIT(1) UNAL,
+ 2420              /*K*  STATS is set if Statistics are being collected on
+ 2421                    this processor.  */
+ 2422
+ 2423            2 LAUTO BIT(1) UNAL,
+ 2424              /*K*  LAUTO is set for a Fep run unit if user auto is to be in
+ 2425              a small segment, thereby freeing up a large one for other purposes. */
+ 2426            2 * BIT(2) UNAL,
+ 2427              /*K*  * is reserved for future use and must be zero.  */
+ 2428
+ 2429            2 DATA_SEG (0:5),
+ 2430              /*K*  DATA_SEG defines the initialized data segment in the RU.  */
+ 2431
+ 2432              3 SIZ UBIN HALF UNAL,
+ 2433                /*K* SIZ is the word size of the initialized data segment.  */
+ 2434
+ 2435              3 * UBIN(9) UNAL,
+ 2436                /*K*  * is reserved for future use and must be zero.  */
+ 2437
+ 2438              3 PROTECTION UBIN(9) UNAL,
+ 2439                /*K*  PROTECTION is the initialized data segment
+ 2440                      protection.   */
+ 2441
+ 2442            2 LOCK(0:71) BIT(1) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         67   
+ 2443              /*K*  LOCK is the Lock for restricted processor.  */
+ 2444
+ 2445            2 FLAVOR UBIN BYTE UNAL,
+ 2446              /*K*  FLAVOR is the flavor of the run unit.  The RU_FLAVORS
+ 2447                    macro gives the legal values for FLAVOR.  */
+ 2448
+ 2449            2 S BIT(1) UNAL,
+ 2450              /*K*  S - S = 1 if the run unit is Shareable  */
+ 2451
+ 2452            2 LIB BIT(1) UNAL,
+ 2453              /*K*  LIB - LIB = 1 if the run unit is a Shared Library  */
+ 2454
+ 2455            2 ASL BIT(1) UNAL,
+ 2456              /*K*  ASL - ASL = 1 if the run unit is an Alternate Shared
+ 2457                    Library.   */
+ 2458
+ 2459            2 CMDPROC BIT(1) UNAL,
+ 2460              /*K*  CMDPROC - CMDPROC = 1 is the run unit is a Command Processor. */
+ 2461
+ 2462            2 DEBUGGER BIT(1) UNAL,
+ 2463              /*K*  DEBUGGER - DEBUGGER = 1 if the run unit is a Debugger. */
+ 2464
+ 2465            2 OVRL BIT(1) UNAL,
+ 2466              /*K*  OVRL -  OVRL = 1 if the run unit is overlaid.   */
+ 2467
+ 2468            2 PROCACC BIT(1) UNAL,
+ 2469              /*K*  PROCACC - If PROCACC = 1,  if the run unit resides in
+ 2470                    :SYS, it should be charged as processor, not user.  */
+ 2471
+ 2472            2 NOCHGPMEM BIT(1) UNAL,
+ 2473              /*K*  NOCHGPMEM - If NOCHGPMEM = 1, if the run unit resides in
+ 2474                    :SYS, the user should not be charged for procedures.  */
+ 2475
+ 2476            2 PROCSURCHG BIT(1) UNAL,
+ 2477              /*K*  PROCSURCHG - If PROCSURCHG = 1, Surcharge accountings
+ 2478                    should be applied.  */
+ 2479
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         68   
+ 2480            2 RESTPROC BIT(1) UNAL,
+ 2481              /*K*  RESTPROC - If RESTPROC = 1, this is a restricted
+ 2482                    processor and should be verified against the user's key.  */
+ 2483
+ 2484            2 STRONG_LOCK BIT(1) UNAL,
+ 2485              /*K*  STRONG_LOCK - If STRONG_LOCK = 1, the restricted
+ 2486                    processor has a strong lock.  If STRONG_LOCK = 0, the
+ 2487                    restricted processor has a weak lock.   */
+ 2488
+ 2489            2 * UBIN(16) UNAL,
+ 2490              /*K*  * is reserved for future use and must be zero. */
+ 2491
+ 2492            2 PSEUDO_COUNT UBIN BYTE UNAL,
+ 2493              /*K*  PSEUDO_COUNT - If PSEUDO_COUNT > 0, then a pseudo resource
+ 2494                    is required to execute this run-unit.  */
+ 2495
+ 2496            2 * UBIN(7) UNAL,
+ 2497              /*K*  * is reserved for future use and must be zero.  */
+ 2498
+ 2499            2 BIAS UBIN(20) UNAL,
+ 2500              /*K*  BIAS is the address within the instruction segment of
+ 2501                    the beginning of the root data.  */
+ 2502
+ 2503            2 PSEUDO_TEXT CHAR(8),
+ 2504              /*K*  PSEUDO_TEXT - contains the text of the pseudo resource
+ 2505                    to acquire when the run-unit is executed.  */
+ 2506            2 * (0:1) UBIN WORD UNAL,
+ 2507              /*K*  * is reserved for future use and must be zero.  */
+ 2508
+ 2509            2 LIBNAME,
+ 2510              /*K* LIBNAME gives the name, if any, of the shared library to
+ 2511                   be associated.  Each name resides in a fixed 8-word field.
+ 2512                   The first byte contains the character count of the name
+ 2513                   followed by the name itself.   */
+ 2514
+ 2515              3 CNT UBIN BYTE UNAL,
+ 2516                /*K* CNT contains the character count of the name of the
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         69   
+ 2517                     shared library.  */
+ 2518
+ 2519              3 TXT CHAR(31) UNAL,
+ 2520                /*K*  TXT contains the name itself of the shared library.  */
+ 2521
+ 2522            2 ASLNAME,
+ 2523              /*K*  ASLNAME gives the name, if any, of the alternate shared
+ 2524                    library to be associated.  Each name resides in a fixed
+ 2525                    8-word field.  The first byte contains the character
+ 2526                    count of the name followed by the name itself.   */
+ 2527
+ 2528              3 CNT UBIN BYTE UNAL,
+ 2529                /*K*  CNT contains the character count of the name of
+ 2530                      the alternate shared library.  */
+ 2531
+ 2532              3 TXT CHAR(31) UNAL;
+ 2533                /*K*  TXT contains the name itself of the alternate
+ 2534                      shared library.  */
+ 2535
+ 2536      %IF SUBS='1'B;
+ 2537      /* %EQU's for data segment protection type */
+ 2538      %EQU DS_READONLY#=BITBIN('400'O);
+ 2539      %EQU DS_READWRITE#=BITBIN('600'O);
+ 2540      %ENDIF;
+ 2541      %MEND;
+ 2542
+ 2543      /*F*  NAME:  RU_FLAVORS
+ 2544            PURPOSE:  Macro for values of FLAVOR field in the Run Unit
+ 2545                      HEAD record.   */
+ 2546
+ 2547      %MACRO RU_FLAVORS;
+ 2548      %EQU HOST_RU = 1;
+ 2549      %EQU FEP_RU = 2;
+ 2550      /* 2-299 reserved for future use.  */
+ 2551      /* 300-511 user defined flavors.  */
+ 2552      %MEND;
+ 2553
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         70   
+ 2554
+ 2555      /*F* NAME:  B$RUKEY
+ 2556           PURPOSE:  Key for Records Per Overlay Node
+ 2557           DESCRIPTION:
+ 2558           Each overlay node will have several records associated with it.
+ 2559           Keys for each record will have the following format:   */
+ 2560
+ 2561      %MACRO B$RUKEY (NAME=B$RUKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="(5)",TYPEINIT="(10)");
+ 2562
+ 2563       %LSET STR=CONCAT(TEXTCHAR(STCLASS),'        ');
+ 2564       %IF (SUBSTR(STR,0,6)='STATIC') OR
+ 2565           (SUBSTR(STR,0,8)='CONSTANT') OR
+ 2566           (SUBSTR(STR,0,3)='EXT');
+ 2567            %LSET INIT = CHARTEXT('INIT');
+ 2568            %LSET INIT_END = CHARTEXT(' ');
+ 2569        %ELSE;
+ 2570            %LSET INIT = CHARTEXT('/*');
+ 2571            %LSET INIT_END = CHARTEXT('*/');
+ 2572        %ENDIF;
+ 2573
+ 2574      DCL 1 NAME STCLASS ALIGNED,
+ 2575            2 KEYSIZ UBIN BYTE UNAL %INIT KEYSIZINIT %INIT_END,
+ 2576              /*K*  KEYSIZ is always 5.   */
+ 2577
+ 2578            2 TYPE UBIN BYTE UNAL %INIT TYPEINIT %INIT_END,
+ 2579              /*K*  TYPE specifies which type of record is located by the
+ 2580                    key.  See the description of each record.
+ 2581                    Several values of TYPE are being permanently reserved
+ 2582                    for customer use and will not be used in the run unit
+ 2583                    by Honeywell.  Values of 0 and octal 310 through 317
+ 2584                    inclusive will be reserved.  The value 0 is convenient
+ 2585                    for some uses, and the values 310-317 correspond to the
+ 2586                    error message codes reserved (Yxx). */
+ 2587
+ 2588            2 NODE UBIN HALF UNAL %INIT (0) %INIT_END,
+ 2589              /*K*  NODE is the occurrence number within the tree table (see
+ 2590                    below) of the entry for the overlay node to which this
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         71   
+ 2591                    record applies.  Zero is the Node Number of the Root.  */
+ 2592
+ 2593            2 DATASEG REDEF NODE,
+ 2594              3 * UBIN(6) UNAL,
+ 2595              3 SEGID BIT(12) UNAL,
+ 2596
+ 2597            2 PAGE UBIN HALF UNAL %INIT (0) %INIT_END,
+ 2598              /*K*  PAGE - If record type ~= 10, this specifies that the
+ 2599                    record is the n th piece of the specified record type
+ 2600                    each of which is the page size as specified in the head
+ 2601                    record (the final piece must contain only the residue).  */
+ 2602
+ 2603            2 ISADDR REDEF PAGE UBIN HALF UNAL;
+ 2604              /*K*  PAGE - If record type = 10 (%TYPPROG), this is the address within
+ 2605                    the instruction segment (if Host) or the user virtual
+ 2606                    area (if FEP) at which this record is to be placed.   */
+ 2607      %MEND;
+ 2608
+ 2609      /*F* NAME:  B$RU_DEF
+ 2610           PURPOSE:  References fields common to run-unit ENTDEF, SYMDEF,
+ 2611                     and SEGDEF records.  */
+ 2612
+ 2613
+ 2614      %MACRO B$RU_DEF (NAME=B$RU_DEF,STCLASS=BASED);
+ 2615      DCL 1 NAME STCLASS ALIGNED,
+ 2616            2 VALUE SBIN UNAL,
+ 2617              /*K*  VALUE is the value if this entry is a constant.  */
+ 2618
+ 2619            2 AD REDEF VALUE,
+ 2620              /*K*  AD is the address if this entry is not constant.  */
+ 2621
+ 2622              3 LFLAGS UNAL,
+ 2623                /*K*  LFLAGS is the field reserved for loader to flag load
+ 2624                      time attributes of the definition and must be zero
+ 2625                      in the object unit. */
+ 2626
+ 2627                4 SOURCE UBIN(3) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         72   
+ 2628                  /*K*  SOURCE - Source of this DEF */
+ 2629
+ 2630                4 DEFINED BIT(1) UNAL,
+ 2631                  /*K*  DEFINED - Set if this DEF defined */
+ 2632
+ 2633                4 MULTIPLE BIT(1) UNAL,
+ 2634                  /*K*  MULTIPLE - Set if this DEF is multiply defined. */
+ 2635
+ 2636                4 USED BIT(1) UNAL,
+ 2637                  /*K*  USED - Set if this DEF is used. */
+ 2638
+ 2639              3 LOOKUP_SECTNUM BIT(1) UNAL,
+ 2640                /*K*  LOOKUP_SECTNUM is set if the section number is greater
+ 2641                      than 2048 (RU).  */
+ 2642
+ 2643              3 SECTNUM UBIN(11) UNAL,
+ 2644                /*K*  SECTNUM contains an entry number into the section
+ 2645                      table (TYPE 3).  */
+ 2646
+ 2647              3 ISADDR UBIN HALF UNAL,
+ 2648                /*K*  ISADDR - Is Address (RU)  */
+ 2649
+ 2650              3 OFFSET REDEF ISADDR UBIN HALF UNAL,
+ 2651                /*K*  OFFSET is the word offset from the origin of the section. */
+ 2652
+ 2653            2 NPOINTER SBIN HALF UNAL,
+ 2654              /*K*  NPOINTER is a word displacement into the name record
+ 2655                    (TYPE 1) locating the name (of this entry). */
+ 2656
+ 2657            2 CONSTNT BIT(1) UNAL,
+ 2658              /*K*  CONSTNT is a flag bit to determine the interpretation
+ 2659                    of word 0.
+ 2660                    If CONSTNT=0, word 0 is AD which contains LFLAGS,
+ 2661                                  SECTNUM, and ISADDR or OFFSET.
+ 2662                    If CONSTNT=1, word 0 is a constant value (VALUE)  */
+ 2663
+ 2664            2 LFLAGS UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         73   
+ 2665              /*K*  LFLAGS is the field reserved for loader to flag load
+ 2666                    time attributes and must be zero in the object unit. */
+ 2667
+ 2668              3 MULTIPLE BIT(1) UNAL,
+ 2669                /*K*  MULTIPLE - Set if this DEF is multiply defined. */
+ 2670
+ 2671              3 USED BIT(1) UNAL,
+ 2672                /*K*  USED - Set if this DEF is used. */
+ 2673
+ 2674              3 SOURCE UBIN(4) UNAL,
+ 2675                /*K*  SOURCE - Source of this DEF */
+ 2676
+ 2677              3 IS_DCB BIT(1) UNAL,
+ 2678                /*K* IS_DCB - Set if this is a DCB */
+ 2679
+ 2680              3 * BIT(10) UNAL,
+ 2681                /*K*  * is reserved for future use and must be zero.  */
+ 2682
+ 2683            2 PROTECTION REDEF LFLAGS,
+ 2684              /*K*  PROTECTION is used for non-constant SYMDEF OR SEGDEF.  */
+ 2685
+ 2686              3 TYPE UBIN(5) UNAL,
+ 2687                /*K*  TYPE is the Protection type.  */
+ 2688
+ 2689              3 * UBIN(12) UNAL;
+ 2690                /*K*  * is reserved for future use and must be zero.  */
+ 2691      %MEND;
+ 2692
+ 2693      /*F* NAME:  B$RUSECT
+ 2694           PURPOSE:  Run unit section record (Type 3)
+ 2695           DESCRIPTION:
+ 2696           This record contains one entry for each program section within
+ 2697           the overlay node.
+ 2698           Each entry is of the form:  */
+ 2699
+ 2700      %MACRO B$RUSECT (NAME=B$RUSECT,STCLASS=BASED);
+ 2701      DCL 1 NAME STCLASS ALIGNED,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         74   
+ 2702            2 SEG UBIN(3) UNAL,
+ 2703              /*K*  SEG - The segment number of this section */
+ 2704            2 TYPE UBIN(6) UNAL,
+ 2705              /*K*  TYPE -
+ 2706                    Type code      Section type
+ 2707                    ---------      ------------
+ 2708                        0          Data control section with write access.
+ 2709                        1          Procedure control section.
+ 2710                        2          Unlabeled common, name pointer must be zero.
+ 2711                        3          Labeled common, with mandatory name pointer.
+ 2712                                   This is for labeled common which must be
+ 2713                                   in the root.
+ 2714                        4          Labeled common, with mandatory name pointer.
+ 2715                                   This is for labeled common which need not
+ 2716                                   be in the root.
+ 2717                        5          DCB, word 1 is name pointer.
+ 2718                        6          Data control section with read only access,
+ 2719                                   word 1 = 0 or name pointer.      */
+ 2720
+ 2721            2 EMPTY BIT(1) UNAL,
+ 2722              /*K*  EMPTY is the empty bit.  This bit is set if the control
+ 2723                    section is of size zero.  */
+ 2724
+ 2725            2 ATTR UNAL,
+ 2726              3 INT  UBIN(2) UNAL,
+ 2727                /*K*  INT is the Section initialization.  */
+ 2728
+ 2729              3 SEGMENT BIT(1) UNAL,
+ 2730                /*K* SEGMENT is set if the Section is defined in a data
+ 2731                     segment.  */
+ 2732
+ 2733              3 ALL BIT(1) UNAL,
+ 2734                /*K*  ALL is set if the Section is allocated.  */
+ 2735
+ 2736              3 PRE_DCB BIT(1) UNAL,
+ 2737                /*K*  PRE_DCB is set if a Pre_defined DCB.  */
+ 2738
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         75   
+ 2739              3 MES_INIT BIT(1) UNAL,
+ 2740              3 ALIGN UBIN(2) UNAL,
+ 2741                /*K*  ALIGN is the Section alignment.  */
+ 2742
+ 2743            2 ADDRESS UBIN HALF UNAL,
+ 2744              /*K*  ADDRESS is the address within the Instruction Segment of
+ 2745                    the entry point of the external procedure.  */
+ 2746
+ 2747            2 NAME_DISP SBIN HALF UNAL,
+ 2748              /*K*  NAME_DISP is the Name index.  */
+ 2749
+ 2750            2 SIZE UBIN HALF UNAL,
+ 2751              /*K*  SIZE is the size, in words, of the section.  */
+ 2752
+ 2753            2 NODE# UBIN HALF UNAL,
+ 2754              /*K*  NODE# is the Node number of section.  */
+ 2755
+ 2756            2 COM_LINK UBIN HALF UNAL;
+ 2757              /*K*  COM_LINK is used internally by linker to link common sections */
+ 2758      %MEND;
+ 2759
+ 2760      /*F* NAME:  B$UNSATREF
+ 2761           PURPOSE:  Run unit - unsatisfied reference record
+ 2762           DESCRIPTION:
+ 2763           For unsatisfied ENTDEFs (Type 4), unsatisfied SYMDEFs (Type 6)
+ 2764           and unsatisfied SEGDEFs (Type 8)   */
+ 2765
+ 2766      %MACRO B$UNSATREF (NAME=B$UNSATREF,STCLASS=BASED);
+ 2767      DCL 1 NAME STCLASS ALIGNED,
+ 2768            2 NPOINTER SBIN HALF UNAL,
+ 2769              /*K*  NPOINTER is the word index to the symbol name.  */
+ 2770
+ 2771            2 SREF BIT(1) UNAL,
+ 2772              /*K*  SREF is set is this is a secondary reference.  */
+ 2773
+ 2774            2 READ_ONLY BIT(1) UNAL,
+ 2775            2 GOT BIT(1) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         76   
+ 2776              /*K*  GOT is set if got the OU name displacement.  */
+ 2777
+ 2778            2 STATE REDEF GOT BIT(1) UNAL,
+ 2779            2 OPOINTER UBIN(15) UNAL;
+ 2780              /*K*  OPOINTER is the word index to the OU name.  */
+ 2781      %MEND;
+ 2782
+ 2783      /*F* NAME:  B$DBGKEY
+ 2784           PURPOSE:  Key for the Debug Records Per Object Unit making up the
+ 2785                     Run Unit.
+ 2786           DESCRIPTION:
+ 2787           Each object unit will have several optional records for use of
+ 2788           the debugger.  The contents of the records will be a copy of the
+ 2789           records with all addresses properly resolved.
+ 2790
+ 2791           The keys have the form:  */
+ 2792
+ 2793      %MACRO B$DBGKEY (NAME=B$DBGKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="INIT(7)",NOTHDINIT="INIT('777'O)",TYPEINIT="INIT(11)");
+ 2794      DCL 1 NAME STCLASS ALIGNED,
+ 2795            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+ 2796              /*K*  KEYSIZE is always 7.  */
+ 2797
+ 2798            2 NOTHD BIT(9) UNAL NOTHDINIT,
+ 2799              /*K*  NOTHD is always O'777'.  */
+ 2800
+ 2801            2 NODE UBIN HALF UNAL,
+ 2802              /*K*  NODE is the node number of the containing overlay.  */
+ 2803
+ 2804            2 NPOINTER UBIN HALF UNAL,
+ 2805              /*K*  NPOINTER is a word displacement into the names record
+ 2806                    (TYPE 1) for this node which locates the primary ENTDEF
+ 2807                    of this object unit.  */
+ 2808
+ 2809            2 TYPE UBIN BYTE UNAL TYPEINIT,
+ 2810              /*K*  TYPE is:
+ 2811                    11 for the Logical Block records
+ 2812                    12 for the Internal Entrys records
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         77   
+ 2813                    13 for the Executable Statements records
+ 2814                    14 for the Variables records
+ 2815                    15 for the Debug Names records   */
+ 2816
+ 2817            2 PAGE UBIN BYTE UNAL;
+ 2818              /*K*  PAGE provides for 'paging' of records of a particular
+ 2819                    type which can be arbitrarily large.  PAGE specifies that
+ 2820                    the record is the n th piece of the specified record type
+ 2821                    each of which is the 'page' size as specified in the
+ 2822                    head record (the final piece must contain only the
+ 2823                    residue). */
+ 2824      %MEND;
+ 2825
+ 2826      /*F* NAME:  B$TREE_TABLE
+ 2827           PURPOSE:  Run unit tree table structures */
+ 2828
+ 2829      %MACRO B$TREE_TABLE(HDR_NAME=B$TREE_HEADER,NODE_NAME=B$TREE_NODE,STCLASS=BASED);
+ 2830      DCL 1 HDR_NAME STCLASS ALIGNED,
+ 2831            /*K*  HDR_NAME is the Tree table header.  */
+ 2832
+ 2833            2 NODES UBIN HALF UNAL,
+ 2834              /*K*  NODES is the number of nodes in the tree table.  */
+ 2835
+ 2836            2 SIZE UBIN HALF UNAL,
+ 2837              /*K*  SIZE is the total word size of the tree table
+ 2838                    (HDR + NODES + TEST pool).   */
+ 2839
+ 2840            2 LIB$ PTR,
+ 2841              /*K*  LIB$ is the pointer to the name of the shared library
+ 2842                    currently associated.  */
+ 2843
+ 2844            2 PRECSIZE UBIN HALF UNAL,
+ 2845              /*K*  PRECSIZE  is the maximum program record size in the
+ 2846                    Run Unit (from the Head record).  */
+ 2847
+ 2848            2 MAX_LIB_DATA UBIN HALF UNAL;
+ 2849              /*K*  MAX_LIB_DATA is the maximum reserved in the program
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         78   
+ 2850                    image for the shared library data.  */
+ 2851
+ 2852      DCL 1 NODE_NAME STCLASS ALIGNED,
+ 2853            /*K*  NODE_NAME is the node specification.  */
+ 2854
+ 2855            2 NAME$ PTR,
+ 2856              /*K*  NAME$ is the pointer to the name of the node.  */
+ 2857
+ 2858            2 FLGS,
+ 2859              /*K*  FLGS are control flags used by M$OLAY.  */
+ 2860
+ 2861              3 NOW_IN BIT(1) UNAL,
+ 2862                /*K*  NOW_IN is set if this node is now in memory.  */
+ 2863
+ 2864              3 WAS_IN BIT(1) UNAL,
+ 2865                /*K*  WAS_IN is set if this node was in memory.  */
+ 2866
+ 2867              3 * BIT(7) UNAL,
+ 2868                /*K*  * is reserved for future use and must be zero.  */
+ 2869
+ 2870            2 AFLGS,
+ 2871              /*K*  AFLGS are access flags.  */
+ 2872
+ 2873              3 * BIT(6) UNAL,
+ 2874                /*K*  * is reserved for future use and must be zero.  */
+ 2875
+ 2876              3 NOPATH BIT(1) UNAL,
+ 2877                /*K*  NOPATH is set if this node is independently loaded
+ 2878                      (no backward path).  */
+ 2879
+ 2880              3 ENTER BIT(1) UNAL,
+ 2881                /*K*  ENTER is set if ENTRY$ is valid.  */
+ 2882
+ 2883              3 CANCEL BIT(1) UNAL,
+ 2884                /*K*  CANCEL is set if the overlay was removed by
+ 2885                      "CANCEL=YES".   */
+ 2886
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         79   
+ 2887            2 BACK# SBIN HALF UNAL,
+ 2888              /*K*  BACK# is the backward link (parent).  */
+ 2889
+ 2890            2 FORWARD# SBIN HALF UNAL,
+ 2891              /*K*  FORWARD# is the forward link (daughter).  */
+ 2892
+ 2893            2 OVERLAY# SBIN HALF UNAL,
+ 2894              /*K*  OVERLAY# is the overlay link (same level).   */
+ 2895
+ 2896            2 PADDR UBIN HALF UNAL,
+ 2897              /*K*  PADDR is the address of procedure.  */
+ 2898
+ 2899            2 PSIZE UBIN HALF UNAL,
+ 2900              /*K*  PSIZE is the size of procedure.  */
+ 2901
+ 2902            2 DADDR UBIN HALF UNAL,
+ 2903              /*K*  DADDR is the address of data.  */
+ 2904
+ 2905            2 DSIZE UBIN HALF UNAL,
+ 2906              /*K*  DSIZE is the size of data.  */
+ 2907
+ 2908            2 ENTRY$ EPTR;
+ 2909              /*K*  ENTRY$ is the overlay entry point (see ENTER).  */
+ 2910
+ 2911      %MEND;
+ 2912
+ 2913      /*F* NAME:  B$RUMKEY
+ 2914           PURPOSE:  Key for RUM records   */
+ 2915
+ 2916      %MACRO B$RUMKEY (NAME=B$RUMKEY,STCLASS=STATIC,KEYSIZINIT="INIT(10)",
+ 2917                     NOTHDINIT="INIT('777'O)",TYPEINIT="INIT(20)",
+ 2918                     UTSINIT="INIT(0)",SEQINIT="INIT(0)",NODEINIT="INIT(0)");
+ 2919      DCL 1 NAME STCLASS ALIGNED,
+ 2920            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+ 2921              /*K* KEYSIZ is always 10.  */
+ 2922
+ 2923            2 NOTHD BIT(9) UNAL NOTHDINIT,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         80   
+ 2924              /*K*  NOTHD is always O'777' to force these records to the
+ 2925                    end of the Run Unit file.  */
+ 2926
+ 2927            2 TYPE UBIN BYTE UNAL TYPEINIT,
+ 2928              /*K*  TYPE is always 20.  */
+ 2929
+ 2930            2 UTS UBIN UNAL UTSINIT,
+ 2931              /*K*  UTS is the Universal Time Stamp.  */
+ 2932
+ 2933            2 SEQ UBIN HALF UNAL SEQINIT,
+ 2934              /*K*  SEQ is the sequence this RUM session.  */
+ 2935
+ 2936            2 NODE UBIN HALF UNAL NODEINIT;
+ 2937              /*K*  NODE is the overlay node number.  */
+ 2938      %MEND;
+ 2939      /*F* NAME:  B$RUBIRTHKEY
+ 2940           PURPOSE:  Key for Run Unit Birth Record   */
+ 2941
+ 2942      %MACRO B$RUBIRTHKEY (NAME=B$RUBIRTHKEY,STCLASS=STATIC SYMDEF,KEYSIZINIT="INIT(5)",TEXTINIT="INIT('BIRTH')");
+ 2943      DCL 1 NAME STCLASS ALIGNED,
+ 2944            2 KEYSIZ UBIN BYTE UNAL KEYSIZINIT,
+ 2945              /*K*  KEYSIZ is always 5.   */
+ 2946
+ 2947            2 TEXT CHAR(0) UNAL TEXTINIT;
+ 2948              /*K*  TEXT is always 'BIRTH'.  */
+ 2949      %MEND;
+ 2950
+ 2951      /*F* NAME:  B$RUBIRTH
+ 2952           PURPOSE:  Run Unit Birth Record   */
+ 2953
+ 2954      %MACRO B$RUBIRTH (NAME=B$RUBIRTH,STCLASS=STATIC SYMDEF,COUNTINIT="INIT(0)");
+ 2955      DCL 1 NAME STCLASS ALIGNED,
+ 2956            2 CREATE_UTS UBIN,
+ 2957              /*K*  CREATE_UTS is the creation UTS.  */
+ 2958
+ 2959            2 RUMED_UTS UBIN,
+ 2960              /*K*  RUMED_UTS is the UTS of the last time modified by RUM.  */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         81   
+ 2961
+ 2962            2 COUNT UBIN COUNTINIT;
+ 2963              /*K*  COUNT is the count of the number of times RUMed.  */
+ 2964      %MEND;
+ 2965
+ 2966      /*F* NAME:  B$SECTABLEKEY
+ 2967           PURPOSE:  Key for B$SECTABLE record         */
+ 2968
+ 2969      %MACRO B$SECTABLEKEY (NAME=B$SECTABLEKEY,STCLASS=STATIC SYMDEF,
+ 2970                            KEYSIZINIT="INIT(5)",TEXTINIT="INIT('TABLE')");
+ 2971      DCL 1 NAME STCLASS ALIGNED,
+ 2972            2 KEYSIZE UBIN BYTE UNAL KEYSIZINIT,
+ 2973              /*K*  KEYSIZE is always 5  */
+ 2974
+ 2975            2 TEXT CHAR(0) UNAL TEXTINIT;
+ 2976              /*K*  TEXT is always 'TABLE'.    */
+ 2977      %MEND;
+ 2978
+ 2979      /*F*  NAME: B$SECTABLE
+ 2980            PURPOSE:  Record in run unit which contains the start location
+ 2981                      and size of all sections ( for BIAS by OU for FEP).   */
+ 2982
+ 2983      %MACRO B$SECTABLE (NAME=B$SECTABLE,STCLASS=STATIC SYMDEF);
+ 2984      DCL 1 NAME STCLASS ALIGNED,
+ 2985            2 TYPE BIT(1) UNAL,
+ 2986              /*K*  TYPE
+ 2987
+ 2988                    Bit 1       Meaning
+ 2989                     0          DATA section
+ 2990                     1          PROC or RODATA section      */
+ 2991
+ 2992            2 SIZE UBIN(35) UNAL ,
+ 2993              /*K*  SIZE is the size in words of the section */
+ 2994
+ 2995            2 START UBIN(36) UNAL;
+ 2996              /*K*  START is the start location of the section.  */
+ 2997      %MEND;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         82   
+ 2998
+ 2999      /*F*  NAME: B$DESC_LIST
+ 3000            PURPOSE:
+ 3001            This macro describes the structure of the optional argument descriptors
+ 3002            for the standard CP-6 calling sequence.
+ 3003            DESCRIPTION:
+ 3004            This structure (if passed) is built by the compiler at compile
+ 3005            time, by generated code at run time or a combination of the two.
+ 3006            This structure is generally invisible to the user of a program
+ 3007            but it may be accessed in a PL6 program by using the MATERIALIZE
+ 3008            clause on the PROC statement to MATERIALIZE $PR1 into a local
+ 3009            pointer variable. The MATERIALIZEd pointer will point to this structure.
+ 3010
+ 3011            Note that not all compilers generate the entire structure.
+ 3012            It is necessary that all compilers generate the first word of
+ 3013            the structure with the NUMBER_OF_ARGS field set appropriately
+ 3014            and the NUM_DESC_WORDS field set to 0 (zero). It is not
+ 3015            necessary that the compiler generate the rest of this structure
+ 3016            except when calling external routines which require the information
+ 3017            (such as FORTRAN library routines). The PL6 compiler does not
+ 3018            generate this information by default but the CONV(0) attribute
+ 3019            on the DCL ENTRY statement allows the user to request that PL6
+ 3020            generate it for specific calls.
+ 3021
+ 3022            Usage note: This structure has two variable length arrays in it
+ 3023            which is impossible using PL6 syntax and semantics. Therefore,
+ 3024            the structure is useless for any storage class other than BASED
+ 3025            or PARAM. Also, note that specifying CONSTANT or STATIC as a STCLASS
+ 3026            will NOT cause any initialization to be done.
+ 3027      */
+ 3028
+ 3029      %MACRO B$DESC_LIST( NAME=B$DESC_LIST,
+ 3030                          STCLASS=BASED,
+ 3031                          NAME_EXT=B$DESC_EXT,
+ 3032                          GEN_EXT(YES='1'B,NO='0'B)='1'B );
+ 3033
+ 3034      DCL 1 NAME STCLASS ALIGNED,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         83   
+ 3035            2 NUMBER_OF_ARGS UBIN HALF HALIGNED,
+ 3036      /*K*    NUMBER_OF_ARGS - UBIN HALF
+ 3037              This field contains the number of arguments
+ 3038              being passed on this CALL. It is required on all standard
+ 3039              CP-6 calls.
+ 3040      */
+ 3041            2 V BIT(1),
+ 3042      /*K*    V - BIT(1)
+ 3043
+ 3044              V=0 specifies that the list is a normal argument list
+ 3045              as specified here.
+ 3046
+ 3047              V=1 specifies that the list is non-dense with implied ADDR(NIL)
+ 3048              for all arguments not passed. This form is not accommodated by the
+ 3049              standard CP-6 setup routines.
+ 3050      */
+ 3051            2 * BIT(1),
+ 3052            2 NUM_DESC_WORDS UBIN(16) UNAL,
+ 3053      /*K*    NUM_DESC_WORDS - UBIN(16)
+ 3054
+ 3055              This field contains the total number of words in the following
+ 3056              list not including this word. If the list is not passed, this
+ 3057              field must be 0(zero).
+ 3058      */
+ 3059            2 DESC_WORDS(0:0) ALIGNED,
+ 3060      /*K*    DESC_WORDS - array(0:NUMBER_OF_ARGS-1)
+ 3061
+ 3062              This array of one word entries define each of the arguments being passed.
+ 3063      */
+ 3064              3 DATA_TYPE UBIN HALF HALIGNED,
+ 3065      /*K*      DATA_TYPE - UBIN HALF
+ 3066
+ 3067                The data type of the argument. The macro VREBL_DATATYPES in
+ 3068                the file B$OBJECT_C.:LIBRARY defines EQUs for each of the
+ 3069                valid types.
+ 3070      */
+ 3071              3 F BIT(1),
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         84   
+ 3072      /*K*      F - BIT(1)
+ 3073
+ 3074                F='0'B specifies that the argument is a data item.
+ 3075
+ 3076                F='1'B specifies that the argument is a subroutine or function
+ 3077                address.
+ 3078                SPECIAL NOTE: FORTRAN currently uses this bit with the
+ 3079                FEVERY datatype to indicate that the argument is to
+ 3080                be "memory protected" and may not be written over.
+ 3081      */
+ 3082              3 EXTENDED BIT(1),
+ 3083      /*K*      EXTENDED - BIT(1)
+ 3084
+ 3085                EXTENDED='0'B specifies that the ARG_SIZE field contains the
+ 3086                actual size of the argument in units appropriate to DATA_TYPE.
+ 3087
+ 3088                EXTENDED='1'B specifies that the ARG_SIZE_OFFSET field contains the
+ 3089                word offset from the beginning of the descriptor extension
+ 3090                list (DESC_EXT). That location contains further information
+ 3091                about the specification of the actual size.
+ 3092      */
+ 3093              3 ARRAYED BIT(1),
+ 3094      /*K*      ARRAYED - BIT(1)
+ 3095
+ 3096                ARRAYED='0'B specifies that the argument is being passed as a scalar
+ 3097                variable.
+ 3098
+ 3099                ARRAYED='1'B specifies that the argument has an array description
+ 3100                located by ARG_SIZE_OFFSET.
+ 3101      */
+ 3102              3 STRUCT BIT(1),
+ 3103      /*K*      STRUCT - BIT(1)
+ 3104
+ 3105                STRUCT='0'B specifies that the argument is an elementary data item.
+ 3106
+ 3107                STRUCT='1'B specifies that the argument has a structure description
+ 3108                located by ARG_SIZE_OFFSET.
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         85   
+ 3109      */
+ 3110              3 VIRTUAL BIT(1),
+ 3111      /*K*      VIRTUAL - BIT(1)
+ 3112
+ 3113                VIRTUAL='1'B specifies that a virtual data segment entity is being
+ 3114                passed as an argument.
+ 3115      */
+ 3116              3 ARG_SIZE UBIN(13) UNAL,
+ 3117      /*K*      ARG_SIZE - UBIN(13)
+ 3118
+ 3119                If EXTENDED=ARRAYED=STRUCT=0 and the size of the argument
+ 3120                is <2**13 units, then this field contains the size of the
+ 3121                data item. See data type list.
+ 3122      */
+ 3123              3 ARG_SIZE_OFFSET REDEF ARG_SIZE UBIN(13) UNAL,
+ 3124      /*K*      ARG_SIZE_OFFSET - UBIN(13)
+ 3125
+ 3126                If EXTENDED or ARRAYED or STRUCT = 1, then this field contains
+ 3127                the offset to the descriptor extension word further defining the
+ 3128                argument. This offset is from the beginning of the descriptor
+ 3129                extension words. Thus the descriptor extension is located at
+ 3130                PR1->NUMBER_OF_ARGS+1+ARG_SIZE_OFFSET.
+ 3131      */
+ 3132              3 DEC_SIZE REDEF ARG_SIZE UNAL,
+ 3133      /*K*      DEC_SIZE REDEF ARG_SIZE
+ 3134
+ 3135                If DATA_TYPE is any of the DECIMAL FIXED types, then DEC_SIZE will
+ 3136                be used as a structure which describes the size of the data item.
+ 3137      */
+ 3138                4 * BIT(1) UNAL,
+ 3139
+ 3140                4 FSIZE SBIN(6) UNAL,
+ 3141      /*K*        FSIZE SBIN(6)
+ 3142
+ 3143                  If DATA_TYPE is any of the DECIMAL FIXED types, then FSIZE is the
+ 3144                  number of decimal places.
+ 3145      */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         86   
+ 3146                4 SIZE UBIN(6) UNAL;
+ 3147      /*K*        SIZE UBIN(6)
+ 3148
+ 3149                  If DATA_TYPE is any of the DECIMAL FIXED types, then SIZE is the
+ 3150                  actual size of this data item.
+ 3151      */
+ 3152
+ 3153      %IF GEN_EXT;
+ 3154      DCL 1 NAME_EXT(0:0) BASED ALIGNED,
+ 3155      /*K*    DESC_EXT - array(0:0)
+ 3156
+ 3157              The following words are present only for the exception cases
+ 3158              specified by: EXTENDED, ARRAYED, SCALAR
+ 3159      */
+ 3160            2 I BIT(1),
+ 3161      /*K*      I - BIT(1)
+ 3162
+ 3163                I='0'B specifies that LARGE_SIZE contains the actual size of the
+ 3164                argument.
+ 3165
+ 3166                I='1'B specifies that the size is located elsewhere as specified
+ 3167                below.
+ 3168      */
+ 3169            2 A BIT(1),
+ 3170      /*K*      A - BIT(1)
+ 3171
+ 3172                A='0'B specifies that the actual size is contained in the word
+ 3173                located by STATIC_LOC_OF_SIZE.
+ 3174
+ 3175                A='1'B specifies that the actual size is contained in the word
+ 3176                in the caller's AUTO frame located by AUTO_OFFSET_OF_SIZE.
+ 3177                Note that A is ignored if I=0.
+ 3178      */
+ 3179            2 * BIT(7),
+ 3180            2 LARGE_SIZE UBIN(27) UNAL,
+ 3181      /*K*      LARGE_SIZE - UBIN(27)
+ 3182
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         87   
+ 3183                Actual size of the argument.
+ 3184      */
+ 3185            2 STATIC_LOC_OF_SIZE REDEF LARGE_SIZE UBIN(27) UNAL,
+ 3186      /*K*      STATIC_LOC_OF_SIZE - UBIN(27)
+ 3187
+ 3188                The location within the Instruction Segment which contains
+ 3189                the actual size.
+ 3190      */
+ 3191            2 AUTO_OFFSET_OF_SIZE REDEF LARGE_SIZE UBIN(27) UNAL;
+ 3192      /*K*      AUTO_OFFSET_OF_SIZE - UBIN(27)
+ 3193
+ 3194                The offset within the caller's automatic frame which contains
+ 3195                the actual size.
+ 3196      */
+ 3197      %ENDIF;
+ 3198
+ 3199      %MEND;
+ 3200
+ 3201      /*F* NAME: B$STI
+ 3202           PURPOSE: Record containing a Software Technical Identifier
+ 3203                    that is to be placed in any type of file.
+ 3204           REFERENCE: AF 6.2 628A-0.    */
+ 3205
+ 3206      %MACRO B$STI (NAME = B$STI,STCLASS = STATIC);
+ 3207      DCL 1 NAME STCLASS ALIGNED,
+ 3208            2 SCOMMENT CHAR (6) UNAL,
+ 3209              /*K*  SCOMMENT indicates the starting of the comment field
+ 3210                    in source files */
+ 3211
+ 3212            2 * CHAR (1),
+ 3213            2 PRODUCT CHAR (12) UNAL,
+ 3214              /*K*  PRODUCT is the field to contain the name assigned
+ 3215                    to all components of the product. */
+ 3216
+ 3217            2 * CHAR (1),
+ 3218            2 VERSION CHAR (6) UNAL,
+ 3219              /*K*  VERSION is the current version of the product */
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         88   
+ 3220
+ 3221            2 * CHAR (1),
+ 3222            2 TIME CHAR (11) UNAL,
+ 3223              /*K*  TIME is the time obtained from the UTS. */
+ 3224
+ 3225            2 * CHAR (1),
+ 3226            2 DATE CHAR (10) UNAL,
+ 3227              /*K*  DATE is the date obtained from the UTS. */
+ 3228
+ 3229            2 ECOMMENT CHAR (7) UNAL;
+ 3230              /*K*  ECOMMENT indicates the ending of the comment field
+ 3231                    in source files */
+ 3232
+ 3233      %MEND;
+ 3234
+ 3235      /*F* NAME: B$PLOVERKEY
+ 3236           PURPOSE:
+ 3237           Key for PLOVER records.
+ 3238           DESCRIPTION:
+ 3239           PLOVER records have a key of the following form: */
+ 3240
+ 3241      %MACRO B$PLOVERKEY( NAME=B$PLOVERKEY, STCLASS=STATIC );
+ 3242
+ 3243       %LSET LISTDIR='0'B;
+ 3244       %LSET LISTEXP='1'B;
+ 3245       %LSET LISTCOM='0'B;
+ 3246       %LSET LISTSUB='1'B;
+ 3247       %LSET STR=CONCAT(TEXTCHAR(STCLASS),'        ');
+ 3248       %IF (SUBSTR(STR,0,6)='STATIC') OR
+ 3249       (SUBSTR(STR,0,8)='CONSTANT') OR
+ 3250       (SUBSTR(STR,0,3)='EXT');
+ 3251       %LSET INIT=CHARTEXT('INIT');
+ 3252       %ELSE;
+ 3253       %LSET INIT=CHARTEXT('/*');
+ 3254       %ENDIF;
+ 3255
+ 3256      DCL 1 NAME STCLASS ALIGNED,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         89   
+ 3257            2 KEYSIZ UBIN BYTE UNAL %INIT(12)%CHARTEXT('/**/'),
+ 3258              /*K* KEYSIZ specifies the length of the key in bytes.
+ 3259                   KEYSIZ is 12 for this key.  */
+ 3260            2 NOTHD BIT(9) UNAL %INIT('776'O)%CHARTEXT('/**/'),
+ 3261              /*K* NOTHD is always O'776'. */
+ 3262            2 UTS UBIN UNAL %INIT(0)%CHARTEXT('/**/'),
+ 3263              /*K* UTS is the 36-bit Universal Time Stamp of the object unit
+ 3264                   this PLOVER record is associated with. */
+ 3265            2 TYPE UBIN BYTE UNAL %INIT(%TYPPLOVER)%CHARTEXT('/**/'),
+ 3266              /*K* TYPE (record type) is always TYPPLOVER */
+ 3267            2 PUTS UBIN UNAL %INIT(0)%CHARTEXT('/**/'),
+ 3268              /*K* PUTS is the 36-bit Universal Time Stamp that indicates the
+ 3269                   time this PLOVER record was created. */
+ 3270            2 SEQ UBIN HALF UNAL %INIT(0)%CHARTEXT('/**/');
+ 3271              /*K* SEQ is used to sequence the records for a PLOVER session. */
+ 3272      %MEND;
+ 3273
+ 3274
+ 3275
+ 3276      /*F* NAME: B$PLOVERBIRTH
+ 3277           PURPOSE: PLOVER BIRTH record.
+ 3278           DESCRIPTION:
+ 3279           A PLOVER BIRTH record indicates the existence of PLOVER records
+ 3280           for an object unit. */
+ 3281
+ 3282      %MACRO B$PLOVERBIRTH( NAME=B$PLOVERBIRTH, STCLASS=STATIC );
+ 3283
+ 3284      DCL 1 NAME STCLASS ALIGNED,
+ 3285            2 OU_NAME,
+ 3286              /*K* OU_NAME is the name of the object unit. */
+ 3287              3 COUNT UBIN BYTE UNAL,
+ 3288              /*K* OU_NAME.COUNT is the number of bytes in the object unit name. */
+ 3289              3 TEXT CHAR(31) UNAL,
+ 3290              /*K* OU_NAME.TEXT is the character string that is the name of
+ 3291                   the object unit. */
+ 3292            2 CREATE_UTS UBIN,
+ 3293              /*K* CREATE_UTS is the 36-bit Universal Time Stamp that indicates
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         90   
+ 3294                   when the object unit was compiled or LEMURed */
+ 3295            2 PLOVER_UTS UBIN,
+ 3296              /*K* PLOVER_UTS is the 36-bit Universal Time Stamp that indicates
+ 3297                   the last time the object unit was PLOVERed. */
+ 3298            2 COUNT UBIN,
+ 3299              /*K* COUNT is the number of times the object unit has been PLOVERed. */
+ 3300            2 IPATCH UBIN,
+ 3301              /*K* IPATCH is the value for @ in patch space needed for this ou */
+ 3302            2 DPATCH UBIN;
+ 3303              /*K* DPATCH is the value for # in patch space needed for this ou */
+ 3304      %MEND;
+ 3305
+ 3306
+ 3307
+ 3308      /*F* NAME: B$PLOVERBIRTHKEY
+ 3309           PURPOSE:
+ 3310           Key for PLOVER BIRTH records.
+ 3311           DESCRIPTION:
+ 3312           PLOVER BIRTH records have a key of the following form: */
+ 3313
+ 3314      %MACRO B$PLOVERBIRTHKEY( NAME=B$PLOVERBIRTHKEY, STCLASS=STATIC );
+ 3315
+ 3316       %LSET LISTDIR='0'B;
+ 3317       %LSET LISTEXP='1'B;
+ 3318       %LSET LISTCOM='0'B;
+ 3319       %LSET LISTSUB='1'B;
+ 3320       %LSET STR=CONCAT(TEXTCHAR(STCLASS),'        ');
+ 3321       %IF (SUBSTR(STR,0,6)='STATIC') OR
+ 3322       (SUBSTR(STR,0,8)='CONSTANT') OR
+ 3323       (SUBSTR(STR,0,3)='EXT');
+ 3324       %LSET INIT=CHARTEXT('INIT');
+ 3325       %ELSE;
+ 3326       %LSET INIT=CHARTEXT('/*');
+ 3327       %ENDIF;
+ 3328
+ 3329      DCL 1 NAME STCLASS ALIGNED,
+ 3330            2 KEYSIZ UBIN BYTE UNAL %INIT(5)%CHARTEXT('/**/'),
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         91   
+ 3331              /*K* KEYSIZ specifies the length of the key in bytes.
+ 3332                   KEYSIZ is 5 for this key.  */
+ 3333            2 NOTHD BIT(9) UNAL %INIT('776'O)%CHARTEXT('/**/'),
+ 3334              /*K* NOTHD is always O'776'. */
+ 3335            2 UTS UBIN UNAL %INIT(0)%CHARTEXT('/**/');
+ 3336              /*K* UTS is the 36-bit Universal Time Stamp of the object unit
+ 3337                   this PLOVER record is associated with. */
+ 3338      %MEND;
+ 3339
+ 3340      /*F* NAME:  B$FEP_SECTION
+ 3341           PURPOSE:  Sections (Record Type 3)
+ 3342           DESCRIPTION:
+ 3343           There is one record per object unit which defines the size
+ 3344           and type of sections.
+ 3345           The section record contains one entry per section within the
+ 3346           object unit.    */
+ 3347
+ 3348      %MACRO B$FEP_SECTION (NAME=B$FEP_SECTION,STCLASS=BASED);
+ 3349      DCL 1 NAME STCLASS ALIGNED,
+ 3350            2 TYPE UBIN(4) UNAL,
+ 3351              /*K*  TYPE -
+ 3352                    Type code      Section type
+ 3353                    ---------      ------------
+ 3354                        0          Data control section with write access.
+ 3355                        1          Procedure control section.
+ 3356                        2          Unlabeled common, name pointer must be zero.
+ 3357                        3          Labeled common, with mandatory name pointer.
+ 3358                                   This is for labeled common which must be
+ 3359                                   in the root.
+ 3360                        4          Labeled common, with mandatory name pointer.
+ 3361                                   This is for labeled common which need not
+ 3362                                   be in the root.
+ 3363                        5          DCB, word 1 is name pointer.
+ 3364                        6          Data control section with read only access,
+ 3365                                   word 1 = 0 or name pointer.      */
+ 3366
+ 3367            2 INITZERO BIT(1) UNAL,
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         92   
+ 3368              /*K*  INITZERO - if 1, initialize with zero.  */
+ 3369
+ 3370
+ 3371            2 INITUTS BIT(1) UNAL,
+ 3372              /*K*  INITUTS - if 1, initialize with UTS.  */
+ 3373
+ 3374            2 BOUND UBIN(2) UNAL,
+ 3375              /*K*  BOUND - bits 6-7 - defines starting location.
+ 3376                            00 - starts on even word
+ 3377                            01 - starts on odd word
+ 3378                            10 - starts on multiple of 8
+ 3379                            11 - starts on page boundary     */
+ 3380
+ 3381            2 EMPTY BIT(1) UNAL,
+ 3382              /*K*  EMPTY is set if this section is empty.  */
+ 3383
+ 3384            2 ISADDR UBIN(27) UNAL,
+ 3385              /*K*  ISADDR - Is Address (RU)  */
+ 3386
+ 3387            2 NPOINTER SBIN HALF UNAL,
+ 3388              /*K*  NPOINTER locates a name in the Definition Names
+ 3389                    Section.  The name must be a valid segment name
+ 3390                    recognized by the linker.  */
+ 3391
+ 3392            2 SIZE UBIN HALF UNAL;
+ 3393              /*K*  SIZE is the size, in words, of the section.  */
+ 3394      %MEND;
+ 3395
+ 3396      /*F* NAME:  B$FEP_RUKEY
+ 3397           PURPOSE:  Key for records in the FEP Run Unit.  */
+ 3398
+ 3399      %MACRO B$FEP_RUKEY (NAME=B$FEP_RUKEY,STCLASS=STATIC,TYP=10,KEYL=5,PG#=0,NODE#=0);
+ 3400
+ 3401       %LSET LISTDIR='0'B;
+ 3402       %LSET LISTEXP='1'B;
+ 3403       %LSET LISTCOM='0'B;
+ 3404       %LSET LISTSUB='1'B;
+14:10 JUL 28 '97 B$OBJECT_C.:E05SI                                         93   
+ 3405       %LSET STR=CONCAT(TEXTCHAR(STCLASS),'        ');
+ 3406       %IF (SUBSTR(STR,0,6)='STATIC') OR
+ 3407       (SUBSTR(STR,0,8)='CONSTANT') OR
+ 3408       (SUBSTR(STR,0,3)='EXT');
+ 3409       %LSET INIT=CHARTEXT('INIT');
+ 3410       %ELSE;
+ 3411       %LSET INIT=CHARTEXT('/*');
+ 3412       %ENDIF;
+ 3413
+ 3414      DCL 1 NAME STCLASS ALIGNED,
+ 3415            2 KEYSIZ UBIN BYTE UNAL %INIT(KEYL)%CHARTEXT('/**/'),
+ 3416              /*K*  KEYSIZ is the length of key */
+ 3417
+ 3418            2 TYPE UBIN BYTE UNAL %INIT(TYP)%CHARTEXT('/**/'),
+ 3419              /*K*  TYPE is the record type */
+ 3420
+ 3421            2 NODE UBIN(16) UNAL %INIT(NODE#)%CHARTEXT('/**/'),
+ 3422              /*K*  NODE is the node number.  */
+ 3423
+ 3424            2 PAGE UBIN(20) UNAL %INIT(PG#)%CHARTEXT('/**/'),
+ 3425              /*K*  PAGE is the page number */
+ 3426
+ 3427            2 ISADDR REDEF PAGE UBIN(20) UNAL;
+ 3428      %MEND;
+ 3429
+

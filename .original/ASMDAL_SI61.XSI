@@ -1,0 +1,4261 @@
+/*M* ASMDAL - A two pass assembler for Dec Assembly Language */
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+ASMDAL: PROC MAIN;
+/*
+**
+**    This is the mainline for a two-pass assembler for DAL.
+**    This procedure has 2 main internal procedures that it
+**    uses for the assembly process.  PASS_1 does pass 1
+**    of the assembly creating a token file with partially
+**    assembled code.  PASS_2 controls pass 2 of the assembly
+**    and uses the token file to produce the object file. No
+**    object file is produced for source code that has errors.
+**
+**    This program makes no assumptions about the source file
+**    other than those put forth in the specifications and the
+**    limiting of a source line to 80 columns of text or less.
+**
+**    Programmer:   Dave Wagner
+**    Course:       CO430 Systems Programming
+**    Date written: Fall 1982
+**
+*/
+ 
+%EJECT;
+/*
+**
+**    Source input format.
+*/
+      DCL 1 SI_BUFFER                  STATIC,
+            2 LABEL                    CHAR(6),
+            2 JUNK1                    CHAR(1),
+            2 MNEMONIC                 CHAR(6),
+            2 JUNK2                    CHAR(2),
+            2 OPERAND                  CHAR(16),
+            2 COMMENTS                 CHAR(49);
+      DCL SI_BUFFER_CHAR               REDEF SI_BUFFER CHAR(80);
+/*
+**
+**    Object unit formats.
+*/
+      DCL OU_BUFFER                    CHAR(80)  EXT;
+ 
+      DCL 1 OU_WORD_NORMAL             BASED     ALIGNED,
+            2 OPCODE                   UBIN(9)   UNAL,
+            2 ACC                      UBIN(4)   UNAL,
+            2 INDIRECT                 BIT(1)    UNAL,
+            2 XR                       UBIN(4)   UNAL,
+            2 VALUE                    UBIN(18)  UNAL;
+ 
+      DCL 1 OU_WORD_IO                 BASED     ALIGNED,
+            2 SEVEN                    BIT(3)    UNAL,
+            2 DEV                      UBIN(7)   UNAL,
+            2 OPCODE                   UBIN(3)   UNAL,
+            2 INDIRECT                 BIT(1)    UNAL,
+            2 XR                       UBIN(4)   UNAL,
+            2 VALUE                    UBIN(18)  UNAL;
+ 
+      DCL 1 OU_WORD_JSYS               BASED     ALIGNED,
+            2 OPCODE                   BIT(9)    UNAL,
+            2 ZERO                     BIT(9)    UNAL,
+            2 NUMBER                   UBIN(18)  UNAL;
+/*
+**
+**    Listing output line.
+*/
+      DCL LO_BUFFER                    CHAR(132) STATIC;
+/*
+**
+**    Salutation line.
+*/
+      DCL ME_BUFFER                    CHAR(132) STATIC;
+ 
+%EJECT;
+/*
+**
+**    Token file format.
+*/
+      DCL 1 TOKEN_BUFFER               STATIC,
+            2 ERRORS                   BIT(72)   UNAL,
+            2 PSEUDO_WORD              UBIN(36)  UNAL,
+            2 OPCODE                   UBIN(9)   UNAL,
+            2 TYPE                     UBIN(2)   UNAL,
+            2 INDIRECT                 BIT(1)    UNAL,
+            2 NO_CODE                  BIT(1)    UNAL,
+            2 RELOCATION_BITS          BIT(2)    UNAL,
+            2 *(0:2)                   BIT(1)    UNAL,
+            2 VALUE                    CHAR(6)   UNAL,
+            2 VALUE_BIAS               SBIN(18)  UNAL,
+            2 ACC                      CHAR(6)   UNAL,
+            2 DEV REDEF ACC            CHAR(6),
+            2 XR                       CHAR(6)   UNAL,
+            2 JSYS                     UBIN(18)  UNAL,
+            2 LOCATION                 UBIN(18)  UNAL,
+            2 SOURCE_LINE              CHAR(80)  UNAL;
+ 
+%EJECT;
+/*
+**
+**    This structure is used to reset the token buffer before
+**    each source line is read.
+*/
+      DCL 1 TOKEN_BUFFER_RESET         CONSTANT,
+            2 ERRORS(0:71)             BIT(1)    UNAL INIT('0'B*0),
+            2 PSEUDO_WORD              UBIN(36)  UNAL INIT(0),
+            2 OPCODE                   UBIN(9)   UNAL INIT(0),
+            2 TYPE                     UBIN(2)   UNAL INIT(0),
+            2 INDIRECT                 BIT(1)    UNAL INIT('0'B),
+            2 NO_CODE                  BIT(1)    UNAL INIT('0'B),
+            2 RELOCATION_BITS          BIT(2)    UNAL INIT('00'B),
+            2 *(0:2)                   BIT(1)    UNAL INIT('0'B*0),
+            2 VALUE                    CHAR(6)   UNAL INIT(' '),
+            2 VALUE_BIAS               SBIN(18)  UNAL INIT(0),
+            2 ACC                      CHAR(6)   UNAL INIT(' '),
+            2 XR                       CHAR(6)   UNAL INIT(' '),
+            2 JSYS                     UBIN(18)  UNAL INIT(0),
+            2 LOCATION                 UBIN(18)  UNAL INIT(0),
+            2 SOURCE_LINE              CHAR(80)  UNAL INIT(' ');
+ 
+%EJECT;
+/*
+**
+**    This table is used to look up the opcode and type
+**    for each of the mnemonics.
+*/
+      DCL 1 OPCODE_TABLE(0:377)        CONSTANT,
+            2 MNEMONIC                 CHAR(6)   UNAL INIT(
+              'ADD   ',
+              'ADDB  ',
+              'ADDI  ',
+              'ADDM  ',
+              'AND   ',
+              'ANDB  ',
+              'ANDCA ',
+              'ANDCAB',
+              'ANDCAI',
+              'ANDCAM',
+              'ANDCB ',
+              'ANDCBB',
+              'ANDCBI',
+              'ANDCBM',
+              'ANDCM ',
+              'ANDCMB',
+              'ANDCMI',
+              'ANDCMM',
+              'ANDI  ',
+              'ANDM  ',
+              'AOBJN ',
+              'AOBJP ',
+              'AOJ   ',
+              'AOJA  ',
+              'AOJE  ',
+              'AOJG  ',
+              'AOJGE ',
+              'AOJL  ',
+              'AOJLE ',
+              'AOJN  ',
+              'AOS   ',
+              'AOSA  ',
+              'AOSE  ',
+              'AOSG  ',
+              'AOSGE ',
+              'AOSL  ',
+              'AOSLE ',
+              'AOSN  ',
+              'ASH   ',
+              'ASHC  ',
+              'BLKI  ',
+              'BLKO  ',
+              'BLT   ',
+              'CAI   ',
+              'CAIA  ',
+              'CAIE  ',
+              'CAIG  ',
+              'CAIGE ',
+              'CAIL  ',
+              'CAILE ',
+              'CAIN  ',
+              'CAM   ',
+              'CAMA  ',
+              'CAME  ',
+              'CAMG  ',
+              'CAMGE ',
+              'CAML  ',
+              'CAMLE ',
+              'CAMN  ',
+              'CONI  ',
+              'CONO  ',
+              'CONSO ',
+              'CONSZ ',
+              'DATAI ',
+              'DATAO ',
+              'DFAD  ',
+              'DFDV  ',
+              'DFMP  ',
+              'DFN   ',
+              'DFSB  ',
+              'DIV   ',
+              'DIVB  ',
+              'DIVI  ',
+              'DIVM  ',
+              'DMOVE ',
+              'DMOVEM',
+              'DMOVN ',
+              'DMOVNM',
+              'DPB   ',
+              'EQV   ',
+              'EQVB  ',
+              'EQVI  ',
+              'EQVM  ',
+              'EXCH  ',
+              'FAD   ',
+              'FADB  ',
+              'FADL  ',
+              'FADM  ',
+              'FADR  ',
+              'FADRB ',
+              'FADRI ',
+              'FADRM ',
+              'FDV   ',
+              'FDVB  ',
+              'FDVI  ',
+              'FDVM  ',
+              'FDVR  ',
+              'FDVRB ',
+              'FDVRI ',
+              'FDVRM ',
+              'FIX   ',
+              'FIXR  ',
+              'FLTR  ',
+              'FMP   ',
+              'FMPB  ',
+              'FMPI  ',
+              'FMPM  ',
+              'FMPR  ',
+              'FMPRB ',
+              'FMPRI ',
+              'FMPRM ',
+              'FSB   ',
+              'FSBB  ',
+              'FSBI  ',
+              'FSBM  ',
+              'FSBR  ',
+              'FSBRB ',
+              'FSBRI ',
+              'FSBRM ',
+              'FSC   ',
+              'HLL   ',
+              'HLLE  ',
+              'HLLEI ',
+              'HLLEM ',
+              'HLLES ',
+              'HLLI  ',
+              'HLLM  ',
+              'HLLO  ',
+              'HLLOI ',
+              'HLLOM ',
+              'HLLOS ',
+              'HLLS  ',
+              'HLLZ  ',
+              'HLLZI ',
+              'HLLZM ',
+              'HLLZS ',
+              'HLR   ',
+              'HLRE  ',
+              'HLREI ',
+              'HLREM ',
+              'HLRES ',
+              'HLRI  ',
+              'HLRM  ',
+              'HLRO  ',
+              'HLROI ',
+              'HLROM ',
+              'HLROS ',
+              'HLRS  ',
+              'HLRZ  ',
+              'HLRZI ',
+              'HLRZM ',
+              'HLRZS ',
+              'HRL   ',
+              'HRLE  ',
+              'HRLEI ',
+              'HRLEM ',
+              'HRLES ',
+              'HRLI  ',
+              'HRLM  ',
+              'HRLO  ',
+              'HRLOI ',
+              'HRLOM ',
+              'HRLOS ',
+              'HRLS  ',
+              'HRLZ  ',
+              'HRLZI ',
+              'HRLZM ',
+              'HRLZS ',
+              'HRR   ',
+              'HRRE  ',
+              'HRREI ',
+              'HRREM ',
+              'HRRES ',
+              'HRRI  ',
+              'HRRM  ',
+              'HRRO  ',
+              'HRROI ',
+              'HRROM ',
+              'HRROS ',
+              'HRRS  ',
+              'HRRZ  ',
+              'HRRZI ',
+              'HRRZM ',
+              'HRRZS ',
+              'IBP   ',
+              'IDIV  ',
+              'IDIVB ',
+              'IDIVI ',
+              'IDIVM ',
+              'IDPB  ',
+              'ILDB  ',
+              'IMUL  ',
+              'IMULB ',
+              'IMULI ',
+              'IMULM ',
+              'IOR   ',
+              'IORB  ',
+              'IORI  ',
+              'IORM  ',
+              'JFCL  ',
+              'JFFO  ',
+              'JRA   ',
+              'JRST  ',
+              'JSA   ',
+              'JSP   ',
+              'JSR   ',
+              'JSYS  ',
+              'JUMP  ',
+              'JUMPA ',
+              'JUMPE ',
+              'JUMPG ',
+              'JUMPGE',
+              'JUMPL ',
+              'JUMPLE',
+              'JUMPN ',
+              'LDB   ',
+              'LSH   ',
+              'LSHC  ',
+              'MOVE  ',
+              'MOVEI ',
+              'MOVEM ',
+              'MOVES ',
+              'MOVM  ',
+              'MOVMI ',
+              'MOVMM ',
+              'MOVMS ',
+              'MOVN  ',
+              'MOVNI ',
+              'MOVNM ',
+              'MOVNS ',
+              'MOVS  ',
+              'MOVSI ',
+              'MOVSM ',
+              'MOVSS ',
+              'MUL   ',
+              'MULB  ',
+              'MULI  ',
+              'MULM  ',
+              'ORCA  ',
+              'ORCAB ',
+              'ORCAI ',
+              'ORCAM ',
+              'ORCB  ',
+              'ORCBB ',
+              'ORCBI ',
+              'ORCBM ',
+              'ORCM  ',
+              'ORCMB ',
+              'ORCMI ',
+              'ORCMM ',
+              'POP   ',
+              'POPJ  ',
+              'PUSH  ',
+              'PUSHJ ',
+              'ROT   ',
+              'ROTC  ',
+              'SETA  ',
+              'SETAB ',
+              'SETAI ',
+              'SETAM ',
+              'SETCA ',
+              'SETCAB',
+              'SETCAI',
+              'SETCAM',
+              'SETCM ',
+              'SETCMB',
+              'SETCMI',
+              'SETCMM',
+              'SETM  ',
+              'SETMB ',
+              'SETMI ',
+              'SETMM ',
+              'SETO  ',
+              'SETOB ',
+              'SETOI ',
+              'SETOM ',
+              'SETZ  ',
+              'SETZB ',
+              'SETZI ',
+              'SETZM ',
+              'SKIP  ',
+              'SKIPA ',
+              'SKIPE ',
+              'SKIPG ',
+              'SKIPGE',
+              'SKIPL ',
+              'SKIPLE',
+              'SKIPN ',
+              'SOJ   ',
+              'SOJA  ',
+              'SOJE  ',
+              'SOJG  ',
+              'SOJGE ',
+              'SOJL  ',
+              'SOJLE ',
+              'SOJN  ',
+              'SOS   ',
+              'SOSA  ',
+              'SOSE  ',
+              'SOSG  ',
+              'SOSGE ',
+              'SOSL  ',
+              'SOSLE ',
+              'SOSN  ',
+              'SUB   ',
+              'SUBB  ',
+              'SUBI  ',
+              'SUBM  ',
+              'TDC   ',
+              'TDCA  ',
+              'TDCE  ',
+              'TDCN  ',
+              'TDN   ',
+              'TDNA  ',
+              'TDNE  ',
+              'TDNN  ',
+              'TDO   ',
+              'TDOA  ',
+              'TDOE  ',
+              'TDON  ',
+              'TDZ   ',
+              'TDZA  ',
+              'TDZE  ',
+              'TDZN  ',
+              'TLC   ',
+              'TLCA  ',
+              'TLCE  ',
+              'TLCN  ',
+              'TLN   ',
+              'TLNA  ',
+              'TLNE  ',
+              'TLNN  ',
+              'TLO   ',
+              'TLOA  ',
+              'TLOE  ',
+              'TLON  ',
+              'TLZ   ',
+              'TLZA  ',
+              'TLZE  ',
+              'TLZN  ',
+              'TRC   ',
+              'TRCA  ',
+              'TRCE  ',
+              'TRCN  ',
+              'TRN   ',
+              'TRNA  ',
+              'TRNE  ',
+              'TRNN  ',
+              'TRO   ',
+              'TROA  ',
+              'TROE  ',
+              'TRON  ',
+              'TRZ   ',
+              'TRZA  ',
+              'TRZE  ',
+              'TRZN  ',
+              'TSC   ',
+              'TSCA  ',
+              'TSCE  ',
+              'TSCN  ',
+              'TSN   ',
+              'TSNA  ',
+              'TSNE  ',
+              'TSNN  ',
+              'TSO   ',
+              'TSOA  ',
+              'TSOE  ',
+              'TSON  ',
+              'TSZ   ',
+              'TSZA  ',
+              'TSZE  ',
+              'TSZN  ',
+              'UFA   ',
+              'XCT   ',
+              'XOR   ',
+              'XORB  ',
+              'XORI  ',
+              'XORM  '),
+ 
+%EJECT;
+            2 OPCODE                   UBIN(9)   UNAL INIT(
+              BITBIN('270'O),
+              BITBIN('273'O),
+              BITBIN('271'O),
+              BITBIN('272'O),
+              BITBIN('404'O),
+              BITBIN('407'O),
+              BITBIN('410'O),
+              BITBIN('413'O),
+              BITBIN('411'O),
+              BITBIN('412'O),
+              BITBIN('440'O),
+              BITBIN('443'O),
+              BITBIN('441'O),
+              BITBIN('442'O),
+              BITBIN('420'O),
+              BITBIN('423'O),
+              BITBIN('421'O),
+              BITBIN('422'O),
+              BITBIN('405'O),
+              BITBIN('406'O),
+              BITBIN('253'O),
+              BITBIN('252'O),
+              BITBIN('340'O),
+              BITBIN('344'O),
+              BITBIN('342'O),
+              BITBIN('347'O),
+              BITBIN('345'O),
+              BITBIN('341'O),
+              BITBIN('343'O),
+              BITBIN('346'O),
+              BITBIN('350'O),
+              BITBIN('354'O),
+              BITBIN('352'O),
+              BITBIN('357'O),
+              BITBIN('355'O),
+              BITBIN('351'O),
+              BITBIN('353'O),
+              BITBIN('356'O),
+              BITBIN('240'O),
+              BITBIN('244'O),
+              BITBIN('000'O),
+              BITBIN('002'O),
+              BITBIN('251'O),
+              BITBIN('300'O),
+              BITBIN('304'O),
+              BITBIN('302'O),
+              BITBIN('307'O),
+              BITBIN('305'O),
+              BITBIN('301'O),
+              BITBIN('303'O),
+              BITBIN('306'O),
+              BITBIN('310'O),
+              BITBIN('314'O),
+              BITBIN('312'O),
+              BITBIN('317'O),
+              BITBIN('315'O),
+              BITBIN('311'O),
+              BITBIN('313'O),
+              BITBIN('316'O),
+              BITBIN('005'O),
+              BITBIN('004'O),
+              BITBIN('007'O),
+              BITBIN('006'O),
+              BITBIN('001'O),
+              BITBIN('003'O),
+              BITBIN('110'O),
+              BITBIN('113'O),
+              BITBIN('112'O),
+              BITBIN('131'O),
+              BITBIN('111'O),
+              BITBIN('234'O),
+              BITBIN('237'O),
+              BITBIN('235'O),
+              BITBIN('236'O),
+              BITBIN('120'O),
+              BITBIN('124'O),
+              BITBIN('121'O),
+              BITBIN('125'O),
+              BITBIN('137'O),
+              BITBIN('444'O),
+              BITBIN('447'O),
+              BITBIN('445'O),
+              BITBIN('446'O),
+              BITBIN('250'O),
+              BITBIN('140'O),
+              BITBIN('143'O),
+              BITBIN('141'O),
+              BITBIN('142'O),
+              BITBIN('144'O),
+              BITBIN('147'O),
+              BITBIN('145'O),
+              BITBIN('146'O),
+              BITBIN('170'O),
+              BITBIN('173'O),
+              BITBIN('171'O),
+              BITBIN('172'O),
+              BITBIN('174'O),
+              BITBIN('177'O),
+              BITBIN('175'O),
+              BITBIN('176'O),
+              BITBIN('122'O),
+              BITBIN('126'O),
+              BITBIN('127'O),
+              BITBIN('160'O),
+              BITBIN('163'O),
+              BITBIN('161'O),
+              BITBIN('162'O),
+              BITBIN('164'O),
+              BITBIN('167'O),
+              BITBIN('165'O),
+              BITBIN('166'O),
+              BITBIN('150'O),
+              BITBIN('153'O),
+              BITBIN('151'O),
+              BITBIN('152'O),
+              BITBIN('154'O),
+              BITBIN('157'O),
+              BITBIN('155'O),
+              BITBIN('156'O),
+              BITBIN('132'O),
+              BITBIN('500'O),
+              BITBIN('530'O),
+              BITBIN('531'O),
+              BITBIN('532'O),
+              BITBIN('533'O),
+              BITBIN('501'O),
+              BITBIN('502'O),
+              BITBIN('520'O),
+              BITBIN('521'O),
+              BITBIN('522'O),
+              BITBIN('523'O),
+              BITBIN('503'O),
+              BITBIN('510'O),
+              BITBIN('511'O),
+              BITBIN('512'O),
+              BITBIN('513'O),
+              BITBIN('544'O),
+              BITBIN('574'O),
+              BITBIN('575'O),
+              BITBIN('576'O),
+              BITBIN('577'O),
+              BITBIN('545'O),
+              BITBIN('546'O),
+              BITBIN('564'O),
+              BITBIN('565'O),
+              BITBIN('566'O),
+              BITBIN('567'O),
+              BITBIN('547'O),
+              BITBIN('554'O),
+              BITBIN('555'O),
+              BITBIN('556'O),
+              BITBIN('557'O),
+              BITBIN('504'O),
+              BITBIN('534'O),
+              BITBIN('535'O),
+              BITBIN('536'O),
+              BITBIN('537'O),
+              BITBIN('505'O),
+              BITBIN('506'O),
+              BITBIN('524'O),
+              BITBIN('525'O),
+              BITBIN('526'O),
+              BITBIN('527'O),
+              BITBIN('507'O),
+              BITBIN('514'O),
+              BITBIN('515'O),
+              BITBIN('516'O),
+              BITBIN('517'O),
+              BITBIN('540'O),
+              BITBIN('570'O),
+              BITBIN('571'O),
+              BITBIN('572'O),
+              BITBIN('573'O),
+              BITBIN('541'O),
+              BITBIN('542'O),
+              BITBIN('560'O),
+              BITBIN('561'O),
+              BITBIN('562'O),
+              BITBIN('563'O),
+              BITBIN('543'O),
+              BITBIN('550'O),
+              BITBIN('551'O),
+              BITBIN('552'O),
+              BITBIN('553'O),
+              BITBIN('133'O),
+              BITBIN('230'O),
+              BITBIN('233'O),
+              BITBIN('231'O),
+              BITBIN('232'O),
+              BITBIN('136'O),
+              BITBIN('134'O),
+              BITBIN('220'O),
+              BITBIN('223'O),
+              BITBIN('221'O),
+              BITBIN('222'O),
+              BITBIN('434'O),
+              BITBIN('437'O),
+              BITBIN('435'O),
+              BITBIN('436'O),
+              BITBIN('255'O),
+              BITBIN('243'O),
+              BITBIN('267'O),
+              BITBIN('254'O),
+              BITBIN('266'O),
+              BITBIN('265'O),
+              BITBIN('264'O),
+              BITBIN('104'O),
+              BITBIN('320'O),
+              BITBIN('324'O),
+              BITBIN('322'O),
+              BITBIN('327'O),
+              BITBIN('325'O),
+              BITBIN('321'O),
+              BITBIN('323'O),
+              BITBIN('326'O),
+              BITBIN('135'O),
+              BITBIN('242'O),
+              BITBIN('246'O),
+              BITBIN('200'O),
+              BITBIN('201'O),
+              BITBIN('202'O),
+              BITBIN('203'O),
+              BITBIN('214'O),
+              BITBIN('215'O),
+              BITBIN('216'O),
+              BITBIN('217'O),
+              BITBIN('210'O),
+              BITBIN('211'O),
+              BITBIN('212'O),
+              BITBIN('213'O),
+              BITBIN('204'O),
+              BITBIN('205'O),
+              BITBIN('206'O),
+              BITBIN('207'O),
+              BITBIN('224'O),
+              BITBIN('227'O),
+              BITBIN('225'O),
+              BITBIN('226'O),
+              BITBIN('454'O),
+              BITBIN('457'O),
+              BITBIN('455'O),
+              BITBIN('456'O),
+              BITBIN('470'O),
+              BITBIN('473'O),
+              BITBIN('471'O),
+              BITBIN('472'O),
+              BITBIN('464'O),
+              BITBIN('467'O),
+              BITBIN('465'O),
+              BITBIN('466'O),
+              BITBIN('262'O),
+              BITBIN('263'O),
+              BITBIN('261'O),
+              BITBIN('260'O),
+              BITBIN('241'O),
+              BITBIN('245'O),
+              BITBIN('424'O),
+              BITBIN('427'O),
+              BITBIN('425'O),
+              BITBIN('426'O),
+              BITBIN('450'O),
+              BITBIN('453'O),
+              BITBIN('451'O),
+              BITBIN('452'O),
+              BITBIN('460'O),
+              BITBIN('463'O),
+              BITBIN('461'O),
+              BITBIN('462'O),
+              BITBIN('414'O),
+              BITBIN('417'O),
+              BITBIN('415'O),
+              BITBIN('416'O),
+              BITBIN('474'O),
+              BITBIN('477'O),
+              BITBIN('475'O),
+              BITBIN('476'O),
+              BITBIN('400'O),
+              BITBIN('403'O),
+              BITBIN('401'O),
+              BITBIN('402'O),
+              BITBIN('330'O),
+              BITBIN('334'O),
+              BITBIN('332'O),
+              BITBIN('337'O),
+              BITBIN('335'O),
+              BITBIN('331'O),
+              BITBIN('333'O),
+              BITBIN('336'O),
+              BITBIN('360'O),
+              BITBIN('364'O),
+              BITBIN('362'O),
+              BITBIN('367'O),
+              BITBIN('365'O),
+              BITBIN('361'O),
+              BITBIN('363'O),
+              BITBIN('366'O),
+              BITBIN('370'O),
+              BITBIN('374'O),
+              BITBIN('372'O),
+              BITBIN('377'O),
+              BITBIN('375'O),
+              BITBIN('371'O),
+              BITBIN('373'O),
+              BITBIN('376'O),
+              BITBIN('274'O),
+              BITBIN('277'O),
+              BITBIN('275'O),
+              BITBIN('276'O),
+              BITBIN('650'O),
+              BITBIN('654'O),
+              BITBIN('652'O),
+              BITBIN('656'O),
+              BITBIN('610'O),
+              BITBIN('614'O),
+              BITBIN('612'O),
+              BITBIN('616'O),
+              BITBIN('670'O),
+              BITBIN('674'O),
+              BITBIN('672'O),
+              BITBIN('676'O),
+              BITBIN('630'O),
+              BITBIN('634'O),
+              BITBIN('632'O),
+              BITBIN('636'O),
+              BITBIN('641'O),
+              BITBIN('645'O),
+              BITBIN('643'O),
+              BITBIN('647'O),
+              BITBIN('601'O),
+              BITBIN('605'O),
+              BITBIN('603'O),
+              BITBIN('607'O),
+              BITBIN('661'O),
+              BITBIN('665'O),
+              BITBIN('663'O),
+              BITBIN('667'O),
+              BITBIN('621'O),
+              BITBIN('625'O),
+              BITBIN('623'O),
+              BITBIN('627'O),
+              BITBIN('640'O),
+              BITBIN('644'O),
+              BITBIN('642'O),
+              BITBIN('646'O),
+              BITBIN('600'O),
+              BITBIN('604'O),
+              BITBIN('602'O),
+              BITBIN('606'O),
+              BITBIN('660'O),
+              BITBIN('664'O),
+              BITBIN('662'O),
+              BITBIN('666'O),
+              BITBIN('620'O),
+              BITBIN('624'O),
+              BITBIN('622'O),
+              BITBIN('626'O),
+              BITBIN('651'O),
+              BITBIN('655'O),
+              BITBIN('653'O),
+              BITBIN('657'O),
+              BITBIN('611'O),
+              BITBIN('615'O),
+              BITBIN('613'O),
+              BITBIN('617'O),
+              BITBIN('671'O),
+              BITBIN('675'O),
+              BITBIN('673'O),
+              BITBIN('677'O),
+              BITBIN('631'O),
+              BITBIN('635'O),
+              BITBIN('633'O),
+              BITBIN('637'O),
+              BITBIN('130'O),
+              BITBIN('256'O),
+              BITBIN('430'O),
+              BITBIN('433'O),
+              BITBIN('431'O),
+              BITBIN('432'O)),
+ 
+%EJECT;
+            2 TYPE                     UBIN(2)   UNAL INIT(
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0);
+ 
+%EJECT;
+/*
+**
+**    This table is used to look up the jsys number for
+**    the alias jsys used in the assembly program.
+*/
+      DCL 1 JSYS_TABLE (0:64)          CONSTANT,
+            2 NAME                     CHAR(6)   UNAL INIT(
+              'BIN   ',
+              'BOUT  ',
+              'CFIBF ',
+              'CFOBF ',
+              'CLOSF ',
+              'DFIN  ',
+              'DFOUT ',
+              'DIBE  ',
+              'DISMS ',
+              'DSKOP ',
+              'DTACH ',
+              'FFFFP ',
+              'FLIN  ',
+              'FLOUT ',
+              'GDSTS ',
+              'GETAB ',
+              'GETJI ',
+              'GNJFN ',
+              'GTAD  ',
+              'GTFDB ',
+              'GTJFN ',
+              'HALTF ',
+              'JFNS  ',
+              'LGOUT ',
+              'LOGIN ',
+              'MRECV ',
+              'MSEND ',
+              'MTOPR ',
+              'MUTIL ',
+              'NIN   ',
+              'NOUT  ',
+              'ODTIM ',
+              'OPENF ',
+              'PBIN  ',
+              'PBOUT ',
+              'PEEK  ',
+              'PMAP  ',
+              'PSOUT ',
+              'RDTTY ',
+              'RESET ',
+              'RFCOC ',
+              'RFMOD ',
+              'RIN   ',
+              'RNAMF ',
+              'ROUT  ',
+              'RUNTM ',
+              'SFCOC ',
+              'SFMOD ',
+              'SIBE  ',
+              'SIN   ',
+              'SMON  ',
+              'SNOOP ',
+              'SOBE  ',
+              'SOUT  ',
+              'STDEV ',
+              'STI   ',
+              'STO   ',
+              'STPAR ',
+              'STTYP ',
+              'TEXTI ',
+              'TLINK ',
+              'TMON  ',
+              'TTMSG ',
+              'USAGE ',
+              'WAIT  '),
+ 
+%EJECT;
+            2 NUMBER                   UBIN(9)   UNAL INIT(
+              BITBIN('050'O),
+              BITBIN('051'O),
+              BITBIN('100'O),
+              BITBIN('101'O),
+              BITBIN('022'O),
+              BITBIN('234'O),
+              BITBIN('235'O),
+              BITBIN('212'O),
+              BITBIN('167'O),
+              BITBIN('242'O),
+              BITBIN('115'O),
+              BITBIN('031'O),
+              BITBIN('232'O),
+              BITBIN('233'O),
+              BITBIN('145'O),
+              BITBIN('010'O),
+              BITBIN('507'O),
+              BITBIN('017'O),
+              BITBIN('227'O),
+              BITBIN('063'O),
+              BITBIN('020'O),
+              BITBIN('170'O),
+              BITBIN('030'O),
+              BITBIN('003'O),
+              BITBIN('001'O),
+              BITBIN('511'O),
+              BITBIN('510'O),
+              BITBIN('077'O),
+              BITBIN('512'O),
+              BITBIN('225'O),
+              BITBIN('224'O),
+              BITBIN('220'O),
+              BITBIN('021'O),
+              BITBIN('073'O),
+              BITBIN('074'O),
+              BITBIN('311'O),
+              BITBIN('056'O),
+              BITBIN('076'O),
+              BITBIN('523'O),
+              BITBIN('147'O),
+              BITBIN('112'O),
+              BITBIN('107'O),
+              BITBIN('054'O),
+              BITBIN('035'O),
+              BITBIN('055'O),
+              BITBIN('015'O),
+              BITBIN('113'O),
+              BITBIN('110'O),
+              BITBIN('102'O),
+              BITBIN('052'O),
+              BITBIN('006'O),
+              BITBIN('516'O),
+              BITBIN('103'O),
+              BITBIN('053'O),
+              BITBIN('120'O),
+              BITBIN('114'O),
+              BITBIN('246'O),
+              BITBIN('217'O),
+              BITBIN('241'O),
+              BITBIN('524'O),
+              BITBIN('522'O),
+              BITBIN('007'O),
+              BITBIN('775'O),
+              BITBIN('564'O),
+              BITBIN('306'O));
+ 
+%EJECT;
+/*
+**
+**    This table is used to look up the pseudo ops.
+*/
+      DCL 1 PSEUDO_OP_TABLE(0:8)       CONSTANT,
+            2 NAME                     CHAR(6)
+               INIT('BLOCK ','DC    ','END   ','ENTRY ','EQU   ',
+                    'EXTERN','OCT   ','TITLE ','Z     ');
+/*
+**
+**    These are the pointers and nodes for the symbol table.
+*/
+      DCL SYMBOL$                      PTR       STATIC INIT(ADDR(NIL));
+      DCL SYMBOL_AV$                   PTR       STATIC INIT(ADDR(NIL));
+      DCL 1 SYMBOL_NODE                BASED     ALIGNED,
+            2 SYMBOL                   CHAR(6)   UNAL,
+            2 VALUE                    SBIN(18)  UNAL,
+            2 LCHILD$                  PTR       UNAL,
+            2 RCHILD$                  PTR       UNAL,
+            2 BF                       SBIN(2)   UNAL,
+            2 ABS_REL                  BIT(1)    UNAL,
+            2 EXT_LOC                  BIT(1)    UNAL,
+            2 DEF_UND                  BIT(1)    UNAL,
+            2 *(0:30)                  BIT(1)    UNAL;
+ 
+%EJECT;
+/*
+**
+**    Important data-items
+*/
+      DCL LOCATION                     UBIN;
+      DCL COMMENTS                     UBIN;
+      DCL TITLE                        CHAR(6)   STATIC INIT('null');
+      DCL NUMBER_ERRORS                UBIN      STATIC INIT(0);
+      DCL START_ADDRESS                UBIN(18)  STATIC INIT(BITBIN('777777'O));
+/*
+**
+**    Flags.
+*/
+      DCL ASSEMBLY_SWITCH              BIT(1)    STATIC INIT('0'B);
+      DCL TITLE_FOUND                  BIT(1)    STATIC INIT('0'B);
+      DCL JSYS_PROCESSED               BIT(1)    STATIC INIT('0'B);
+/*
+**
+**    Working data-items.
+*/
+      DCL UBIN9                        UBIN(9);
+/*
+**
+**    Constants.
+*/
+      DCL SPACES                       CHAR(1)   CONSTANT INIT(' ');
+      DCL TOP_BUFFER                   CHAR(1)   CONSTANT INIT('0');
+      DCL HELL_FREEZES_OVER            BIT(1)    CONSTANT INIT('0'B);
+      DCL MAX_LINES                    UBIN      CONSTANT INIT(51);
+/*
+**
+**    DCBs
+*/
+      DCL M$SI                         DCB; /* Source input   */
+      DCL M$OU                         DCB; /* Object unit    */
+      DCL M$LO                         DCB; /* Listing output */
+      DCL M$ME                         DCB; /* Salutation     */
+      DCL M$TOKEN                      DCB; /* Token file     */
+/*
+**
+**    Linker built pointers.
+*/
+      DCL B$JIT$                       PTR       SYMREF;
+      DCL B$TCB$                       PTR       SYMREF;
+/*
+**
+**    External routines.
+*/
+      DCL WRITE_EXTERNALS              ENTRY(2);
+      DCL IN_ORDER                     ENTRY(1);
+ 
+%EJECT;
+/*
+**
+**    Include files needed.
+*/
+      %INCLUDE CP_6;                   /* FPTs and VLPs defs  */
+      %INCLUDE B$JIT;
+      %INCLUDE B_ERRORS_C;             /* Error code %EQUs    */
+      %INCLUDE B_SEGIDS_C;             /* Segids for M$GDS    */
+      %INCLUDE ASMDAL_C61;              /* Stuff for ASMDAL    */
+/*
+**
+**    Extend pl6 somewhat.
+*/
+      %SUB FOREVER = "WHILE('1'B)";
+      %SUB NEVER = "WHILE('0'B)";
+/*
+**
+**    Generate based structures.
+*/
+      %B$TCB;                          /* Task Control Block  */
+      %B$ALT;                          /* Altret frame        */
+      %F$DCB;                          /* a DCB               */
+ 
+%EJECT;
+/*
+**
+**    FPTs for file i/o.
+*/
+      %FPT_READ (FPTN=SI_READ,
+                 BUF=SI_BUFFER,
+                 DCB=M$SI);
+ 
+      %FPT_WRITE (FPTN=OU_WRITE,
+                  BUF=OU_BUFFER,
+                  STCLASS=EXT,
+                  DCB=M$OU);
+ 
+      %FPT_CLOSE (FPTN=OU_CLOSE,
+                  DCB=M$OU,
+                  DISP=SAVE);
+ 
+      %FPT_WRITE (FPTN=LO_WRITE,
+                  BUF=LO_BUFFER,
+                  DCB=M$LO);
+ 
+      %FPT_CLOSE (FPTN=LO_CLOSE,
+                  DCB=M$LO,
+                  DISP=SAVE);
+ 
+      %FPT_WRITE (FPTN=ME_WRITE,
+                  BUF=ME_BUFFER,
+                  DCB=M$ME);
+ 
+      %FPT_WRITE (FPTN=TOP,
+                  BUF=TOP_BUFFER,
+                  VFC=YES,
+                  DCB=M$LO);
+ 
+%EJECT;
+/*
+**
+**    Token file FPTs.
+*/
+      %FPT_OPEN (FPTN=TOKEN_OPEN,
+                 FUN=CREATE,
+                 ASN=FILE,
+                 DISP=SCRATCH,
+                 DCB=M$TOKEN);
+ 
+      %FPT_WRITE (FPTN=TOKEN_WRITE,
+                  BUF=TOKEN_BUFFER,
+                  DCB=M$TOKEN);
+ 
+      %FPT_REW (FPTN=TOKEN_REW,
+                DCB=M$TOKEN);
+ 
+      %FPT_WRITE (FPTN=TOKEN_READ,
+                  BUF=TOKEN_BUFFER,
+                  DCB=M$TOKEN);
+ 
+      %FPT_CLOSE (FPTN=TOKEN_CLOSE,
+                  DCB=M$TOKEN);
+ 
+%EJECT;
+/*
+**
+**    Mainline code.
+*/
+      CALL INITIALIZE;
+      CALL PASS_1;
+      CALL PASS_2;
+ 
+      CALL M$EXIT;
+ 
+%EJECT;
+INITIALIZE: PROC;
+/*
+**
+**    This procedure does the various initializations
+**    that must be done before pass 1.
+**
+*/
+      DCL 1 TIME                       STATIC,
+            2 TIME                     CHAR(5),
+            2 *                        CHAR(6);
+ 
+      DCL DATE                         CHAR(10)  STATIC;
+ 
+      %FPT_TIME (TIME=TIME,
+                 DATE=DATE,
+                 DEST=EXT);
+/*
+**
+**    Get time and date.
+*/
+      CALL M$TIME (FPT_TIME)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+/*
+**
+**    Put stuff in buffer and tell user that program is running.
+*/
+      CALL CONCAT (ME_BUFFER,'ASMDAL ',%VERSION#,' here at ',TIME.TIME,' ',DATE);
+      CALL M$WRITE (ME_WRITE)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+ 
+END INITIALIZE;
+%EJECT;
+PASS_1: PROC;
+/*
+**
+**    This procedure controls pass 1 of the assembly.  The
+**    symbol table is built in this pass as well as some
+**    error checking.  During this pass, a token file is created
+**    with the partially assembled source code.
+**
+*/
+/*
+**
+**    Reset location counter.
+*/
+      LOCATION = 0;
+/*
+**
+**    Open token file.
+*/
+      CALL M$OPEN (TOKEN_OPEN)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Contine around pass 1 until eof on source file.
+*/
+      DO UNTIL (HELL_FREEZES_OVER);
+/*
+**
+**       Read source line.
+*/
+         SI_BUFFER_CHAR = SPACES;
+         CALL M$READ (SI_READ) ALTRET (EOF);
+/*
+**
+**       Reset token buffer.
+*/
+         TOKEN_BUFFER = TOKEN_BUFFER_RESET;
+         TOKEN_BUFFER.SOURCE_LINE = SI_BUFFER_CHAR;
+         TOKEN_BUFFER.LOCATION = LOCATION;
+/*
+**
+**       Process various fields and increment location counter.
+*/
+         CALL PROCESS_COMMENTS;
+         CALL PROCESS_MNEMONIC;
+         IF TOKEN_BUFFER.TYPE ~= 3 THEN
+            DO;
+               CALL PROCESS_LABEL;
+               IF ~TOKEN_BUFFER.NO_CODE THEN
+                  DO;
+                     CALL PROCESS_OPERAND;
+                     LOCATION = LOCATION + 1;
+                     END;
+                END;
+/*
+**
+**       Write token buffer.
+*/
+         CALL M$WRITE (TOKEN_WRITE)
+            WHENALTRETURN DO;
+               CALL FATALS;
+               END;
+         END;
+ 
+%EJECT;
+/*
+**
+**    Make sure it was eof that caused read to altreturn.
+*/
+EOF:  IF B$TCB$->B$TCB.ALT$->B$ALT.ERR.ERR# ~= %E$EOF THEN CALL FATALS;
+/*
+**
+**    Check if end was found.
+*/
+      IF ASSEMBLY_SWITCH THEN
+         DO;
+            TOKEN_BUFFER = TOKEN_BUFFER_RESET;
+            TOKEN_BUFFER.SOURCE_LINE = '       END';
+            TOKEN_BUFFER.LOCATION = LOCATION;
+            TOKEN_BUFFER.ERRORS = %NO_END;
+            CALL M$WRITE (TOKEN_WRITE)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+ 
+      RETURN;
+ 
+%EJECT;
+PROCESS_COMMENTS: PROC;
+/*
+**
+**    This procedure sets a data-item COMMENTS to a 0,1,2 or 3
+**    depending on whether a semicolon (;) was found in the label,
+**    mnemonic, operand field, or column 32 and beyond.
+*/
+      DCL I                            UBIN;
+/*
+**
+**    Locate the beginning of a comment.
+*/
+      CALL INDEX (I, ';', SI_BUFFER_CHAR);
+/*
+**
+**    Check column and set errors if needed.
+*/
+      IF I < 7 THEN
+         DO;
+            COMMENTS = 0;
+            IF I ~= 0 THEN
+               TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SEMI;
+            END;
+      ELSE
+      IF I < 15 THEN
+         DO;
+            COMMENTS = 1;
+            IF SUBSTR(SI_BUFFER_CHAR,0,7) = SPACES THEN COMMENTS = 0;
+            IF I ~= 7 THEN
+               TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SEMI;
+            END;
+      ELSE
+      IF I < 31 THEN
+         DO;
+            COMMENTS = 2;
+            IF SUBSTR(SI_BUFFER_CHAR,0,15) = SPACES THEN COMMENTS = 0;
+            IF I ~= 15 THEN
+               TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SEMI;
+            END;
+      ELSE
+         DO;
+            COMMENTS = 3;
+            IF SUBSTR(SI_BUFFER_CHAR,0,31) = SPACES THEN COMMENTS = 0;
+            IF I ~= 31 AND I ~= 80 THEN
+               TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SEMI;
+            END;
+ 
+END PROCESS_COMMENTS;
+%EJECT;
+PROCESS_MNEMONIC: PROC;
+/*
+**
+**    This procedure processes the mnemonic field.
+**
+*/
+      DCL TOP                          SBIN;
+      DCL MID                          SBIN;
+      DCL BOTTOM                       SBIN;
+ 
+      DCL FOUND                        BIT(1);
+/*
+**
+**    Ignore if assembly switch turned off.
+*/
+      IF ~ASSEMBLY_SWITCH AND (SI_BUFFER.MNEMONIC ~= 'TITLE ') THEN
+         DO;
+            TOKEN_BUFFER.NO_CODE = '1'B;
+            TOKEN_BUFFER.TYPE = 3;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NOT_TITLE;
+            RETURN;
+            END;
+/*
+**
+**    Ignore mnemonic if a comment started in field 0 or 1.
+*/
+      IF COMMENTS < 2 THEN
+         DO;
+            TOKEN_BUFFER.NO_CODE = '1'B;
+            TOKEN_BUFFER.TYPE = 3;
+            RETURN;
+            END;
+/*
+**
+**    Check columnation.
+*/
+      IF (SI_BUFFER.JUNK1 ~= SPACES) OR
+         (COMMENTS > 1 AND SI_BUFFER.JUNK2 ~= SPACES) THEN
+         DO;
+            TOKEN_BUFFER.NO_CODE = '1'B;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %COLUMN;
+            RETURN;
+            END;
+/*
+**
+**    Make sure something is there.
+*/
+      IF SI_BUFFER.MNEMONIC = SPACES THEN
+         DO;
+            TOKEN_BUFFER.NO_CODE = '1'B;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPCODE;
+            RETURN;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Reset jsys flag.
+*/
+      JSYS_PROCESSED = '0'B;
+/*
+**
+**    Not found yet!
+*/
+      FOUND = '0'B;
+/*
+**
+**    Do a binary search for mnemonic in opcode table.
+*/
+      TOP = 377;
+      BOTTOM = 0;
+ 
+S1:   DO WHILE (BOTTOM <= TOP);
+         MID = (TOP + BOTTOM)/2;
+         IF SI_BUFFER.MNEMONIC > OPCODE_TABLE.MNEMONIC(MID) THEN
+            BOTTOM = MID + 1;
+         ELSE
+         IF SI_BUFFER.MNEMONIC < OPCODE_TABLE.MNEMONIC(MID) THEN
+            TOP = MID - 1;
+         ELSE
+            DO;
+               FOUND = '1'B;
+               EXIT S1;
+               END;
+         END;
+/*
+**
+**    If mnemonic was found, put it in TOKEN_BUFFER and return.
+*/
+      IF FOUND THEN
+         DO;
+            TOKEN_BUFFER.OPCODE = OPCODE_TABLE.OPCODE(MID);
+            TOKEN_BUFFER.TYPE   = OPCODE_TABLE.TYPE(MID);
+            RETURN;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Do a binary search for mnemonic in jsys table.
+*/
+      TOP = 64;
+      BOTTOM = 0;
+ 
+S2:   DO WHILE (BOTTOM <= TOP);
+         MID = (TOP + BOTTOM)/2;
+         IF SI_BUFFER.MNEMONIC > JSYS_TABLE.NAME(MID) THEN
+            BOTTOM = MID + 1;
+         ELSE
+         IF SI_BUFFER.MNEMONIC < JSYS_TABLE.NAME(MID) THEN
+            TOP = MID - 1;
+         ELSE
+            DO;
+               FOUND = '1'B;
+               EXIT S2;
+               END;
+         END;
+/*
+**
+**    If found, fill in TOKEN_BUFFER and return.
+*/
+      IF FOUND THEN
+         DO;
+            TOKEN_BUFFER.OPCODE = BITBIN('104'O);
+            TOKEN_BUFFER.TYPE   = 2;
+            TOKEN_BUFFER.JSYS   = JSYS_TABLE.NUMBER(MID);
+            JSYS_PROCESSED = '1'B;
+            RETURN;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Finally check PSEUDO_OP_TABLE.
+*/
+      TOP = 8;
+      BOTTOM = 0;
+ 
+S3:   DO MID = BOTTOM TO TOP;
+         IF SI_BUFFER.MNEMONIC = PSEUDO_OP_TABLE.NAME(MID) THEN
+            DO;
+               FOUND = '1'B;
+               EXIT S3;
+               END;
+         END;
+/*
+**
+**    If found, do what needs done (if anything!).
+*/
+      IF FOUND THEN
+         DO;
+            TOKEN_BUFFER.TYPE = 3;
+            TOKEN_BUFFER.NO_CODE = '1'B;
+            DO SELECT (PSEUDO_OP_TABLE.NAME(MID));
+               SELECT ('BLOCK '); CALL BLOCK_1;
+               SELECT ('DC    '); CALL DC_1;
+               SELECT ('END   '); CALL END_1;
+               SELECT ('ENTRY '); CALL ENTRY_1;
+               SELECT ('EQU   '); CALL EQU_1;
+               SELECT ('EXTERN'); CALL EXTERN_1;
+               SELECT ('OCT   '); CALL OCT_1;
+               SELECT ('TITLE '); CALL TITLE_1;
+               SELECT ('Z     '); CALL Z_1;
+               END;
+            RETURN;
+            END;
+/*
+**
+**    If its not found yet, it must be invalid.
+*/
+      TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_OPCODE;
+      TOKEN_BUFFER.NO_CODE = '1'B;
+ 
+      RETURN;
+ 
+%EJECT;
+BLOCK_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the BLOCK pseudo-op.
+**
+*/
+      DCL N                            SBIN;
+/*
+**
+**    Process any label on line.
+*/
+      CALL PROCESS_LABEL;
+ 
+      IF SI_BUFFER.OPERAND = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+            RETURN;
+            END;
+/*
+**
+**    Convert the operand to a number.
+*/
+      CALL CHAR_TO_SBIN (N, VECTOR(SI_BUFFER.OPERAND), 10)
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_DECIMAL;
+            RETURN;
+            END;
+/*
+**
+**    Make sure its not negative.
+*/
+      IF N < 0 THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_OPERAND;
+            RETURN;
+            END;
+/*
+**
+**    Set token file stuff for a correct block, then
+**    increment the location counter the correct amount,
+**    and set the relocation bits.
+*/
+      TOKEN_BUFFER.PSEUDO_WORD = N;
+      TOKEN_BUFFER.RELOCATION_BITS = '11'B;
+      TOKEN_BUFFER.NO_CODE = '0'B;
+ 
+      LOCATION = LOCATION + N;
+ 
+END BLOCK_1;
+%EJECT;
+DC_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the DC pseudo-op.
+**    Most is done in pass-2 because of the possible symbol reference.
+**
+*/
+      CALL PROCESS_LABEL;
+ 
+      TOKEN_BUFFER.NO_CODE = '0'B;
+      LOCATION = LOCATION + 1;
+ 
+END DC_1;
+%EJECT;
+END_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the END pseudo-op.
+**
+*/
+      DCL VALUE                        SBIN;
+/*
+**
+**    Reset assembly switch.
+*/
+      ASSEMBLY_SWITCH = '0'B;
+/*
+**
+**    Check if a label is present.
+*/
+      IF SI_BUFFER.LABEL ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_LABEL;
+            CALL PROCESS_LABEL;
+            END;
+/*
+**
+**    If operand field is blank, then don't do anything else.
+*/
+      IF SI_BUFFER.OPERAND = SPACES THEN RETURN;
+/*
+**
+**    Make sure columns after the symbol in operand field are blank.
+*/
+      IF SUBSTR(SI_BUFFER.OPERAND,6,9) ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    Set start address to valid symbol, set an error if invalid.
+*/
+      CALL VALIDATE_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6))
+         WHENRETURN DO;
+            CALL LOOK_UP_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6),VALUE)
+               WHENRETURN DO;
+                  START_ADDRESS = VALUE;
+                  END;
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_PREV_SYMB;
+                  END;
+            END;
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            END;
+ 
+END END_1;
+%EJECT;
+ENTRY_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the ENTRY pseudo-op.
+**
+*/
+/*
+**
+**    Check if a label is present.
+*/
+      IF SI_BUFFER.LABEL ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_LABEL;
+            CALL PROCESS_LABEL;
+            END;
+/*
+**
+**    Make sure a symbol is present.
+*/
+      IF SI_BUFFER.OPERAND = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+            RETURN;
+            END;
+/*
+**
+**    Make sure columns after the symbol in operand field are blank.
+*/
+      IF SUBSTR(SI_BUFFER.OPERAND,6,9) ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    If symbol is invalid, set error and return.
+*/
+      CALL VALIDATE_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6))
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    Symbol must be ok, so add to table.
+*/
+      CALL ADD_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6), 0, %EXT#, %REL#, %UND#);
+ 
+END ENTRY_1;
+%EJECT;
+EQU_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the EQU pseudo-op.
+**
+*/
+      DCL VALUE                        SBIN;
+/*
+**
+**    Make sure a label is present and then make sure it's valid.
+*/
+      IF SI_BUFFER.LABEL = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_LABEL;
+            RETURN;
+            END;
+ 
+      CALL VALIDATE_SYMBOL (SI_BUFFER.LABEL)
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_LABEL;
+            RETURN;
+            END;
+/*
+**
+**    Make sure columns after the symbol in operand field are blank.
+*/
+      IF SUBSTR(SI_BUFFER.OPERAND,6,9) ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    Convert operand to number, if this fails, it must have been a symbol,
+**    so look it up and set errors if it's not found.
+*/
+      CALL CHAR_TO_SBIN (VALUE, VECTOR(SI_BUFFER.OPERAND), 10)
+         WHENALTRETURN DO;
+            CALL VALIDATE_SYMBOL (SI_BUFFER.OPERAND)
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+                  RETURN;
+                  END;
+            CALL LOOK_UP_SYMBOL (SI_BUFFER.OPERAND, VALUE)
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_PREV_SYMB;
+                  RETURN;
+                  END;
+            END;
+/*
+**
+**    Operand must have been a number, so just add it to table.
+*/
+      CALL ADD_SYMBOL (SI_BUFFER.LABEL, VALUE, %LOC#, %ABS#, %DEF#);
+ 
+END EQU_1;
+%EJECT;
+EXTERN_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the EXTERN pseudo-op.
+**
+*/
+/*
+**
+**    Check if a label is present.
+*/
+      IF SI_BUFFER.LABEL ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_LABEL;
+            CALL PROCESS_LABEL;
+            END;
+/*
+**
+**    Make sure a symbol is present.
+*/
+      IF SI_BUFFER.OPERAND = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+            RETURN;
+            END;
+/*
+**
+**    Make sure columns after the symbol in operand fiels are blank.
+*/
+      IF SUBSTR(SI_BUFFER.OPERAND,6,9) ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    If symbol is invalid, set error and return.
+*/
+      CALL VALIDATE_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6))
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    Symbol must be ok, so add to table.
+*/
+      CALL ADD_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6), 0, %EXT#, %REL#, %UND#);
+ 
+END EXTERN_1;
+%EJECT;
+OCT_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the OCT pseudo-op.
+**
+*/
+      DCL N                            SBIN;
+/*
+**
+**    Process any label on line.
+*/
+      CALL PROCESS_LABEL;
+/*
+**
+**    There must be an operand.
+*/
+      IF SI_BUFFER.OPERAND = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+            SI_BUFFER.OPERAND = '0';
+            END;
+/*
+**
+**    Convert to value, set error if invalid octal.
+*/
+      CALL CHAR_TO_SBIN (N, VECTOR(SI_BUFFER.OPERAND), 8)
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_OCTAL;
+            END;
+/*
+**
+**    Set pseudo-op word in token buffer and increment location counter.
+*/
+      TOKEN_BUFFER.NO_CODE = '0'B;
+      TOKEN_BUFFER.PSEUDO_WORD = N;
+      LOCATION = LOCATION + 1;
+ 
+END OCT_1;
+%EJECT;
+TITLE_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the TITLE pseudo-op.
+**
+*/
+/*
+**
+**    If title already found, this must be a second title.
+*/
+      IF TITLE_FOUND THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %MULT_TITLE;
+            RETURN;
+            END;
+/*
+**
+**    Set assembly and title found switches.
+*/
+      ASSEMBLY_SWITCH = '1'B;
+      TITLE_FOUND = '1'B;
+/*
+**
+**    Check for a label.
+*/
+      IF SI_BUFFER.LABEL ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_LABEL;
+            CALL PROCESS_LABEL;
+            END;
+/*
+**
+**    Make sure a symbol is present.
+*/
+      IF SI_BUFFER.OPERAND = SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+            RETURN;
+            END;
+/*
+**
+**    Make sure columns after the symbol in operand field are blank.
+*/
+      IF SUBSTR(SI_BUFFER.OPERAND,6,9) ~= SPACES THEN
+         DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    If symbol is invalid, set an error.
+*/
+      CALL VALIDATE_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6))
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+            RETURN;
+            END;
+/*
+**
+**    Symbol must be ok, so add it to table and set title.
+*/
+      CALL ADD_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,0,6), 0, %EXT#, %REL#, %UND#);
+      TITLE = SUBSTR(SI_BUFFER.OPERAND,0,6);
+ 
+END TITLE_1;
+%EJECT;
+Z_1: PROC;
+/*
+**
+**    This procedure does the pass-1 processing of the Z pseudo-op.
+**
+*/
+/*
+**
+**    Process any label on line.
+*/
+      CALL PROCESS_LABEL;
+/*
+**
+**    There can't be any operand.
+*/
+      IF SI_BUFFER.OPERAND ~= SPACES THEN
+         TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_OPERAND;
+/*
+**
+**    The pseudo-op word in the token buffer is already zero,
+**    so just increment location counter.
+*/
+      TOKEN_BUFFER.NO_CODE = '0'B;
+      LOCATION = LOCATION + 1;
+ 
+END Z_1;
+ 
+END PROCESS_MNEMONIC;
+%EJECT;
+PROCESS_LABEL: PROC;
+/*
+**
+**    This procedure does the necessary processing for the label field.
+**
+*/
+/*
+**
+**    Ignore label if comment started in field 0.
+*/
+      IF COMMENTS = 0 THEN RETURN;
+/*
+**
+**    No need to be here if there isn't a label.
+*/
+      IF SI_BUFFER.LABEL = SPACES THEN RETURN;
+/*
+**
+**    Now, validate the symbol.
+*/
+      CALL VALIDATE_SYMBOL (SI_BUFFER.LABEL)
+         WHENALTRETURN DO;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_LABEL;
+            RETURN;
+            END;
+/*
+**
+**    Label ok, now add to symbol table.
+*/
+      CALL ADD_SYMBOL (SI_BUFFER.LABEL, LOCATION, %LOC#, %REL#, %DEF#);
+ 
+END PROCESS_LABEL;
+%EJECT;
+PROCESS_OPERAND: PROC;
+/*
+**
+**    This procedure parses the operand field and loads the token
+**    buffer with the results of the parse.
+**
+*/
+      DCL I                            UBIN;
+      DCL START                        UBIN;
+ 
+      DCL VALUE                        CHAR(13);
+      DCL VALUE_BIAS                   SBIN;
+/*
+**
+**    If this is a jsys, it'll be easy.
+*/
+      IF TOKEN_BUFFER.TYPE = 2 THEN
+         DO;
+            IF JSYS_PROCESSED THEN
+               DO;
+                  IF SI_BUFFER.OPERAND ~= SPACES THEN
+                     TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %CANT_OPERAND;
+                  END;
+            ELSE
+               DO;
+                  IF SI_BUFFER.OPERAND = SPACES THEN
+                     TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_OPERAND;
+                  ELSE
+                     DO;
+                        CALL CHAR_TO_SBIN (VALUE_BIAS, VECTOR(SI_BUFFER.OPERAND), 8)
+                           WHENRETURN DO;
+                              IF VALUE_BIAS < 0 OR VALUE_BIAS > BITBIN('777777'O) THEN
+                                 TOKEN_BUFFER.ERRORS =
+                                    TOKEN_BUFFER.ERRORS | %BAD_JSYS;
+                              ELSE
+                                 TOKEN_BUFFER.JSYS = VALUE_BIAS;
+                              END;
+                           WHENALTRETURN DO;
+                              TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_OCTAL;
+                              END;
+                        END;
+                  END;
+            RETURN;
+            END;
+/*
+**
+**    Initialize where to start.
+*/
+      START = 0;
+/*
+**
+**    Rip out accumulator.
+*/
+      CALL INDEX (I, ',', SI_BUFFER.OPERAND, START)
+         WHENRETURN DO;
+            TOKEN_BUFFER.ACC = SUBSTR(SI_BUFFER.OPERAND, START, I-START);
+            START = I + 1;
+            END;
+         WHENALTRETURN DO;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Rip out indirect indicator.
+*/
+      CALL INDEX (I, '@', SI_BUFFER.OPERAND, START)
+         WHENRETURN DO;
+            TOKEN_BUFFER.INDIRECT = '1'B;
+            START = I + 1;
+            END;
+         WHENALTRETURN DO;
+            END;
+/*
+**
+**    Rip out value.
+*/
+      CALL INDEX (I, '(', SI_BUFFER.OPERAND, START)
+         WHENRETURN DO;
+            VALUE = SUBSTR(SI_BUFFER.OPERAND, START, I-START);
+            START = I + 1;
+            END;
+         WHENALTRETURN DO;
+            VALUE = SUBSTR(SI_BUFFER.OPERAND, START, I-START);
+            END;
+/*
+**
+**    Rip out index register.
+*/
+      CALL INDEX (I, ')', SI_BUFFER.OPERAND, START)
+         WHENRETURN DO;
+            TOKEN_BUFFER.XR = SUBSTR(SI_BUFFER.OPERAND, START, I-START);
+            START = I + 1;
+            END;
+         WHENALTRETURN DO;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Rip apart value (check for +,-).
+*/
+      CALL INDEX (I, '+', VALUE)
+         WHENRETURN DO;
+            TOKEN_BUFFER.VALUE = SUBSTR(VALUE,0,I);
+            CALL CHAR_TO_SBIN (VALUE_BIAS, VECTOR(SUBSTR(VALUE,I)), 10)
+               WHENRETURN DO;
+                  TOKEN_BUFFER.VALUE_BIAS = VALUE_BIAS;
+                  END;
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_BIAS;
+                  RETURN;
+                  END;
+            END;
+         WHENALTRETURN DO;
+            CALL INDEX (I, '-', VALUE)
+               WHENRETURN DO;
+                  TOKEN_BUFFER.VALUE = SUBSTR(VALUE,0,I);
+                  CALL CHAR_TO_SBIN (VALUE_BIAS, VECTOR(SUBSTR(VALUE,I)), 10)
+                     WHENRETURN DO;
+                        TOKEN_BUFFER.VALUE_BIAS = VALUE_BIAS;
+                        END;
+                     WHENALTRETURN DO;
+                        TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_BIAS;
+                        RETURN;
+                        END;
+                  END;
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.VALUE = VALUE;
+                  END;
+            END;
+ 
+END PROCESS_OPERAND;
+%EJECT;
+ADD_SYMBOL: PROC (SYMBOL, VALUE, EXT_LOC, ABS_REL, DEF_UND);
+/*
+**
+**    This procedure, stolen from Horowitz and Sahni's book,
+**    DATA STRUCTURES, adds nodes to a self balancing dynamic
+**    tree table.  This is used as the symbol table.
+**
+**    The memory used for the symbol table is not defined anywhere
+**    in the program, rather memory is dynamically allocated as the
+**    assembler needs it for more symbols.  Data segment 3 is used
+**    for this purpose.  This data segment is extended one page
+**    (1024 words) at a time.  By managing the symbol table in this
+**    way, the number of symbols is limited only by available memory.
+**
+*/
+      DCL SYMBOL                       CHAR(6);
+      DCL VALUE                        SBIN;
+      DCL EXT_LOC                      BIT(1)    ALIGNED;
+      DCL ABS_REL                      BIT(1)    ALIGNED;
+      DCL DEF_UND                      BIT(1)    ALIGNED;
+ 
+      DCL A$                           PTR;
+      DCL B$                           PTR;
+      DCL C$                           PTR;
+      DCL F$                           PTR;
+      DCL P$                           PTR;
+      DCL Q$                           PTR;
+      DCL Y$                           PTR;
+ 
+      DCL D                            SBIN(2);
+ 
+      IF SYMBOL$ = ADDR(NIL) THEN
+         DO;
+            CALL GET_SYMBOL_NODE(Y$);
+            Y$->SYMBOL_NODE.SYMBOL = SYMBOL;
+            SYMBOL$ = Y$;
+            Y$->SYMBOL_NODE.VALUE = VALUE;
+            Y$->SYMBOL_NODE.EXT_LOC = EXT_LOC;
+            Y$->SYMBOL_NODE.ABS_REL = ABS_REL;
+            Y$->SYMBOL_NODE.DEF_UND = DEF_UND;
+            Y$->SYMBOL_NODE.BF = 0;
+            Y$->SYMBOL_NODE.LCHILD$ = ADDR(NIL);
+            Y$->SYMBOL_NODE.RCHILD$ = ADDR(NIL);
+            RETURN;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Phase 1
+*/
+      F$ = ADDR(NIL);
+      A$ = SYMBOL$;
+      P$ = SYMBOL$;
+      Q$ = ADDR(NIL);
+ 
+      DO WHILE (P$~=ADDR(NIL));
+         IF P$->SYMBOL_NODE.BF ~= 0 THEN
+            DO;
+               A$ = P$;
+               F$ = Q$;
+               END;
+ 
+         IF SYMBOL < P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.LCHILD$;
+               END;
+         ELSE
+         IF SYMBOL > P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.RCHILD$;
+               END;
+         ELSE
+            DO;
+               Y$ = P$;
+               IF P$->SYMBOL_NODE.DEF_UND = %UND# THEN
+                  DO;
+                     P$->SYMBOL_NODE.DEF_UND = DEF_UND;
+                     P$->SYMBOL_NODE.VALUE = VALUE;
+                     END;
+               ELSE
+               IF EXT_LOC = %EXT# THEN
+                  P$->SYMBOL_NODE.EXT_LOC = %EXT#;
+               ELSE
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DUP_LABEL;
+               RETURN;
+               END;
+         END;
+ 
+%EJECT;
+/*
+**
+**    Phase 2.
+*/
+      CALL GET_SYMBOL_NODE (Y$);
+      Y$->SYMBOL_NODE.SYMBOL = SYMBOL;
+      Y$->SYMBOL_NODE.VALUE = VALUE;
+      Y$->SYMBOL_NODE.EXT_LOC = EXT_LOC;
+      Y$->SYMBOL_NODE.ABS_REL = ABS_REL;
+      Y$->SYMBOL_NODE.DEF_UND = DEF_UND;
+      Y$->SYMBOL_NODE.LCHILD$ = ADDR(NIL);
+      Y$->SYMBOL_NODE.RCHILD$ = ADDR(NIL);
+      Y$->SYMBOL_NODE.BF = 0;
+ 
+      IF SYMBOL < Q$->SYMBOL_NODE.SYMBOL THEN
+         Q$->SYMBOL_NODE.LCHILD$ = Y$;
+      ELSE
+         Q$->SYMBOL_NODE.RCHILD$ = Y$;
+ 
+      IF SYMBOL > A$->SYMBOL_NODE.SYMBOL THEN
+         DO;
+            P$ = A$->SYMBOL_NODE.RCHILD$;
+            B$ = P$;
+            D  = -1;
+            END;
+      ELSE
+         DO;
+            P$ = A$->SYMBOL_NODE.LCHILD$;
+            B$ = P$;
+            D  = +1;
+            END;
+ 
+      DO WHILE (P$~=Y$);
+         IF SYMBOL > P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               P$->SYMBOL_NODE.BF = -1;
+               P$ = P$->SYMBOL_NODE.RCHILD$;
+               END;
+         ELSE
+            DO;
+               P$->SYMBOL_NODE.BF = +1;
+               P$ = P$->SYMBOL_NODE.LCHILD$;
+               END;
+         END;
+ 
+%EJECT;
+      IF A$->SYMBOL_NODE.BF = 0 THEN
+         DO;
+            A$->SYMBOL_NODE.BF = D;
+            RETURN;
+            END;
+ 
+      IF A$->SYMBOL_NODE.BF + D = 0 THEN
+         DO;
+            A$->SYMBOL_NODE.BF = 0;
+            RETURN;
+            END;
+ 
+      IF D = +1 THEN
+         DO;
+            IF B$->SYMBOL_NODE.BF = +1 THEN
+               DO;
+                  A$->SYMBOL_NODE.LCHILD$ = B$->SYMBOL_NODE.RCHILD$;
+                  B$->SYMBOL_NODE.RCHILD$ = A$;
+                  A$->SYMBOL_NODE.BF = 0;
+                  B$->SYMBOL_NODE.BF = 0;
+                  END;
+            ELSE
+               DO;
+                  C$ = B$->SYMBOL_NODE.RCHILD$;
+                  B$->SYMBOL_NODE.RCHILD$ = C$->SYMBOL_NODE.LCHILD$;
+                  A$->SYMBOL_NODE.LCHILD$ = C$->SYMBOL_NODE.RCHILD$;
+                  C$->SYMBOL_NODE.LCHILD$ = B$;
+                  C$->SYMBOL_NODE.RCHILD$ = A$;
+                  IF C$->SYMBOL_NODE.BF = +1 THEN
+                     DO;
+                        C$->SYMBOL_NODE.BF = +1;
+                        A$->SYMBOL_NODE.BF = -1;
+                        B$->SYMBOL_NODE.BF = 0;
+                        END;
+                  ELSE
+                  IF C$->SYMBOL_NODE.BF = -1 THEN
+                     DO;
+                        C$->SYMBOL_NODE.BF = -1;
+                        B$->SYMBOL_NODE.BF = +1;
+                        A$->SYMBOL_NODE.BF = 0;
+                        END;
+                  ELSE
+                     DO;
+                        B$->SYMBOL_NODE.BF = 0;
+                        A$->SYMBOL_NODE.BF = 0;
+                        END;
+                  C$->SYMBOL_NODE.BF = 0;
+                  B$ = C$;
+                  END;
+            END;
+ 
+%EJECT;
+      ELSE
+         DO;
+            IF B$->SYMBOL_NODE.BF = -1 THEN
+               DO;
+                  A$->SYMBOL_NODE.RCHILD$ = B$->SYMBOL_NODE.LCHILD$;
+                  B$->SYMBOL_NODE.LCHILD$ = A$;
+                  A$->SYMBOL_NODE.BF = 0;
+                  B$->SYMBOL_NODE.BF = 0;
+                  END;
+            ELSE
+               DO;
+                  C$ = B$->SYMBOL_NODE.LCHILD$;
+                  B$->SYMBOL_NODE.LCHILD$ = C$->SYMBOL_NODE.RCHILD$;
+                  A$->SYMBOL_NODE.RCHILD$ = C$->SYMBOL_NODE.LCHILD$;
+                  C$->SYMBOL_NODE.RCHILD$ = B$;
+                  C$->SYMBOL_NODE.LCHILD$ = A$;
+                  IF C$->SYMBOL_NODE.BF = -1 THEN
+                     DO;
+                        C$->SYMBOL_NODE.BF = +1;
+                        A$->SYMBOL_NODE.BF = -1;
+                        B$->SYMBOL_NODE.BF = 0;
+                        END;
+                  ELSE
+                  IF C$->SYMBOL_NODE.BF = +1 THEN
+                     DO;
+                        C$->SYMBOL_NODE.BF = -1;
+                        B$->SYMBOL_NODE.BF = +1;
+                        A$->SYMBOL_NODE.BF = 0;
+                        END;
+                  ELSE
+                     DO;
+                        B$->SYMBOL_NODE.BF = 0;
+                        A$->SYMBOL_NODE.BF = 0;
+                        END;
+                  C$->SYMBOL_NODE.BF = 0;
+                  B$ = C$;
+                  END;
+            END;
+ 
+      IF F$ = ADDR(NIL) THEN
+         SYMBOL$ = B$;
+      ELSE
+      IF A$ = F$->SYMBOL_NODE.LCHILD$ THEN
+         F$->SYMBOL_NODE.LCHILD$ = B$;
+      ELSE
+      IF A$ = F$->SYMBOL_NODE.RCHILD$ THEN
+         F$->SYMBOL_NODE.RCHILD$ = B$;
+ 
+      RETURN;
+ 
+%EJECT;
+GET_SYMBOL_NODE: PROC (P$);
+/*
+**
+**    This procedure returns P$ pointing to a symbol node.
+**
+*/
+      DCL P$                           PTR;
+/*
+**
+**    If nothing on available list, get more memory.
+*/
+      IF SYMBOL_AV$ = ADDR(NIL) THEN CALL GET_SYMBOL_MEMORY;
+/*
+**
+**    Now, get node from list.
+*/
+      P$ = SYMBOL_AV$;
+      SYMBOL_AV$ = SYMBOL_AV$->SYMBOL_NODE.LCHILD$;
+ 
+      RETURN;
+ 
+%EJECT;
+GET_SYMBOL_MEMORY: PROC;
+/*
+**
+**    This procedure gets memory for symbol table and
+**    divides it into nodes.
+**
+*/
+      DCL I                            UBIN;
+ 
+      DCL T1$                          PTR;
+      DCL T2$                          PTR;
+ 
+      %VLP_VECTOR (FPTN=SYMBOL_VECTOR,
+                   SEGID=%DS3SID);
+ 
+      %FPT_GDS (FPTN=SYMBOL_GDS,
+                FREE=YES,
+                RESULTS=SYMBOL_VECTOR,
+                SEGSIZE=1024);
+/*
+**
+**    Enlarge data-segment used for symbol tree by 1 page (1024 words).
+*/
+      CALL M$GDS (SYMBOL_GDS)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+/*
+**
+**    Divide next page into nodes for symbol tree.
+*/
+      SYMBOL_AV$ = PINCRW(SYMBOL_VECTOR.PTR$,
+                          (SYMBOL_VECTOR.W1.VSIZE#/4096)*1024);
+      T1$ = SYMBOL_AV$;
+      DO I = 1 TO 203;
+         T2$ = PINCRW (T1$,5);
+         T1$->SYMBOL_NODE.LCHILD$ = T2$;
+         T1$ = T2$;
+         END;
+      T2$->SYMBOL_NODE.LCHILD$ = ADDR(NIL);
+ 
+END GET_SYMBOL_MEMORY;
+ 
+END GET_SYMBOL_NODE;
+ 
+END ADD_SYMBOL;
+ 
+END PASS_1;
+%EJECT;
+PASS_2: PROC;
+/*
+**
+**    This procedure controls pass 2 of the assembly.  In
+**    this pass, the contents of the token file are examined
+**    and an object file is produced.  A listing is also
+**    written with error messages where needed.  No object
+**    file is created for a assembly with errors.
+**
+*/
+      DCL 1 OU_WORD                    STATIC,
+            2 HALF1                    BIT(18),
+            2 HALF2                    BIT(18);
+ 
+      DCL 1 WORD0                      STATIC,
+            2 TYPE                     UBIN(9)           UNAL,
+            2 LENGTH                   UBIN(9)           UNAL,
+            2 ADDRESS                  UBIN(18)          UNAL;
+ 
+      DCL RELOCATION_INFO(0:17)        BIT(2)    STATIC;
+      DCL TEXT(0:17)                   BIT(36)   STATIC;
+ 
+      DCL COUNT                        UBIN      EXT    INIT(0);
+/*
+**
+**    Reset location counter.
+*/
+      LOCATION = 0;
+/*
+**
+**    Rewind token file.
+*/
+      CALL M$REW (TOKEN_REW)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+/*
+**
+**    Set up output dcb.
+*/
+      CALL SET_UP_OUTPUT_DCB;
+/*
+**
+**    Continue around pass 2 until eof on token file.
+*/
+      DO UNTIL (HELL_FREEZES_OVER);
+         CALL M$READ (TOKEN_READ) ALTRET (EOF);
+         IF ~TOKEN_BUFFER.NO_CODE THEN
+            DO;
+               CALL PREPARE_OU_WORD;
+               CALL PREPARE_OU_RECORD;
+               END;
+         CALL PRINT_LO_LINE;
+         END;
+%EJECT;
+/*
+**
+**    Make sure it was eof that caused read to altreturn.
+*/
+EOF:  IF B$TCB$->B$TCB.ALT$->B$ALT.ERR.ERR# ~= %E$EOF THEN CALL FATALS ;
+/*
+**
+**    Print total errors line, and write the rest of the
+**    object file if there were no errors.  The object
+**    file will not be closed if errors are detected in
+**    source, so the file will be released.
+*/
+      CALL PRINT_END_LINE;
+      IF NUMBER_ERRORS = 0 THEN
+         CALL WRITE_REST_OF_FILE;
+      ELSE
+         DO;
+            CALL CONCAT (LO_BUFFER, '          No code generated for procedure ', TITLE);
+            CALL M$WRITE (LO_WRITE);
+            END;
+/*
+**
+**    Print symbol table.
+*/
+      CALL M$WRITE (TOP);
+      LO_BUFFER = 'Symbol      Type       Value';
+      IF SYMBOL$ ~= ADDR(NIL) THEN CALL M$WRITE (LO_WRITE);
+ 
+      CALL IN_ORDER (SYMBOL$);
+ 
+      CALL M$CLOSE (LO_CLOSE);
+ 
+      RETURN;
+ 
+%EJECT;
+SET_UP_OUTPUT_DCB: PROC;
+/*
+**
+**    This procedure prepares the object file dcb.
+**
+*/
+      %VLP_NAME;
+      %FPT_OPEN (DCB=M$OU,
+                 NAME=VLP_NAME,
+                 SETDCB=YES);
+/*
+**
+**    If a fid was found in postional dcb 3, use that fid,
+**    otherwise append '_OBJ' to the source file name.
+*/
+      IF ~B$JIT$->B$JIT.PRFLAGS.OU THEN
+         DO;
+            VLP_NAME.NAME# = DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.C;
+            SUBSTR(VLP_NAME.NAME#,
+               DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.L) = '_OBJ';
+            VLP_NAME.L# = DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.L + 4;
+ 
+            CALL M$OPEN (FPT_OPEN)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+ 
+END SET_UP_OUTPUT_DCB;
+%EJECT;
+PREPARE_OU_WORD: PROC;
+/*
+**
+**    This procedure prepares the object code word in OU_WORD.
+**
+*/
+      DCL P$                           PTR;
+      DCL SBIN18                       SBIN(18);
+      DCL ERROR_FLAG                   UBIN;
+ 
+      OU_WORD = '000000000000'O;
+      P$ = ADDR(OU_WORD);
+ 
+      DO CASE (TOKEN_BUFFER.TYPE);
+         CASE (0);   CALL NORMAL_INSTRUCTION;
+         CASE (1);   CALL IO_INSTRUCTION;
+         CASE (2);   CALL JSYS_INSTRUCTION;
+         CASE (3);   CALL PSEUDO_OP;
+         END;
+ 
+%EJECT;
+NORMAL_INSTRUCTION: PROC;
+/*
+**
+**    This procedure handles the normal instructions.
+**
+*/
+/*
+**
+**    Opcode.
+*/
+      P$->OU_WORD_NORMAL.OPCODE = TOKEN_BUFFER.OPCODE;
+/*
+**
+**    Accumulator.
+*/
+      CALL LOAD_ACCUMULATOR;
+/*
+**
+**    Indirect.
+*/
+      P$->OU_WORD_NORMAL.INDIRECT = TOKEN_BUFFER.INDIRECT;
+/*
+**
+**    Index register.
+*/
+      CALL LOAD_INDEX_REGISTER;
+/*
+**
+**    Value.
+*/
+      CALL LOAD_VALUE;
+ 
+END NORMAL_INSTRUCTION;
+%EJECT;
+IO_INSTRUCTION: PROC;
+/*
+**
+**    This procedure handles the i/o instructions.
+**
+*/
+/*
+**
+**    Seven.
+*/
+      P$->OU_WORD_IO.SEVEN = '7'O;
+/*
+**
+**    Device.
+*/
+      CALL LOAD_DEVICE;
+/*
+**
+**    Opcode.
+*/
+      P$->OU_WORD_IO.OPCODE = TOKEN_BUFFER.OPCODE;
+/*
+**
+**    Indirect.
+*/
+      P$->OU_WORD_IO.INDIRECT = TOKEN_BUFFER.INDIRECT;
+/*
+**
+**    Index register.
+*/
+      CALL LOAD_INDEX_REGISTER;
+/*
+**
+**    Value.
+*/
+      CALL LOAD_VALUE;
+ 
+END IO_INSTRUCTION;
+%EJECT;
+JSYS_INSTRUCTION: PROC;
+/*
+**
+**    This procedure handles the jsys instruction.
+**
+*/
+/*
+**
+**    Opcode.
+*/
+      P$->OU_WORD_JSYS.OPCODE = '104'O;
+/*
+**
+**    Zero.
+*/
+      P$->OU_WORD_JSYS.ZERO = '000'O;
+/*
+**
+**    Number.
+*/
+      P$->OU_WORD_JSYS.NUMBER = TOKEN_BUFFER.JSYS;
+/*
+**
+**    Fill OU_WORD;
+*/
+      OU_WORD = P$->OU_WORD_JSYS;
+ 
+END JSYS_INSTRUCTION;
+%EJECT;
+PSEUDO_OP: PROC;
+/*
+**
+**    This procedure loads the object word with the pseudo-op word
+**    that was determined in pass-1.
+**
+*/
+      SI_BUFFER_CHAR = TOKEN_BUFFER.SOURCE_LINE;
+      IF SI_BUFFER.MNEMONIC = 'DC    ' THEN CALL DC_2;
+ 
+      OU_WORD = BINBIT(TOKEN_BUFFER.PSEUDO_WORD, 36);
+ 
+%EJECT;
+DC_2: PROC;
+/*
+**
+**    This procedure does the pass-2 processing of the DC pseudo-op.
+**
+*/
+      DCL 1 PSEUDO_HALVES              STATIC    ALIGNED,
+            2 HALF1                    SBIN HALF HALIGNED,
+            2 HALF2                    SBIN HALF HALIGNED;
+      DCL PSEUDO_WORD                  REDEF PSEUDO_HALVES SBIN WORD;
+ 
+      DCL I                            SBIN;
+      DCL VALUE                        SBIN;
+ 
+      DCL EXT_LOC                      BIT(1);
+      DCL ABS_REL                      BIT(1);
+      DCL DEF_UND                      BIT(1);
+/*
+**
+**    Initialize the value of the generated word to zero.
+*/
+      PSEUDO_WORD = 0;
+/*
+**
+**    Check if operand has a colon (distinguishes 2 half-word or 1 full-word).
+*/
+      CALL INDEX (I, ':', SI_BUFFER.OPERAND);
+ 
+%EJECT;
+/*
+**
+**    Operand has a ':'.
+*/
+      IF I ~= LENGTHC(SI_BUFFER.OPERAND) THEN
+         DO;
+            CALL CHAR_TO_SBIN (VALUE,VECTOR(SUBSTR(SI_BUFFER.OPERAND,0,I)),10)
+               WHENRETURN DO;
+                  IF VALUE > BITBIN('777777'O) THEN
+                     TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DC1_TOO_BIG;
+                  ELSE
+                     PSEUDO_HALVES.HALF1 = VALUE;
+                  END;
+               WHENALTRETURN DO;
+                  TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DC1_NOT_NUM;
+                  END;
+            CALL CHAR_TO_SBIN (VALUE,VECTOR(SUBSTR(SI_BUFFER.OPERAND,I+1)),10)
+               WHENRETURN DO;
+                  IF VALUE > BITBIN('777777'O) THEN
+                     TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DC2_TOO_BIG;
+                  ELSE
+                     PSEUDO_HALVES.HALF2 = VALUE;
+                  END;
+               WHENALTRETURN DO;
+                  CALL VALIDATE_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,I+1))
+                     WHENRETURN DO;
+                        CALL LOOK_UP_SYMBOL (SUBSTR(SI_BUFFER.OPERAND,I+1), VALUE, EXT_LOC, ABS_REL, DEF_UND)
+                           WHENRETURN DO;
+                              PSEUDO_HALVES.HALF2 = VALUE;
+                              IF ABS_REL = %REL# AND EXT_LOC = %EXT# AND DEF_UND = %UND# THEN
+                                 DO;
+                                    TOKEN_BUFFER.RELOCATION_BITS = '10'B;
+                                    VALUE = TOKEN_BUFFER.LOCATION;
+                                    CALL CHANGE_SYMBOL_VALUE (SUBSTR(SI_BUFFER.OPERAND,I+1), VALUE);
+                                    END;
+                              ELSE
+                              IF ABS_REL = %ABS# THEN
+                                 TOKEN_BUFFER.RELOCATION_BITS = '00'B;
+                              ELSE
+                                 TOKEN_BUFFER.RELOCATION_BITS = '01'B;
+                              END;
+                           WHENALTRETURN DO;
+                              TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_SYMB;
+                              END;
+                        END;
+                     WHENALTRETURN DO;
+                        TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+                        END;
+                  END;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Operand has no ':'.
+*/
+      ELSE
+         DO;
+            CALL CHAR_TO_SBIN (PSEUDO_WORD,VECTOR(SI_BUFFER.OPERAND),10)
+               WHENALTRETURN DO;
+                  CALL VALIDATE_SYMBOL (SI_BUFFER.OPERAND)
+                     WHENRETURN DO;
+                        CALL LOOK_UP_SYMBOL (SI_BUFFER.OPERAND, PSEUDO_WORD, EXT_LOC, ABS_REL, DEF_UND)
+                           WHENRETURN DO;
+                              IF ABS_REL = %REL# AND EXT_LOC = %EXT# AND DEF_UND = %UND# THEN
+                                 DO;
+                                    TOKEN_BUFFER.RELOCATION_BITS = '10'B;
+                                    VALUE = TOKEN_BUFFER.LOCATION;
+                                    CALL CHANGE_SYMBOL_VALUE (SI_BUFFER.OPERAND, VALUE);
+                                    END;
+                              ELSE
+                              IF ABS_REL = %ABS# THEN
+                                 TOKEN_BUFFER.RELOCATION_BITS = '00'B;
+                              ELSE
+                                 TOKEN_BUFFER.RELOCATION_BITS = '01'B;
+                              END;
+                           WHENALTRETURN DO;
+                              TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_SYMB;
+                              END;
+                        END;
+                     WHENALTRETURN DO;
+                        TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %BAD_SYMBOL;
+                        END;
+                  END;
+            END;
+/*
+**
+**    Put the generated word in the token buffer.
+*/
+      TOKEN_BUFFER.PSEUDO_WORD = PSEUDO_WORD;
+ 
+END DC_2;
+ 
+END PSEUDO_OP;
+%EJECT;
+LOAD_ACCUMULATOR: PROC;
+/*
+**
+**    This procedure loads the accumulator field.
+**
+*/
+      CALL CHECK_SYMBOL_OR_NUMBER (SBIN18, TOKEN_BUFFER.ACC, ERROR_FLAG);
+ 
+      DO CASE (ERROR_FLAG);
+         CASE (1);
+            SBIN18 = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %ACC_NOT_ABS;
+         CASE (2);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %ACC_UND;
+         CASE (3);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %ACC_BAD;
+         END;
+ 
+      IF SBIN18 < 0 OR SBIN18 > 15 THEN
+         DO;
+            P$->OU_WORD_NORMAL.ACC = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %INV_ACC;
+            END;
+      ELSE
+         P$->OU_WORD_NORMAL.ACC = SBIN18;
+ 
+END LOAD_ACCUMULATOR;
+%EJECT;
+LOAD_INDEX_REGISTER: PROC;
+/*
+**
+**    This procedure loads the index register field.
+**
+*/
+      CALL CHECK_SYMBOL_OR_NUMBER (SBIN18, TOKEN_BUFFER.XR, ERROR_FLAG);
+ 
+      DO CASE (ERROR_FLAG);
+         CASE (1);
+            SBIN18 = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %XR_NOT_ABS;
+         CASE (2);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %XR_UND;
+         CASE (3);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %XR_BAD;
+         END;
+ 
+      IF SBIN18 < 0 OR SBIN18 > 15 THEN
+         DO;
+            P$->OU_WORD_NORMAL.XR = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %INV_XR;
+            END;
+      ELSE
+         P$->OU_WORD_NORMAL.XR = SBIN18;
+ 
+END LOAD_INDEX_REGISTER;
+%EJECT;
+LOAD_DEVICE: PROC;
+/*
+**
+**    This procedure loads the device field.
+**
+*/
+      IF TOKEN_BUFFER.DEV = SPACES THEN
+         TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %NO_DEV;
+      CALL CHECK_SYMBOL_OR_NUMBER (SBIN18, TOKEN_BUFFER.DEV, ERROR_FLAG);
+ 
+      DO CASE (ERROR_FLAG);
+         CASE (1);
+            SBIN18 = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DEV_NOT_ABS;
+         CASE (2);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DEV_UND;
+         CASE (3);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %DEV_BAD;
+         END;
+ 
+      IF SBIN18 < 0 OR SBIN18 > 127 THEN
+         DO;
+            P$->OU_WORD_IO.DEV = 0;
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %INV_DEV;
+            END;
+      ELSE
+         P$->OU_WORD_IO.DEV = SBIN18;
+ 
+END LOAD_DEVICE;
+%EJECT;
+LOAD_VALUE: PROC;
+/*
+**
+**    This procedure loads the value field.
+**
+*/
+      DCL RELOCATION_BITS              BIT(2)    ALIGNED;
+ 
+      RELOCATION_BITS = '00'B;
+      CALL CHECK_SYMBOL_OR_NUMBER (SBIN18, TOKEN_BUFFER.VALUE, ERROR_FLAG, RELOCATION_BITS);
+      TOKEN_BUFFER.RELOCATION_BITS = RELOCATION_BITS;
+ 
+      DO CASE (ERROR_FLAG);
+         CASE (2);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %VALUE_UND;
+         CASE (3);
+            TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %VALUE_BAD;
+         END;
+ 
+      IF TOKEN_BUFFER.VALUE_BIAS ~= 0
+         AND TOKEN_BUFFER.RELOCATION_BITS = '10'B THEN
+         TOKEN_BUFFER.ERRORS = TOKEN_BUFFER.ERRORS | %EXPRESS_EXT;
+      ELSE
+         P$->OU_WORD_NORMAL.VALUE = SBIN18 + TOKEN_BUFFER.VALUE_BIAS;
+ 
+END LOAD_VALUE;
+%EJECT;
+CHECK_SYMBOL_OR_NUMBER: PROC (SBIN18, SYMBOL, ERROR_FLAG, RELOCATION_BITS);
+/*
+**
+**    This procedure returns SBIN18 with the value of SYMBOL.  This
+**    value may be a number to be translated or something to be
+**    looked up in the symbol table.
+**
+*/
+      DCL SBIN18                       SBIN(18);
+      DCL SYMBOL                       CHAR(6);
+      DCL ERROR_FLAG                   UBIN;
+      DCL RELOCATION_BITS              BIT(2)    ALIGNED;
+ 
+      DCL SBIN36                       SBIN;
+ 
+      DCL EXT_LOC                      BIT(1);
+      DCL ABS_REL                      BIT(1);
+ 
+%EJECT;
+/*
+**
+**    Do it!
+*/
+      ERROR_FLAG = 0;
+ 
+      CALL CHAR_TO_SBIN (SBIN36, VECTOR(SYMBOL), 10)
+         WHENRETURN DO;
+            SBIN18 = SBIN36;
+            END;
+         WHENALTRETURN DO;
+            CALL VALIDATE_SYMBOL (SYMBOL)
+               WHENALTRETURN DO;
+                  IF SYMBOL = '.' THEN
+                     DO;
+                        SBIN18 = TOKEN_BUFFER.LOCATION;
+                        RELOCATION_BITS = '01'B;
+                        END;
+                  ELSE
+                     DO;
+                        SBIN18 = 0;
+                        ERROR_FLAG = 3;
+                        END;
+                  RETURN;
+                  END;
+            CALL LOOK_UP_SYMBOL (SYMBOL, SBIN36, EXT_LOC, ABS_REL)
+               WHENRETURN DO;
+                  SBIN18 = SBIN36;
+                  IF ABS_REL ~= %ABS# THEN
+                     DO;
+                        ERROR_FLAG = 1;
+                        IF ADDR(RELOCATION_BITS) ~= ADDR(NIL) AND EXT_LOC = %LOC# THEN
+                           RELOCATION_BITS = '01'B;
+                        ELSE
+                        IF ADDR(RELOCATION_BITS) ~= ADDR(NIL) THEN
+                           DO;
+                              RELOCATION_BITS = '10'B;
+                              SBIN36 = TOKEN_BUFFER.LOCATION;
+                              CALL CHANGE_SYMBOL_VALUE (SYMBOL, SBIN36);
+                              END;
+                        END;
+                  END;
+               WHENALTRETURN DO;
+                  SBIN18 = 0;
+                  ERROR_FLAG = 2;
+                  END;
+            END;
+ 
+END CHECK_SYMBOL_OR_NUMBER;
+ 
+END PREPARE_OU_WORD;
+%EJECT;
+PREPARE_OU_RECORD: PROC;
+/*
+**
+**    This procedure prepares the object records to be written.
+**    After 18 words, the object record is written.
+**
+*/
+      DCL TWO_BITS                     BIT(2)    BASED;
+      DCL ONE_WORD                     BIT(36)   BASED   ALIGNED;
+/*
+**
+**    If new record, save address of first instruction
+**    and zero relocation bits.
+*/
+      IF COUNT = 0 THEN
+         DO;
+            WORD0.ADDRESS = TOKEN_BUFFER.LOCATION;
+            PINCRW(ADDR(OU_BUFFER),1)->ONE_WORD = '000000000000'O;
+            END;
+/*
+**
+**    Load arrays with text and relocation bits.
+*/
+      PINCRB(ADDR(OU_BUFFER),36+2*COUNT)->TWO_BITS = TOKEN_BUFFER.RELOCATION_BITS;
+      PINCRW(ADDR(OU_BUFFER),2+COUNT)->ONE_WORD = OU_WORD;
+      COUNT = COUNT + 1;
+/*
+**
+**    When 18 words are collected, write object record.
+*/
+      IF COUNT = 18 THEN
+         DO;
+            COUNT = 0;
+            WORD0.TYPE = 0;
+            WORD0.LENGTH = 20;
+            ADDR(OU_BUFFER)->ONE_WORD = WORD0;
+            OU_WRITE.BUF_ = VECTOR(OU_BUFFER);
+            CALL M$WRITE (OU_WRITE)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+ 
+END PREPARE_OU_RECORD;
+%EJECT;
+WRITE_REST_OF_FILE: PROC;
+/*
+**
+**    This procedure writes the last text record, and the
+**    external symbols and end records.  The file will then
+**    be closed. (If any errors occured, we don't get here.)
+**
+*/
+      DCL ONE_WORD                     BIT(36)   BASED   ALIGNED;
+/*
+**
+**    Write any remaining text, if needed.
+*/
+      IF COUNT ~= 0 THEN
+         DO;
+            WORD0.TYPE = 0;
+            WORD0.LENGTH = COUNT + 2;
+            ADDR(OU_BUFFER)->ONE_WORD = WORD0;
+            OU_WRITE.BUF_ = VECTOR(SUBSTR(OU_BUFFER,0,8+4*COUNT));
+            CALL M$WRITE (OU_WRITE)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+/*
+**
+**    Write the external symbols to object file.
+*/
+      COUNT = 0;
+ 
+      CALL WRITE_EXTERNALS (SYMBOL$, %EXT#);
+ 
+      IF COUNT ~= 0 THEN
+         DO;
+            WORD0.TYPE = 1;
+            WORD0.LENGTH = 2+2*COUNT;
+            WORD0.ADDRESS = 0;
+            ADDR(OU_BUFFER)->ONE_WORD = WORD0;
+            OU_WRITE.BUF_ = VECTOR(SUBSTR(OU_BUFFER,0,8+8*COUNT));
+            CALL M$WRITE (OU_WRITE)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+%EJECT;
+/*
+**
+**    Write the local symbols to object file.
+*/
+      COUNT = 0;
+ 
+      CALL WRITE_EXTERNALS (SYMBOL$, %LOC#);
+ 
+      IF COUNT ~= 0 THEN
+         DO;
+            WORD0.TYPE = 3;
+            WORD0.LENGTH = 2+2*COUNT;
+            WORD0.ADDRESS = 0;
+            ADDR(OU_BUFFER)->ONE_WORD = WORD0;
+            OU_WRITE.BUF_ = VECTOR(SUBSTR(OU_BUFFER,0,8+8*COUNT));
+            CALL M$WRITE (OU_WRITE)
+               WHENALTRETURN DO;
+                  CALL FATALS;
+                  END;
+            END;
+/*
+**
+**    Can't forget trailer!
+*/
+      WORD0.TYPE = 2;
+      WORD0.LENGTH = 1;
+      WORD0.ADDRESS = START_ADDRESS;
+ 
+      OU_WRITE.BUF_ = VECTOR(WORD0);
+ 
+      CALL M$WRITE (OU_WRITE)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+/*
+**
+**    Close object file.
+*/
+      CALL M$CLOSE (OU_CLOSE)
+         WHENALTRETURN DO;
+            CALL FATALS;
+            END;
+ 
+END WRITE_REST_OF_FILE;
+%EJECT;
+PRINT_LO_LINE: PROC;
+/*
+**
+**    This procedure prints the current source line (including errors).
+**
+*/
+      DCL 1 LO_LINE                    STATIC,
+            2 *                        CHAR(1)   INIT(' '),
+            2 LOCATION                 CHAR(6),
+            2 *                        CHAR(3)   INIT('   '),
+            2 CODE1                    CHAR(6),
+            2 *                        CHAR(1)   INIT(' '),
+            2 CODE2                    CHAR(6),
+            2 *                        CHAR(3)   INIT('   '),
+            2 SOURCE_LINE              CHAR(80);
+      DCL LO_LINE_CHAR                 REDEF LO_LINE CHAR(106);
+ 
+      DCL LINE_COUNT                   UBIN(9)   STATIC INIT(BITBIN('777'O));
+      DCL PAGE_COUNT                   UBIN      STATIC INIT(0);
+/*
+**
+**    Put source line, machine code, and location counter in line.
+*/
+      LO_LINE.SOURCE_LINE = TOKEN_BUFFER.SOURCE_LINE;
+      CALL DECIMAL_TO_OCTAL (LO_LINE.LOCATION, TOKEN_BUFFER.LOCATION);
+      IF TOKEN_BUFFER.NO_CODE THEN
+         DO;
+            LO_LINE.CODE1 = SPACES;
+            LO_LINE.CODE2 = SPACES;
+            END;
+      ELSE
+         DO;
+            CALL DECIMAL_TO_OCTAL (LO_LINE.CODE1, OU_WORD.HALF1);
+            CALL DECIMAL_TO_OCTAL (LO_LINE.CODE2, OU_WORD.HALF2);
+            END;
+/*
+**
+**    Write lo record.
+*/
+      IF LINE_COUNT > MAX_LINES THEN CALL HEADINGS;
+      LO_BUFFER = LO_LINE_CHAR;
+      CALL M$WRITE (LO_WRITE);
+      LINE_COUNT = LINE_COUNT + 1;
+      CALL PRINT_ERRORS;
+ 
+%EJECT;
+PRINT_ERRORS: PROC;
+/*
+**
+**    This procedure prints the error messages associated
+**    with each source line.
+**
+*/
+      DCL 1 ERROR_MESSAGE_TABLE        STATIC,
+            2 * CHAR(80) INIT('Invalid opcode mnemonic'),
+            2 * CHAR(80) INIT('Missing opcode mnemonic'),
+            2 * CHAR(80) INIT('Invalid label'),
+            2 * CHAR(80) INIT('Multiply defined label'),
+            2 * CHAR(80) INIT('Bad operand'),
+            2 * CHAR(80) INIT('Bad number'),
+            2 * CHAR(80) INIT('Label not allowed'),
+            2 * CHAR(80) INIT('No operand where one was expected'),
+            2 * CHAR(80) INIT('Bad decimal number'),
+            2 * CHAR(80) INIT('Bad octal number'),
+            2 * CHAR(80) INIT('Statment not within the scope of a TITLE/END block'),
+            2 * CHAR(80) INIT('Multiple TITLE found'),
+            2 * CHAR(80) INIT('Bad title'),
+            2 * CHAR(80) INIT('Bad symbol in operand field'),
+            2 * CHAR(80) INIT('Missing label'),
+            2 * CHAR(80) INIT('Symbol not defined'),
+            2 * CHAR(80) INIT('END statement provided courtesy of the assembler'),
+            2 * CHAR(80) INIT('First half of split DC must be numeric'),
+            2 * CHAR(80) INIT('First half of split DC too big'),
+            2 * CHAR(80) INIT('Second half of split DC too big'),
+            2 * CHAR(80) INIT('Badly placed semicolon'),
+            2 * CHAR(80) INIT('Operand not allowed'),
+            2 * CHAR(80) INIT('Columnation error'),
+            2 * CHAR(80) INIT('Bad value offset'),
+            2 * CHAR(80) INIT('Bad JSYS number'),
+            2 * CHAR(80) INIT('Accumulator symbol must be absolute'),
+            2 * CHAR(80) INIT('Undefined accumulator symbol'),
+            2 * CHAR(80) INIT('Bad accumulator form'),
+            2 * CHAR(80) INIT('Index register symbol must be absolute'),
+            2 * CHAR(80) INIT('Undefined index register symbol'),
+            2 * CHAR(80) INIT('Bad index register form'),
+            2 * CHAR(80) INIT('Device symbol must be absolute'),
+            2 * CHAR(80) INIT('Undefined device symbol'),
+            2 * CHAR(80) INIT('Bad device form'),
+            2 * CHAR(80) INIT('No device found in i/o statement'),
+            2 * CHAR(80) INIT('Undefined value symbol'),
+            2 * CHAR(80) INIT('Bad value form'),
+            2 * CHAR(80) INIT('Accumulator number out of range'),
+            2 * CHAR(80) INIT('Index register number out of range'),
+            2 * CHAR(80) INIT('Device number out of range'),
+            2 * CHAR(80) INIT('Symbol not previously defined'),
+            2 * CHAR(80) INIT('Expressions may not contain external symbols'),
+            2 *(0:29) CHAR(80) INIT('null error message'*0);
+ 
+%EJECT;
+      DCL ERROR_MESSAGE(0:71)          REDEF ERROR_MESSAGE_TABLE CHAR(80);
+ 
+      DCL I                            UBIN;
+ 
+      DCL ERROR_FOUND                  BIT(1);
+      DCL ERROR_BIT(0:71)              BIT(1);
+ 
+/*
+**
+**    Set up data-items for error procesing of source line.
+*/
+      ERROR_FOUND = '0'B;
+      ERROR_BIT = TOKEN_BUFFER.ERRORS;
+/*
+**
+**    Check and print each specific message.
+*/
+      DO I = 0 TO 71;
+         IF ERROR_BIT(I) THEN
+            DO;
+               NUMBER_ERRORS = NUMBER_ERRORS + 1;
+               ERROR_FOUND = '1'B;
+               IF LINE_COUNT > MAX_LINES THEN CALL HEADINGS;
+               CALL CONCAT(LO_BUFFER, '                          ** ',
+                                      ERROR_MESSAGE(I));
+               CALL M$WRITE (LO_WRITE);
+               LINE_COUNT = LINE_COUNT + 1;
+               END;
+         END;
+/*
+**
+**    Print a blank line after any errors to improve readability.
+*/
+      IF ERROR_FOUND AND (LINE_COUNT <= MAX_LINES) THEN
+         DO;
+            LO_BUFFER = SPACES;
+            CALL M$WRITE (LO_WRITE);
+            LINE_COUNT = LINE_COUNT + 1;
+            END;
+ 
+END PRINT_ERRORS;
+%EJECT;
+HEADINGS: PROC;
+/*
+**
+**    This procedure prints a top of page heading.
+**
+*/
+      DCL 1 FIRST_LINE                 STATIC,
+            2 *                        CHAR(7)   INIT('ASMDAL.'),
+            2 *                        CHAR(3)   INIT(%VERSION#),
+            2 *                        CHAR(9)   INIT('   Title='),
+            2 TITLE                    CHAR(6),
+            2 *                        CHAR(8)   INIT('   File='),
+            2 NAME                     CHAR(39),
+            2 DAY                      CHAR(3),
+            2 *                        CHAR(1)   INIT(' '),
+            2 DATE                     CHAR(8),
+            2 *                        CHAR(1)   INIT(' '),
+            2 TIME                     CHAR(11),
+            2 *                        CHAR(8)   INIT('   Page='),
+            2 PAGE                     CHAR(2);
+      DCL FIRST_LINE_CHAR              REDEF FIRST_LINE CHAR(106);
+ 
+      %FPT_TIME (DEST=LOCAL,
+                 DAY=FIRST_LINE.DAY,
+                 DATE=FIRST_LINE.DATE,
+                 TIME=FIRST_LINE.TIME);
+ 
+%EJECT;
+/*
+**
+**    Set counters and do a top-of-form.
+*/
+      LINE_COUNT = 0;
+      PAGE_COUNT = PAGE_COUNT + 1;
+      CALL M$WRITE (TOP);
+/*
+**
+**    Load the various fields of the header line.
+*/
+      FIRST_LINE.TITLE = TITLE;
+ 
+      FIRST_LINE.NAME = DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.C;
+      SUBSTR(FIRST_LINE.NAME,DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.L,1) = '.';
+      SUBSTR(FIRST_LINE.NAME,DCBADDR(DCBNUM(M$SI))->F$DCB.NAME#.L+1,8) =
+         DCBADDR(DCBNUM(M$SI))->F$DCB.ACCT#;
+ 
+      CALL M$TIME (FPT_TIME);
+ 
+      CALL BINCHAR(FIRST_LINE.PAGE, PAGE_COUNT);
+      LO_BUFFER = FIRST_LINE_CHAR;
+      CALL M$WRITE (LO_WRITE);
+ 
+      LO_BUFFER = SPACES;
+      CALL M$WRITE (LO_WRITE);
+ 
+      LO_BUFFER = 'Location  Machine text    Source line';
+      CALL M$WRITE (LO_WRITE);
+ 
+      LO_BUFFER = SPACES;
+      CALL M$WRITE (LO_WRITE);
+ 
+END HEADINGS;
+ 
+END PRINT_LO_LINE;
+%EJECT;
+PRINT_END_LINE: PROC;
+/*
+**
+**    This procedure prints out an ending line telling the
+**    total number of errors encountered.
+**
+*/
+      DCL 1 END_LINE                   STATIC,
+            2 *                        CHAR(10)  INIT(' '),
+            2 NUMBER                   CHAR(3),
+            2 *                        CHAR(33)  INIT(' errors encountered in procedure '),
+            2 TITLE                    CHAR(6);
+      DCL END_LINE_CHAR                REDEF END_LINE CHAR(52);
+/*
+**
+**    Take care of number of errors.
+*/
+      IF NUMBER_ERRORS = 0 THEN
+         END_LINE.NUMBER = ' no';
+      ELSE
+         DO;
+            CALL BINCHAR (END_LINE.NUMBER, NUMBER_ERRORS);
+            IF SUBSTR(END_LINE.NUMBER,0,1) = '0' THEN
+               DO;
+                  SUBSTR(END_LINE.NUMBER,0,1) = ' ';
+                  IF SUBSTR(END_LINE.NUMBER,1,1) = '0' THEN
+                     SUBSTR(END_LINE.NUMBER,1,1) = ' ';
+                  END;
+            END;
+/*
+**
+**    Take care of title.
+*/
+      END_LINE.TITLE = TITLE;
+ 
+      LO_BUFFER = SPACES;
+      CALL M$WRITE (LO_WRITE);
+ 
+      LO_BUFFER = END_LINE_CHAR;
+      CALL M$WRITE (LO_WRITE);
+ 
+END PRINT_END_LINE;
+ 
+END PASS_2;
+%EJECT;
+VALIDATE_SYMBOL: PROC (SYMBOL) ALTRET;
+/*
+**
+**    This procedure returns if SYMBOL is a valid symbol,
+**    and altreturns if SYMBOL is invalid.
+**
+*/
+      DCL SYMBOL                       CHAR(6);
+      DCL SYMBOL_REDEF(0:5)            REDEF SYMBOL CHAR(1);
+ 
+      DCL TEMP                         SBIN;
+ 
+      DCL I                            UBIN;
+/*
+**
+**    First character must be alphabetic.
+*/
+      TEMP = ASCBIN(SYMBOL_REDEF(0));
+      IF TEMP < 65 OR TEMP > 90 THEN ALTRETURN;
+/*
+**
+**    Others may be alpha-numeric, and if a space is found,
+**    nothing may be after it.
+*/
+LOOP: DO I = 1 TO 5;
+         TEMP = ASCBIN(SYMBOL_REDEF(I));
+         IF TEMP = 32 THEN
+            DO;
+               IF SUBSTR(SYMBOL,I) ~= SPACES THEN ALTRETURN;
+               EXIT LOOP;
+               END;
+         IF ((TEMP<65 OR TEMP>90) AND (TEMP<48 OR TEMP>57)) THEN ALTRETURN;
+         END;
+ 
+END VALIDATE_SYMBOL;
+%EJECT;
+LOOK_UP_SYMBOL: PROC (SYMBOL, VALUE, EXT_LOC, ABS_REL, DEF_UND) ALTRET;
+/*
+**
+**    This procedure looks up a symbol in the symbol tree.
+**    If the symbol is not found, the procedure will ALTRET.
+**
+*/
+      DCL SYMBOL                       CHAR(6);
+      DCL VALUE                        SBIN;
+      DCL EXT_LOC                      BIT(1)    ALIGNED;
+      DCL ABS_REL                      BIT(1)    ALIGNED;
+      DCL DEF_UND                      BIT(1)    ALIGNED;
+ 
+      DCL P$                           PTR;
+      DCL Q$                           PTR;
+/*
+**
+**    Set pointer to root of tree.
+*/
+      P$ = SYMBOL$;
+/*
+**
+**    Q$ follows P$ down the tree.  If a leaf node is found, and there
+**    is no match, the symbol must not be in tree.
+*/
+      DO WHILE (P$ ~= ADDR(NIL));
+         IF SYMBOL < P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.LCHILD$;
+               END;
+         ELSE
+         IF SYMBOL > P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.RCHILD$;
+               END;
+         ELSE
+            DO;
+               IF ADDR(VALUE) ~= ADDR(NIL) THEN
+                  VALUE = P$->SYMBOL_NODE.VALUE;
+               IF ADDR(EXT_LOC) ~= ADDR(NIL) THEN
+                  EXT_LOC = P$->SYMBOL_NODE.EXT_LOC;
+               IF ADDR(ABS_REL) ~= ADDR(NIL) THEN
+                  ABS_REL = P$->SYMBOL_NODE.ABS_REL;
+               IF ADDR(DEF_UND) ~= ADDR(NIL) THEN
+                  DEF_UND = P$->SYMBOL_NODE.DEF_UND;
+               RETURN;
+               END;
+         END;
+ 
+      ALTRETURN;
+ 
+END LOOK_UP_SYMBOL;
+%EJECT;
+CHANGE_SYMBOL_VALUE: PROC (SYMBOL, VALUE) ALTRET;
+/*
+**
+**    This procedure changes the value of a symbol in the symbol
+**    tree.  This is used for creating the linked list for external
+**    symbols.  If the symbol is not found, the procedure will ALTRET.
+**
+*/
+      DCL SYMBOL                       CHAR(6);
+      DCL VALUE                        SBIN;
+ 
+      DCL P$                           PTR;
+      DCL Q$                           PTR;
+/*
+**
+**    Set pointer to root of tree.
+*/
+      P$ = SYMBOL$;
+/*
+**
+**    Q$ follows P$ down the tree.  If a leaf node is found, and there
+**    is no match, the symbol must not be in tree.
+*/
+      DO WHILE (P$ ~= ADDR(NIL));
+         IF SYMBOL < P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.LCHILD$;
+               END;
+         ELSE
+         IF SYMBOL > P$->SYMBOL_NODE.SYMBOL THEN
+            DO;
+               Q$ = P$;
+               P$ = P$->SYMBOL_NODE.RCHILD$;
+               END;
+         ELSE
+            DO;
+               P$->SYMBOL_NODE.VALUE = VALUE;
+               RETURN;
+               END;
+         END;
+ 
+      ALTRETURN;
+ 
+END CHANGE_SYMBOL_VALUE;
+%EJECT;
+CHAR_TO_SBIN: PROC (SBIN36, STRING_, BASE) ALTRET;
+/*
+**
+**    This procedure returns the string described by STRING_ in
+**    the data-name SBIN36.  It is converted using base BASE.
+**
+*/
+      DCL SBIN36                       SBIN      CALIGNED;
+      DCL STRING_                      VECTOR;
+      DCL BASE                         UBIN;
+ 
+      DCL P$                           PTR;
+      DCL LENGTH                       UBIN(20);
+ 
+      DCL SWITCH                       BIT(1);
+      DCL I                            UBIN;
+      DCL START                        UBIN;
+      DCL SIGN                         SBIN;
+      DCL TEMP                         SBIN;
+      DCL CHAR_TEMPLATE                CHAR(1)   BASED;
+ 
+      P$ = VBASE(STRING_);
+      LENGTH = VBOUND(STRING_);
+      SWITCH = '0'B;
+      SBIN36 = 0;
+/*
+**
+**    Check any leading sign.
+*/
+      IF P$->CHAR_TEMPLATE = '-' THEN
+         DO;
+            P$ = PINCRC (P$,1);
+            START = 1;
+            SIGN = -1;
+            END;
+      ELSE
+      IF P$->CHAR_TEMPLATE = '+' THEN
+         DO;
+            P$ = PINCRC (P$,1);
+            START = 1;
+            SIGN = +1;
+            END;
+      ELSE
+         DO;
+            START = 0;
+            SIGN = +1;
+            END;
+ 
+%EJECT;
+/*
+**
+**    Go through a modified Horner's Method.
+*/
+      DO I = START TO LENGTH;
+         TEMP = ASCBIN(P$->CHAR_TEMPLATE) - 48;
+         IF TEMP = -16 THEN
+            SWITCH = '1'B;
+         ELSE
+         IF SWITCH THEN
+            DO;
+               SBIN36 = 0;
+               ALTRETURN;
+               END;
+         ELSE
+            DO;
+               IF TEMP < 0 OR TEMP > (BASE - 1) THEN
+                  DO;
+                     SBIN36 = 0;
+                     ALTRETURN;
+                     END;
+               SBIN36 = (SBIN36*BASE) + TEMP;
+               P$ = PINCRC(P$,1);
+               END;
+         END;
+/*
+**
+**    Can't forget sign.
+*/
+      SBIN36 = SIGN * SBIN36;
+ 
+END CHAR_TO_SBIN;
+%EJECT;
+DECIMAL_TO_OCTAL: PROC (OCTAL_STRING, DECIMAL_SBIN);
+/*
+**
+**    This procedure takes a SBIN(18) decimal value and produces
+**    a string of the form "oooooo" from it.
+**
+*/
+      DCL OCTAL_STRING                 CHAR(6);
+      DCL OCTAL_REDEF(0:5)             REDEF OCTAL_STRING CHAR(1);
+ 
+      DCL DECIMAL_SBIN                 SBIN(18) HALIGNED;
+      DCL DECIMAL_REDEF(0:5)           REDEF DECIMAL_SBIN UBIN(3) UNAL;
+ 
+      DCL I                            UBIN;
+/*
+**
+**    SBIN(18) already divided up via REDEF, so just add 48.
+*/
+      DO I = 0 TO 5;
+         OCTAL_REDEF(I) = BINASC(DECIMAL_REDEF(I)+48);
+         END;
+ 
+END DECIMAL_TO_OCTAL;
+%EJECT;
+FATALS: PROC;
+/*
+**
+**    This procedure handles assembly fatal errors.
+**
+*/
+      DCL BUFFER                       CHAR(256) STATIC;
+ 
+      %FPT_ERRMSG (BUF=BUFFER,
+                   FLAGLEV=3,
+                   INCLCODE=NO,
+                   OUTDCB1=M$LO,
+                   SOURCE=ALTRET);
+/*
+**
+**    Print out error message that caused the unexpected
+**    problem and exit.
+*/
+      CALL M$ERRMSG (FPT_ERRMSG);
+ 
+      LO_BUFFER = '***  assembly terminated';
+      CALL M$WRITE (LO_WRITE);
+ 
+      CALL M$EXIT;
+ 
+END FATALS;
+ 
+END ASMDAL;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+WRITE_EXTERNALS: PROC (TREE$, EXT_LOC);
+/*
+**
+**    This procedure writes the external symbols into the
+**    object file.
+**
+*/
+      DCL TREE$                        PTR;
+      DCL EXT_LOC                      BIT(1);
+ 
+      DCL 1 SYMBOL_NODE                BASED     ALIGNED,
+            2 SYMBOL                   CHAR(6)   UNAL,
+            2 VALUE                    SBIN(18)  UNAL,
+            2 LCHILD$                  PTR       UNAL,
+            2 RCHILD$                  PTR       UNAL,
+            2 *                        BIT(3)    UNAL,
+            2 EXT_LOC                  BIT(1)    UNAL,
+            2 DEF_UND                  BIT(1)    UNAL,
+            2 *(0:30)                  BIT(1)    UNAL;
+ 
+      DCL LCHILD$                      PTR;
+      DCL RCHILD$                      PTR;
+ 
+      DCL ONE_WORD                     BIT(36)   BASED   ALIGNED;
+ 
+      DCL 1 EXTERNAL_SYMBOL            BASED     ALIGNED,
+            2 SYMBOL                   CHAR(6)   UNAL,
+            2 VALUE                    SBIN(18)  UNAL;
+ 
+      DCL 1 EXT_ENT_FLAG               UBIN(4)   BASED    UNAL;
+ 
+      DCL 1 WORD0                      EXT,
+            2 TYPE                     UBIN(9)            UNAL,
+            2 *                        UBIN(9)   INIT(20) UNAL,
+            2 *                        UBIN(18)  INIT(0)  UNAL;
+ 
+      DCL COUNT                        UBIN      EXT;
+ 
+      DCL OU_BUFFER                    CHAR(80)  EXT;
+      DCL M$OU                         DCB;
+ 
+      %INCLUDE CP_6;
+      %INCLUDE ASMDAL_C61;
+ 
+      %FPT_WRITE (FPTN=OU_WRITE,
+                  BUF=OU_BUFFER,
+                  STCLASS=EXT,
+                  DCB=M$OU);
+ 
+%EJECT;
+/*
+**
+**    RETURN if were at a leaf.
+*/
+      IF TREE$ = ADDR(NIL) THEN RETURN;
+/*
+**
+**    Recursive call down left side of tree.
+*/
+      LCHILD$ = TREE$->SYMBOL_NODE.LCHILD$;
+      CALL WRITE_EXTERNALS (LCHILD$, EXT_LOC);
+/*
+**
+**    Go through this, only if we are at an external symbol.
+*/
+      IF TREE$->SYMBOL_NODE.EXT_LOC = EXT_LOC THEN
+         DO;
+/*
+**
+**          If new record, zero second word.
+*/
+            IF COUNT=0 THEN PINCRW(ADDR(OU_BUFFER),1)->ONE_WORD='000000000000'O;
+/*
+**
+**          Load buffer.
+*/
+            PINCRB (ADDR(OU_BUFFER),36+4*COUNT)->EXT_ENT_FLAG = BITBIN(~TREE$->SYMBOL_NODE.DEF_UND);
+ 
+            PINCRW (ADDR(OU_BUFFER),2+2*COUNT)->EXTERNAL_SYMBOL.SYMBOL = TREE$->SYMBOL_NODE.SYMBOL;
+            PINCRW (ADDR(OU_BUFFER),2+2*COUNT)->EXTERNAL_SYMBOL.VALUE = TREE$->SYMBOL_NODE.VALUE;
+ 
+            COUNT = COUNT + 1;
+/*
+**
+**          When 9 symbols are collected, then write.
+*/
+            IF COUNT = 9 THEN
+               DO;
+                  COUNT = 0;
+                  IF EXT_LOC = %EXT# THEN
+                     WORD0.TYPE = 1;
+                  ELSE
+                     WORD0.TYPE = 3;
+                  ADDR(OU_BUFFER)->ONE_WORD = WORD0;
+                  OU_WRITE.BUF_ = VECTOR(OU_BUFFER);
+                  CALL M$WRITE (OU_WRITE);
+                  END;
+            END;
+/*
+**
+**    Recursive call down right side of tree.
+*/
+      RCHILD$ = TREE$->SYMBOL_NODE.RCHILD$;
+      CALL WRITE_EXTERNALS (RCHILD$, EXT_LOC);
+ 
+END WRITE_EXTERNALS;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+IN_ORDER: PROC (TREE$);
+ 
+      DCL TREE$                        PTR;
+ 
+      DCL 1 SYMBOL_NODE                BASED     ALIGNED,
+            2 SYMBOL                   CHAR(6)   UNAL,
+            2 VALUE                    SBIN(18)  UNAL,
+            2 LCHILD$                  PTR       UNAL,
+            2 RCHILD$                  PTR       UNAL,
+            2 BF                       SBIN(2)   UNAL,
+            2 ABS_REL                  BIT(1)    UNAL,
+            2 EXT_LOC                  BIT(1)    UNAL,
+            2 DEF_UND                  BIT(1)    UNAL,
+            2 *(0:30)                  BIT(1)    UNAL;
+ 
+      DCL LCHILD$                      PTR;
+      DCL RCHILD$                      PTR;
+ 
+      DCL 1 LO_BUFFER                  STATIC,
+            2 SYMBOL                   CHAR(6),
+            2 *                        CHAR(3)   INIT('   '),
+            2 EXT_LOC                  CHAR(3),
+            2 *                        CHAR(1)   INIT('/'),
+            2 ABS_REL                  CHAR(3),
+            2 *                        CHAR(1)   INIT('/'),
+            2 DEF_UND                  CHAR(3),
+            2 *                        CHAR(3)   INIT('   '),
+            2 VALUE                    CHAR(6);
+      DCL LO_BUFFER_CHAR               REDEF LO_BUFFER CHAR(29);
+ 
+      DCL M$LO                         DCB;
+ 
+      %INCLUDE CP_6;
+ 
+      %FPT_WRITE (FPTN=LO_WRITE,
+                  BUF=LO_BUFFER_CHAR,
+                  DCB=M$LO);
+ 
+%EJECT;
+      IF TREE$ ~= ADDR(NIL) THEN
+         DO;
+            LCHILD$ = TREE$->SYMBOL_NODE.LCHILD$;
+            CALL IN_ORDER (LCHILD$);
+ 
+            LO_BUFFER.SYMBOL = TREE$->SYMBOL_NODE.SYMBOL;
+ 
+            IF TREE$->SYMBOL_NODE.EXT_LOC THEN
+               LO_BUFFER.EXT_LOC = 'Ext';
+            ELSE
+               LO_BUFFER.EXT_LOC = 'Loc';
+ 
+            IF TREE$->SYMBOL_NODE.ABS_REL THEN
+               LO_BUFFER.ABS_REL = 'Abs';
+            ELSE
+               LO_BUFFER.ABS_REL = 'Rel';
+ 
+            IF TREE$->SYMBOL_NODE.DEF_UND THEN
+               LO_BUFFER.DEF_UND = 'Def';
+            ELSE
+               LO_BUFFER.DEF_UND = 'Und';
+ 
+            CALL DECIMAL_TO_OCTAL (LO_BUFFER.VALUE, TREE$->SYMBOL_NODE.VALUE);
+            CALL M$WRITE (LO_WRITE);
+ 
+            RCHILD$ = TREE$->SYMBOL_NODE.RCHILD$;
+            CALL IN_ORDER (RCHILD$);
+            END;
+ 
+      RETURN;
+ 
+%EJECT;
+DECIMAL_TO_OCTAL: PROC (OCTAL_STRING, DECIMAL_SBIN);
+/*
+**
+**    This procedure takes a SBIN(18) decimal value and produces
+**    a string of the form "oooooo" from it.
+**
+*/
+      DCL OCTAL_STRING                 CHAR(6);
+      DCL OCTAL_REDEF(0:5)             REDEF OCTAL_STRING CHAR(1);
+ 
+      DCL DECIMAL_SBIN                 SBIN(18) HALIGNED;
+      DCL DECIMAL_REDEF(0:5)           REDEF DECIMAL_SBIN UBIN(3) UNAL;
+ 
+      DCL I                            UBIN;
+ 
+      DO I = 0 TO 5;
+         OCTAL_REDEF(I) = BINASC(DECIMAL_REDEF(I)+48);
+         END;
+ 
+END DECIMAL_TO_OCTAL;
+ 
+END IN_ORDER;

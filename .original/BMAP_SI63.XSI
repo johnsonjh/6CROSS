@@ -1,0 +1,17 @@
+/*M* BMAP INCLUDE FILES TO MAKE SYSTEM FILE */
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+/**/
+BMAP_COMMON: PROC;
+%INCLUDE B$JIT_C;
+%INCLUDE B$OBJECT_C;
+%INCLUDE BMAP_C;
+%INCLUDE B_ERRORS_C;
+%INCLUDE CP_6_C;
+%INCLUDE CP_6_SUBS;
+%INCLUDE XUO$OBJ_C;
+%INCLUDE XU_MACRO_C;
+END BMAP_COMMON;

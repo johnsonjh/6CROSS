@@ -1,0 +1,20 @@
+0001 L=         O=USE      t07:USE_BLOCK    v000001  | ".MAIN."/COMMA "1"/BLANK
+0002 L=START    O=LDA      t01:NON_EIS      v002350  | "X"/PLUS "1"/BLANK
+0003 L=         O=ADA      t01:NON_EIS      v000750  | "Y"/COMMA "2"/BLANK
+0004 L=         O=STA      t01:NON_EIS      v007550  | "Z"/LPAR "QU"/RPAR
+0005 L=         O=TRA      t01:NON_EIS      v007100  | "*"/PLUS "2"/BLANK
+0006 L=COUNT    O=EQU      t13:BOOL_EQU_SET v400000  | "5"/BLANK
+0007 L=         O=BSS      t24:BSS          v000000  | "COUNT"/BLANK
+0008 L=         O=DEC      t16:DEC_OCT      v000000  | "1"/COMMA "2"/COMMA "3"/BLANK
+0009 L=         O=OCT      t16:DEC_OCT      v000000  | "777"/COMMA "0"/BLANK
+0010 L=ARR      O=BLOCK    t07:USE_BLOCK    v000004  | "DATA"/COMMA "4"/BLANK
+0011 L=         O=EVEN     t11:BOUND        v000002
+0012 L=         O=VFD      t18:VFD_OPD      v000000  | "18"/DIV "X"/COMMA "18"/DIV "Y"/BLANK
+0013 L=DONE     O=NONOP    t00:IGNORE       v000000
+0014 L=         O=DUP      t19:DUP          v000000  | "2"/COMMA "1"/BLANK
+0015 L=         O=END      t09:END          v000000  | "START"/BLANK
+----
+passes=2 statements=28 records=34 errors=0 severity=0
+---- symbols (2) ----
+  DONE     v000000  DEF  opndtyp=1
+  START    v000000  DEF  opndtyp=1

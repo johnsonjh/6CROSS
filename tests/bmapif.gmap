@@ -1,0 +1,14 @@
+* BMAP phase-7 IF: IFE/IFG/IFL/INE compare two operands; if false the next card
+* is skipped.  Assembles OCT 1 (1=1), OCT 3 (1<2), OCT 5 (1<>2); skips OCT 2,4.
+       OUNAME IFTST
+       IFE    1,1
+       OCT    1
+       IFE    1,2
+       OCT    2
+       IFL    1,2
+       OCT    3
+       IFG    1,2
+       OCT    4
+       INE    1,2
+       OCT    5
+       END

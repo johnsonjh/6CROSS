@@ -1,0 +1,12 @@
+* TTL: MY PROGRAM TITLE
+                       |        TTL    MY PROGRAM TITLE
+                       |        OUNAME LCTEST
+0 000000  000000235000  |        LDA    0
+                       |        LIST   ON
+0 000003  000003236000  |        LDQ    3
+                       |        EJECT
+0 000004  000004756000  |        STQ    4
+                       |        END
+----
+passes=2 statements=17 records=28 errors=0 severity=0
+---- symbols (0) ----

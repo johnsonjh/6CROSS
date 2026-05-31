@@ -1,0 +1,17 @@
+       TITLE   SMOKE
+AC     EQU     1
+START  MOVE    1,VAL
+       ADD     2,@TAB(3)
+       JRST    START
+       CONO    4,200
+       HALTF
+       JSYS    100
+VAL    OCT     777
+TAB    DC      123
+       DC      7:8
+       BLOCK   4
+       Z
+       ENTRY   GO
+       EXTERN  OTHER
+GO     MOVE    1,OTHER
+       END     START

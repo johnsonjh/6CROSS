@@ -1,0 +1,8 @@
+* BMAP phase-7 DUP: "DUP ncards,nreps" duplicates the next ncards cards nreps
+* times.  Here the 2-card block (OCT 111 / OCT 222) is emitted 3 times.
+       OUNAME DUPTST
+       DUP    2,3
+       OCT    111
+       OCT    222
+       LDA    0
+       END

@@ -1,0 +1,14 @@
+   1                        |        OUNAME XREFT
+   2          =000000000005  | KON    EQU    5
+   3 0 000000  000005235000  | START  LDA    KON
+   4 0 000001  000005075000  |        ADA    KON
+   5 0 000002  000000755000  |        STA    START
+   6 0 000003  000003236000  | LOOP   LDQ    LOOP
+   7 0 000004  000000710000  |        TRA    START
+   8                        |        END
+----
+passes=2 statements=11 records=22 errors=0 severity=0
+---- cross-reference (3 symbols; *=definition) ----
+  KON      v000005  DEF  2* 3 4
+  LOOP     v000003  DEF  6*
+  START    v000000  DEF  3* 5 7

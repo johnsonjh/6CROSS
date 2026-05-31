@@ -1,0 +1,4 @@
+* phase-5 tail: PTR (NSA pointer) -- four operands packed via BDSCF 18|2|4|12.
+       PTR   1,2,3,4
+       PTR   100,0,0,7
+       END

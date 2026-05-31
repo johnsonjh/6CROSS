@@ -1,0 +1,172 @@
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+MSA8085: PROC MAIN NOAUTO;
+%INCLUDE CP_6;
+%LIST;
+%INCLUDE MSA_C1;
+    DCL TABLE0(0:255) CONSTANT         CHAR(4) INIT(
+        'NOP ','LXI ','STAX','INX ','INR ','DCR ','MVI ','RLC ',
+        '... ','DAD ','LDAX','DCX ','INR ','DCR ','MVI ','RRC ',
+        '... ','LXI ','STAX','INX ','INR ','DCR ','MVI ','RAL ',
+        '... ','DAD ','LDAX','DCX ','INR ','DCR ','MVI ','RAR ',
+        'RIM ','LXI ','SHLD','INX ','INR ','DCR ','MVI ','DAA ',
+        '... ','DAD ','LHLD','DCX ','INR ','DCR ','MVI ','CMA ',
+        'SIM ','LXI ','STA ','INX ','INR ','DCR ','MVI ','STC ',
+        '... ','DAD ','LDA ','DCX ','INR ','DCR ','MVI ','CMC ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','HLT ','MOV ',
+        'MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ','MOV ',
+        'ADD ','ADD ','ADD ','ADD ','ADD ','ADD ','ADD ','ADD ',
+        'ADC ','ADC ','ADC ','ADC ','ADC ','ADC ','ADC ','ADC ',
+        'SUB ','SUB ','SUB ','SUB ','SUB ','SUB ','SUB ','SUB ',
+        'SBB ','SBB ','SBB ','SBB ','SBB ','SBB ','SBB ','SBB ',
+        'ANA ','ANA ','ANA ','ANA ','ANA ','ANA ','ANA ','ANA ',
+        'XRA ','XRA ','XRA ','XRA ','XRA ','XRA ','XRA ','XRA ',
+        'ORA ','ORA ','ORA ','ORA ','ORA ','ORA ','ORA ','ORA ',
+        'CMP ','CMP ','CMP ','CMP ','CMP ','CMP ','CMP ','CMP ',
+        'RNZ ','POP ','JNZ ','JMP ','CNZ ','PUSH','ADI ','RST ',
+        'RZ  ','RET ','JZ  ','... ','CZ  ','CALL','ACI ','RST ',
+        'RNC ','POP ','JNC ','OUT ','CNC ','PUSH','SUI ','RST ',
+        'RC  ','... ','JC  ','IN  ','CC  ','... ','SBI ','RST ',
+        'RPO ','POP ','JPO ','XTHL','CPO ','PUSH','ANI ','RST ',
+        'RPE ','PCHL','JPE ','XCHG','CPE ','... ','XRI ','RST ',
+        'RP  ','POP ','JP  ','DI  ','CP  ','PUSH','ORI ','RST ',
+        'RM  ','SPHL','JM  ','EI  ','CM  ','... ','CPI ','RST ');
+ 
+    DCL TABLE1(0:255) CONSTANT UNAL    SBIN BYTE INIT(
+          1,  3,  1,  1,  1,  1,  2,  1,  0,  1,  1,  1,  1,  1,  2,  1,
+          0,  3,  1,  1,  1,  1,  2,  1,  0,  1,  1,  1,  1,  1,  2,  1,
+          1,  3, 83,  1,  1,  1,  2,  1,  0,  1, 75,  1,  1,  1,  2,  1,
+          1,  3, 83,  1,  1,  1,  2,  1,  0,  1, 75,  1,  1,  1,  2,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1, 65,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+          1,  1, 27, 35, 43,  1,  2, 57,  1, 65, 27,  0, 43, 43,  2, 57,
+          1,  1, 27,  2, 43,  1,  2, 57,  1,  0, 27,  2, 43,  0,  2, 57,
+          1,  1, 27,  1, 43,  1,  2, 57,  1, 65, 27,  1, 43,  0,  2, 57,
+          1,  1, 27,  1, 43,  1,  2, 57,  1,  1, 27,  1, 43,  0,  2, 57);
+ 
+    DCL SP1(0:7) CONSTANT UNAL         CHAR(1) INIT
+        ('B','C','D','E','H','L','M','A');
+ 
+    DCL SP2(0:3) CONSTANT UNAL         CHAR(2) INIT
+        ('B ','D ','H ','SP');
+ 
+    DCL SP3(0:3) CONSTANT UNAL         CHAR(3) INIT
+        ('B  ','D  ','H  ','PSW');
+ 
+%EQU JSR='C';
+%EQU JMP='J';
+%EQU BY1=1;
+%EQU BY2=256;
+ 
+%EJECT;
+%INCLUDE MSA_C2;
+    MEBUF='Hello, MSA8085 here (09/01/81)';
+%INCLUDE MSA_C3;
+%INCLUDE MSA_C4;
+        SUBSTR(OUBUF,9,4)=TABLE0(I);
+        DO CASE(I/64);
+        CASE(0); /* 00-3F */
+            DO CASE(MOD(I,16));
+            CASE(0,7,8,15); /* 00,07,08,0F,10,17,18,1F,20,27,28,2F,30,37,38,3F */
+                GOTO NEXTADRS;
+            CASE(1); /* 01, 11, 21, 31 */
+                SUBSTR(OUBUF,K,2)=SP2(I/16);
+                K=K+1;
+                IF SUBSTR(OUBUF,K,1)~=' ' THEN
+                    K=K+1;
+                SUBSTR(OUBUF,K,1)=',';
+                K=K+1;
+                CALL NEXTTWO(I);
+                CALL CVX(K,I);
+                GOTO NEXTADRS;
+            CASE(2,10); /* 02, 0A, 12, 1A, 22, 2A, 32, 3A */
+                IF I/16<2 THEN
+                    SUBSTR(OUBUF,K,1)=SP2(I/16);
+                ELSE
+                    CALL MEMREF(K);
+                GOTO NEXTADRS;
+            CASE(3,9,11); /* 03,09,0B,13,19,1B,23,29,2B,33,39,3B */
+                SUBSTR(OUBUF,K,2)=SP2(I/16);
+                GOTO NEXTADRS;
+            CASE(4,5,12,13); /* 04,05,0C,0D,14,15,1C,1D,24,25,2C,2D,34,35,3C,3D */
+                SUBSTR(OUBUF,K,1)=SP1(MOD(I/8,8));
+                GOTO NEXTADRS;
+            CASE(6,14); /* 06, 0E, 16, 1E, 26, 2E, 36, 3E */
+                CALL INSERT(OUBUF,K,4,SP1(MOD(I/8,8)),',$');
+                K=K+3;
+                CALL NEXTONE(I);
+                CALL PUTBYTE(K,I);
+                GOTO NEXTADRS;
+            END;
+        CASE(1); /* 40-4F */
+            IF I~=112 THEN
+                CALL INSERT(OUBUF,K,3,SP1(MOD(I/8,8)),',',SP1(MOD(I,8)));
+            GOTO NEXTADRS;
+        CASE(2); /* 80-BF */
+            SUBSTR(OUBUF,K,1)=SP1(MOD(I,8));
+            GOTO NEXTADRS;
+        CASE(3); /* C0-FF */
+            DO CASE(MOD(I,16));
+            CASE(0,8); /* C0, C8, D0, D8, E0, E8, F0, F8 */
+                GOTO NEXTADRS;
+            CASE(1,5); /* C1, C5, D1, D5, E1, E5, F1, F5 */
+                SUBSTR(OUBUF,K,3)=SP3(MOD(I/16,4));
+                GOTO NEXTADRS;
+            CASE(2,4,10,12); /* C2,C4,CA,CC,D2,D4,DA,DC,E2,E4,EA,EC,F2,F4,FA,FC */
+                CALL MEMREF(K);
+                GOTO NEXTADRS;
+            CASE(3,9,11,13); /* C3,C9,CB,CD,D3,D9,DB,DD,E3,E9,EB,ED,F3,F9,FB,FD */
+                IF I=195 OR I=205 THEN
+                    CALL MEMREF(K);
+                IF I=211 OR I=219 THEN DO;
+                    SUBSTR(OUBUF,K,2)='$';
+                    K=K+1;
+                    CALL NEXTONE(I);
+                    CALL PUTBYTE(K,I);
+                END;
+                GOTO NEXTADRS;
+            CASE(6,14); /* C6, CE, D6, DE, E6, EE, F6, FE */
+                SUBSTR(OUBUF,K,2)='$';
+                K=K+1;
+                CALL NEXTONE(I);
+                CALL PUTBYTE(K,I);
+                GOTO NEXTADRS;
+            CASE(7,15); /* C7, CF, D7, DF, E7, EF, F7, FF */
+                SUBSTR(OUBUF,K,1)=BITASC(ASCBIT('0')|BINBIT(MOD(I/8,8),9));
+                GOTO NEXTADRS;
+            END;
+        END;
+%INCLUDE MSA_C5;
+END;
+%EOD;
+/*T***********************************************************/
+/*T*                                                         */
+/*T* Copyright (c) Bull HN Information Systems Inc., 1989    */
+/*T*                                                         */
+/*T***********************************************************/
+BREAK: PROC ASYNC;
+ 
+%INCLUDE CP_6;
+%FPT_TRMPRG(RSTBRK=YES);
+ 
+    DCL BROKEN STATIC SYMDEF           SBIN;
+ 
+    BROKEN=BROKEN+1;
+    CALL M$TRMPRG(FPT_TRMPRG);
+    RETURN;
+END;

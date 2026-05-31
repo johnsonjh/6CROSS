@@ -1,0 +1,6 @@
+        ORG 200H
+        LD A,5
+        LD B,A
+        NOP
+        HALT
+        END

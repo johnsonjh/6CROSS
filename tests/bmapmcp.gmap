@@ -1,0 +1,6 @@
+* MICROP: edit micro-ops packed 4 per word (QFORM 9|9|9|9).  O = octal digits,
+* H/A = a BCD/ASCII char, a leading repeat count, and (MOPNAME value) forms.
+       MICROP O1,O2,O3,O4
+       MICROP O123,HA,(ENF,5)
+       MICROP 2HAB,O7
+       END

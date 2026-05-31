@@ -1,0 +1,8 @@
+* BMAP DATE test (type 44): the date pseudo-op emits one BCD date word built
+* from M$TIME's "MM/DD/YY" string (INSERT(DBUF,6,2,DBUF) + XLATEV 6 BCD chars).
+* run_tests.sh sets SOURCE_DATE_EPOCH=1614816000 (2021-03-04 UTC) so the output
+* is reproducible: DBUF "03/04/21" -> "03/04031" -> SUBSTR(,2) "/04031" ->
+* BCD(/ 0 4 0 3 1) = 0o610004000301.
+       OUNAME DATETST
+       DATE
+       END

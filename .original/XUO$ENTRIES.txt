@@ -1,0 +1,55 @@
+
+
+15:24 JUL 28 '97 XUO$ENTRIES.:E05SI                                        1    
+    1      /*M*     XUO$ENTRIES    --   Entry Definitions For XUO$xxx Routines */
+    2      /*T***********************************************************/
+    3      /*T*                                                         */
+    4      /*T* Copyright (c) Bull HN Information Systems Inc., 1997    */
+    5      /*T*                                                         */
+    6      /*T***********************************************************/
+    7      /*X*     DMC,DFC   */
+    8      DCL XUO$BUFINIT ENTRY(17);
+    9      DCL XUO$OUINIT ENTRY(11) ALTRET;
+   10      DCL XUO$DNAME ENTRY(2);
+   11      DCL XUO$RNAME ENTRY(2);
+   12      DCL XUO$DBGNAME ENTRY(2);
+   13      DCL XUO$SECTBUILD ENTRY(6) ALTRET;
+   14      DCL XUO$SECTNAME ENTRY(2) ALTRET;
+   15      DCL XUO$SECTSIZE ENTRY(2) ALTRET;
+   16      DCL XUO$EDEF ENTRY(8);
+   17      DCL XUO$EREF ENTRY(7);
+   18      DCL XUO$SDEF ENTRY(3);
+   19      DCL XUO$SDEF_CONST ENTRY(2);
+   20      DCL XUO$SREF ENTRY(4);
+   21      DCL XUO$SEGDEF ENTRY(3);
+   22      DCL XUO$SEGDEF_CONST ENTRY(2);
+   23      DCL XUO$SEGREF ENTRY(5);
+   24      DCL XUO$INTNTRY ENTRY(9);
+   25      DCL XUO$EXST ENTRY(9);
+   26      DCL XUO$EXSTNUM ENTRY(1);
+   27      DCL XUO$VREBL ENTRY(19);
+   28      DCL XUO$VREBLNUM ENTRY(1);
+   29      DCL XUO$VREBL_CONT ENTRY(9);
+   30      DCL XUO$VREBL_CONT_ADJ ENTRY(11);
+   31      DCL XUO$VREBL_CONT_ET ENTRY(3);
+   32      DCL XUO$VREBL_CONT_SET ENTRY(5);
+   33      DCL XUO$LOGBLKALLOC ENTRY(1) ALTRET;
+   34      DCL XUO$LOGBLKEXSTINIT ENTRY(5) ALTRET;
+   35      DCL XUO$LOGBLKEXSTTERM ENTRY(3) ALTRET;
+   36      DCL XUO$LOGBLKVREBLINIT ENTRY(2) ALTRET;
+   37      DCL XUO$LOGBLKVREBLTERM ENTRY(2)ALTRET;
+15:24 JUL 28 '97 XUO$ENTRIES.:E05SI                                        2    
+   38      DCL XUO$LOGBLKTERM ENTRY ALTRET;
+   39      DCL XUO$LOGBLKNOAUTO ENTRY (3) ALTRET;
+   40      DCL XUO$HEADSTART ENTRY(3);
+   41      DCL XUO$HEADNAME ENTRY(1);
+   42      DCL XUO$HEAD_SEVERITY ENTRY(1);
+   43      DCL XUO$OUTERM ENTRY;
+   44      DCL XUO$PRGM ENTRY(3) ALTRET;
+   45      DCL XUO$PRGMDBL ENTRY(3) ALTRET;
+   46      DCL XUO$PRGM_TEXT ENTRY(3) ALTRET;
+   47      DCL XUO$PRGMDBL_TEXT ENTRY(3) ALTRET;
+   48      DCL XUO$RELOC ENTRY(9) ALTRET;
+   49      DCL XUO$RELOC_TEXT ENTRY (9) ALTRET;
+   50      DCL XUO$FRWD_REF ENTRY(3);
+

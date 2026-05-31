@@ -1,0 +1,8 @@
+        ORG 100H
+        LD DE,MSG
+        LD C,9
+        CALL 5
+        RET
+MSG     DEFM 'HELLO FROM CP-6 ASMZ80'
+        DEFB 13,10,'$'
+        END

@@ -1,0 +1,11 @@
+* phase-6 part-2 relocation test: a section-relative (relocatable) program.
+* Each address that names a label generates a B$RELOC directive (section 0,
+* RELOCOP add); STA START*2 additionally carries EVALOP=MULT/VALUE=2, so its
+* directive is the 3-word general form.  DATA's OCT word is absolute (no reloc).
+       OUNAME RELTEST
+START  LDA   DATA
+       ADA   DATA+1
+       STA   START*2
+DATA   OCT   123
+       TRA   START
+       END

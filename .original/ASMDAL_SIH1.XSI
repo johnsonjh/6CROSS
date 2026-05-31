@@ -1,0 +1,42 @@
+.*M*
+HELP file for ASMDAL
+.*T*
+ **************************************************************
+ *                                                            *
+ *  Copyright (c) Bull HN Information Systems Inc., 1989      *
+ *                                                            *
+ **************************************************************
+.*A*                                                                           
+ASMDAL is a sample two-pass assembler for a subset of DAL (DEC Assembly
+Language) that can be used for educational purposes.
+.*B*
+Syntax:
+ 
+      !ASMDAL.X [source] {TO|ON|OVER|INTO} [object] [,listing]
+ 
+   where:
+      source  - source file (M$SI)
+      object  - object file (M$OU)
+      listing - listing file (M$LO)
+ 
+Note: Code generated from this assembler CANNOT be used on a DEC system.
+.*K* XINDEX
+ASMDAL.X
+.*R*
+AID=PROGRAMMING_LANGUAGE
+.*R*
+AID=EDUCATIONAL
+.*R*
+CROSS_ASSEMBLER
+.*R*
+.*K* XINDEX_ABSTRACT
+TOOL=ASMDAL
+.*R*
+A sample two-pass assembler for DAL (DEC Assembly Language) that can be used
+for educational purposes.
+.*K* CHANGES Changes changes
+840621
+.*R*
+Installed in LADC X account
+.*K* OWNER
+Dave Wagner, LADC

@@ -1,0 +1,11 @@
+* BMAP phase-7 IDRP: "IDRP #1 <body> IDRP" repeats the body once per comma
+* element of list-valued argument #1.  EMIT (11,22,33) -> OCT 11/22/33 (octal).
+       OUNAME IDRPTST
+EMIT   MACRO
+       IDRP   #1
+       OCT    #1
+       IDRP
+       ENDM
+       EMIT   (11,22,33)
+       LDA    0
+       END

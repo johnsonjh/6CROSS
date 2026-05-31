@@ -1,0 +1,11 @@
+* BMAP phase-5 EDEC test (decimal-edit literals -> .obj byte-walk).
+* Each EDEC field is <count><A|P>[L]<number>: A=9-bit ASCII, P=4-bit packed.
+*   4A123  -> one 9-bit word, leading-zero filled to width 4.
+*   5P+12  -> one 4-bit packed word, '+' overpunch (014), 2 leading zeros.
+*   6A1.5  -> floating: '+' sign byte, fill, digits, trailing scale byte (two
+*             words); DP=-1 -> scale 0377.
+       OUNAME EDECTST
+       EDEC   4A123
+       EDEC   5P+12
+       EDEC   6A1.5
+       END

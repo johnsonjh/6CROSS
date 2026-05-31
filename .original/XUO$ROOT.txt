@@ -1,0 +1,513 @@
+VERSION E05
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:1    
+        1        1        /*M*     XUO$OUROOTDATA -- THIS MODULE CONTAINS ALL DATA RELATING TO THE OBJECT UNIT
+                 1        . */
+        2        2        /*T***********************************************************/
+        3        3        /*T*                                                         */
+        4        4        /*T* Copyright (c) Bull HN Information Systems Inc., 1997    */
+        5        5        /*T*                                                         */
+        6        6        /*T***********************************************************/
+        7        7        /*X* PLM=4,STI=0,IND=4,CTI=3,DCI=4,ECI=4,CSI=0,THI=0,DTI=0,
+        8        8             ENI=4,CLM=0,SQB,NTB,MOC,CCI=3,NLB,MCL=0,EDMC */
+        9        9        /*P*     NAME:     XUO$ROOT
+       10       10                 PURPOSE:  THE XUO$ROOT MODULE IS A REPOSITORY
+       11       11                      FOR ALL DATA REQUIRED BY THE OBJECT CODE
+       12       12                      ROUTINES.
+       13       13        */
+       14       14         /*
+       15       15            */
+       16       16        XUO$OUROOTDATA: PROC;
+       17       17         /*
+       18       18            */
+       19       19        %INCLUDE ZVA_SYSTEM_FILE;
+       20     6270        %PAGE (ARG=INCLUDES);
+
+              6283    1   /*******************************************************************************
+              6284    1   *                                                                              *
+              6285    1   *        INCLUDES              INCLUDES                                            *
+              6286    1   *                                                                              *
+              6287    1   *******************************************************************************/
+
+       21     6291        %INCLUDE B$OBJECT_C;
+       22     9721        %INCLUDE XUO$OBJ_C;
+       23    10131        %PAGE (ARG=HEAD DATA);
+
+             10144    1   /*******************************************************************************
+             10145    1   *                                                                              *
+             10146    1   *        HEAD DATA              HEAD DATA                                          *
+             10147    1   *                                                                              *
+             10148    1   *******************************************************************************/
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:2    
+
+       24    10152    1   DCL B$OUHEAD$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       25    10153        %PAGE (ARG=SUBS);
+
+             10166    1   /*******************************************************************************
+             10167    1   *                                                                              *
+             10168    1   *        SUBS              SUBS                                                  *
+             10169    1   *                                                                              *
+             10170    1   *******************************************************************************/
+
+       26    10174        %COMPILERIDSUBS;
+       27    10190        %PAGE (ARG=KEYS);
+
+             10203    1   /*******************************************************************************
+             10204    1   *                                                                              *
+             10205    1   *        KEYS              KEYS                                                  *
+             10206    1   *                                                                              *
+             10207    1   *******************************************************************************/
+
+       28    10211        %B$HEADKEY;
+       29    10223        %B$OUKEY;
+       30    10259         /*THE following pointers point to the keys built in the init routine*/
+       31    10260    1   DCL B$PRGKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       32    10261    1   DCL B$PRGKEY_1$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       33    10262    1   DCL B$PRGKEY_2$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       34    10263    1   DCL B$RELKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       35    10264    1   DCL B$RELKEY_1$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       36    10265    1   DCL B$RELKEY_2$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       37    10266    1   DCL B$FRWDKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       38    10267        %PAGE (ARG=RECORD POINTERS/DATA);
+
+             10280    1   /*******************************************************************************
+             10281    1   *                                                                              *
+             10282    1   *        RECORD POINTERS/DATA              RECORD POINTERS/DATA                    *
+             10283    1   *                                                                              *
+             10284    1   *******************************************************************************/
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:3    
+       39    10288        %B_DNAME_POINTERS (STCLASS=STATIC);
+       40    10308        %B_RNAME_POINTERS (STCLASS=STATIC);
+       41    10328        %B_DBGNAME_POINTERS (STCLASS=STATIC);
+       42    10348        %B_SECTION_POINTERS (STCLASS=STATIC);
+       43    10367        %B_EDEF_POINTERS (STCLASS=STATIC);
+       44    10387        %B_EREF_POINTERS (STCLASS=STATIC);
+       45    10407        %B_SDEF_POINTERS (STCLASS=STATIC);
+       46    10427        %B_SREF_POINTERS (STCLASS=STATIC);
+       47    10447        %B_SEGDEF_POINTERS (STCLASS=STATIC);
+       48    10467        %B_SEGREF_POINTERS (STCLASS=STATIC);
+       49    10487        %B_PROGRAM_POINTERS (STCLASS=STATIC);
+       50    10502        %B_RELOCATION_POINTERS (STCLASS=STATIC);
+       51    10517        %B_LOGBLK_POINTERS (STCLASS=STATIC);
+       52    10539        %B_INTNTRY_POINTERS (STCLASS=STATIC);
+       53    10559        %B_EXST_POINTERS (STCLASS=STATIC);
+       54    10579        %B_VREBL_POINTERS (STCLASS=STATIC);
+       55    10599        %B_MULTIBUF_VARS (STCLASS=STATIC);
+       56    10626        %B_TRUST_ME (STCLASS=STATIC);
+       57    10640        %BUFINIT_CALLED (STCLASS=STATIC);
+       58    10654        %PAGE (ARG=FPTS);
+
+             10667    1   /*******************************************************************************
+             10668    1   *                                                                              *
+             10669    1   *        FPTS              FPTS                                                  *
+             10670    1   *                                                                              *
+             10671    1   *******************************************************************************/
+
+       59    10675         /*
+       60    10676         The following fpt is used to get dynamic space for the ou
+       61    10677         */
+       62    10678        %FPT_GDS (FPTN=XUO_OU_GDS_FDS,STCLASS=STATIC SYMDEF);
+       63    10694         /*
+       64    10695         The following ptr locates the fpt used to write the head record
+       65    10696         */
+       66    10697    1   DCL XUO_HEAD_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       67    10698         /*
+       68    10699         The following ptrs locate the fpts used to write program/relocation records
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:4    
+       69    10700         */
+       70    10701    1   DCL XUO_PROGRAM_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       71    10702         /**/
+       72    10703         /**/
+       73    10704    1   DCL XUO_RELOCATION_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       74    10705         /**/
+       75    10706    1   DCL XUO_RELOCATION_READ$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       76    10707         /**/
+       77    10708    1   DCL XUO_RELOCATION_REWRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       78    10709         /*
+       79    10710         The following ptr locates the fpt used to write non program/reloc records
+       80    10711         */
+       81    10712    1   DCL XUO_OU_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       82    10713         /*
+       83    10714         The following ptr locates the fpt used to open the object unit
+       84    10715         */
+       85    10716    1   DCL XUO_OU_OPEN$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       86    10717         /*
+       87    10718         The following ptr locates the fpt used to close the object unit
+       88    10719         */
+       89    10720    1   DCL XUO_OU_CLOSE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       90    10721        %PAGE (ARG=MISC DATA);
+
+             10734    1   /*******************************************************************************
+             10735    1   *                                                                              *
+             10736    1   *        MISC DATA              MISC DATA                                          *
+             10737    1   *                                                                              *
+             10738    1   *******************************************************************************/
+
+       91    10742    1   DCL XUO_OU_DCB_NUMBER SBIN STATIC SYMDEF INIT(DCBNUMNIL);
+       92    10743    1   DCL XUO_CLOSE_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('1'B);
+       93    10744    1   DCL XUO_ERROR_ROUTINE EPTR STATIC SYMDEF INIT(ENTADDR(NIL));
+       94    10745    1   DCL XUO_SCHEMA_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('1'B);
+       95    10746    1   DCL 1 XUO_VERSION_NUMBER STATIC SYMDEF ALIGNED,
+       96    10747    1         2 LETTER CHAR(1) UNAL INIT('B'),
+       97    10748    1         2 NUMBER UBIN(9) UNAL INIT(511);
+       98    10749    1   DCL XUO_OU_UTS UBIN STATIC SYMDEF INIT(567890);
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:5    
+       99    10750    1   DCL XUO_WORDSIZE UBIN STATIC SYMDEF INIT(36);
+      100    10751    1   DCL XUO_CHARSIZE UBIN STATIC SYMDEF INIT(9);
+      101    10752    1   DCL XUO_OU_WRITE_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('0'B);
+      102    10753    1   DCL XUO_MAXIMUM_SEVERITY UBIN STATIC SYMDEF INIT(0);
+      103    10754    1   DCL XUO_COMPILER_ID UBIN STATIC SYMDEF INIT(%PL6ID);
+      104    10755    1   DCL XUO_MOST_RECENT_SECTION SBIN WORD STATIC SYMDEF INIT (-1);
+      105    10756        %VLR_GDS(FPTN=XUO_OU_GDS_RESULTS,STCLASS=STATIC SYMDEF,LOGSIZE=1,REALSIZE=1);
+      106    10784         /*
+      107    10785            */
+      108    10786    1       RETURN;
+      109    10787
+      110    10788    1   END XUO$OUROOTDATA;
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:6    
+--  Include file information  --
+
+   XUO$OBJ_C.:E05TOU  is referenced.
+   B$OBJECT_C.:E05TOU  is referenced.
+   CP_6_SUBS.:E05TOU  is referenced.
+   CP_6_C.:E05TOU  is referenced.
+   CP_6.:E05TOU  cannot be made into a system file and is referenced.
+   ZVA_FLAGS.:TOOLE04  is referenced.
+   ZVA_SYSTEM_FILE.:TOOLE04  is referenced.
+      No diagnostics issued in procedure XUO$OUROOTDATA.
+
+   Procedure XUO$OUROOTDATA requires 3 words for executable code.
+   Procedure XUO$OUROOTDATA requires 4 words of local(AUTO) storage.
+
+    No errors detected in file XUO$ROOT.:E05TSI    .
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:7    
+
+ Object Unit name= XUO$OUROOTDATA                             File name= XUO$ROOT.:E05TOU
+ UTS= JUL 30 '97 09:35:37.88 WED                              Compiler= PL-6/E31         Sev=      00
+ SharedLib= :SHARED_SYSTEM                                    Alt SharedLib=
+
+
+    ****  Control sections  ****
+
+ Sect   Type Bound  Init  Size OctSiz  Section name(segment info)
+    0   DCB   even  none     0      0  M$UC
+    1   Data  even  none   144    220  XUO$OUROOTDATA
+    2   Proc  even  none     3      3  XUO$OUROOTDATA
+
+    ****  Entry defs  ****
+
+                              Check   Calling
+                             calling  sequence
+  Sect OctLoc Primary Altret sequence   type   Parms  Name
+     2      0   yes            yes      Std        0  XUO$OUROOTDATA
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:8    
+
+  ****  Data defs  ****
+
+ Sect OctLoc  Name                           Sect OctLoc  Name
+    1      0  B$OUHEAD$                          1      1  B$HEADKEY
+    1     12  B$OUKEY                            1     14  B$PRGKEY$
+    1     15  B$PRGKEY_1$                        1     16  B$PRGKEY_2$
+    1     17  B$RELKEY$                          1     20  B$RELKEY_1$
+    1     21  B$RELKEY_2$                        1     22  B$FRWDKEY$
+    1     23  B_DNAME_BASE$                      1     24  B_DNAME_CUR$
+    1     25  B_DNAME_END$                       1     26  B_DNAME_COUNT
+    1     27  B_DNAME_PAGE                       1     30  B_DNAME_PAGE_SIZE
+    1     31  B_RNAME_BASE$                      1     32  B_RNAME_CUR$
+    1     33  B_RNAME_END$                       1     34  B_RNAME_COUNT
+    1     35  B_RNAME_PAGE                       1     36  B_RNAME_PAGE_SIZE
+    1     37  B_DBGNAME_BASE$                    1     40  B_DBGNAME_CUR$
+    1     41  B_DBGNAME_END$                     1     42  B_DBGNAME_COUNT
+    1     43  B_DBGNAME_PAGE                     1     44  B_DBGNAME_PAGE_SIZE
+    1     45  B_SECTION_BASE$                    1     46  B_SECTION_CUR$
+    1     47  B_SECTION_END$                     1     50  B_SECTION_COUNT
+    1     51  B_SECTION_PAGE_SIZE                1     52  B_EDEF_BASE$
+    1     53  B_EDEF_CUR$                        1     54  B_EDEF_END$
+    1     55  B_EDEF_COUNT                       1     56  B_EDEF_PAGE
+    1     57  B_EDEF_PAGE_SIZE                   1     60  B_EREF_BASE$
+    1     61  B_EREF_CUR$                        1     62  B_EREF_END$
+    1     63  B_EREF_COUNT                       1     64  B_EREF_PAGE
+    1     65  B_EREF_PAGE_SIZE                   1     66  B_SDEF_BASE$
+    1     67  B_SDEF_CUR$                        1     70  B_SDEF_END$
+    1     71  B_SDEF_COUNT                       1     72  B_SDEF_PAGE
+    1     73  B_SDEF_PAGE_SIZE                   1     74  B_SREF_BASE$
+    1     75  B_SREF_CUR$                        1     76  B_SREF_END$
+    1     77  B_SREF_COUNT                       1    100  B_SREF_PAGE
+    1    101  B_SREF_PAGE_SIZE                   1    102  B_SEGDEF_BASE$
+    1    103  B_SEGDEF_CUR$                      1    104  B_SEGDEF_END$
+    1    105  B_SEGDEF_COUNT                     1    106  B_SEGDEF_PAGE
+    1    107  B_SEGDEF_PAGE_SIZE                 1    110  B_SEGREF_BASE$
+    1    111  B_SEGREF_CUR$                      1    112  B_SEGREF_END$
+    1    113  B_SEGREF_COUNT                     1    114  B_SEGREF_PAGE
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:9    
+    1    115  B_SEGREF_PAGE_SIZE                 1    116  B_PROGRAM_PAGE_SIZE
+    1    117  B_RELOCATION_PAGE_SIZE             1    120  B_LOGBLK_BASE$
+    1    121  B_LOGBLK_ENTRY0$                   1    122  B_LOGBLK_ENTRY1$
+    1    123  B_LOGBLK_CUR$                      1    124  B_LOGBLK_END$
+    1    125  B_LOGBLK_COUNT                     1    126  B_LOGBLK_PAGE
+    1    127  B_LOGBLK_PAGE_SIZE                 1    130  B_INTNTRY_BASE$
+    1    131  B_INTNTRY_CUR$                     1    132  B_INTNTRY_END$
+    1    133  B_INTNTRY_COUNT                    1    134  B_INTNTRY_PAGE
+    1    135  B_INTNTRY_PAGE_SIZE                1    136  B_EXST_BASE$
+    1    137  B_EXST_CUR$                        1    140  B_EXST_END$
+    1    141  B_EXST_COUNT                       1    142  B_EXST_PAGE
+    1    143  B_EXST_PAGE_SIZE                   1    144  B_VREBL_BASE$
+    1    145  B_VREBL_CUR$                       1    146  B_VREBL_END$
+    1    147  B_VREBL_COUNT                      1    150  B_VREBL_PAGE
+    1    151  B_VREBL_PAGE_SIZE                  1    152  LRU_VECTOR
+    1    154  PTR2_SECTION_ARRAY$                1    155  B_NUMBER_OF_SECTIONS
+    1    156  B_NUMBER_OF_BUFFERS                1    157  B_TRUST_ME
+    1    160  BUFINIT_CALLED                     1    162  XUO_OU_GDS_FDS
+    1    170  XUO_HEAD_WRITE$                    1    171  XUO_PROGRAM_WRITE$
+    1    172  XUO_RELOCATION_WRITE$              1    173  XUO_RELOCATION_READ$
+    1    174  XUO_RELOCATION_REWRITE$            1    175  XUO_OU_WRITE$
+    1    176  XUO_OU_OPEN$                       1    177  XUO_OU_CLOSE$
+    1    200  XUO_OU_DCB_NUMBER                  1    201  XUO_CLOSE_REQUIRED
+    1    202  XUO_ERROR_ROUTINE                  1    203  XUO_SCHEMA_REQUIRED
+    1    204  XUO_VERSION_NUMBER                 1    205  XUO_OU_UTS
+    1    206  XUO_WORDSIZE                       1    207  XUO_CHARSIZE
+    1    210  XUO_OU_WRITE_REQUIRED              1    211  XUO_MAXIMUM_SEVERITY
+    1    212  XUO_COMPILER_ID                    1    213  XUO_MOST_RECENT_SECTION
+    1    214  XUO_OU_GDS_RESULTS
+
+  ****  Entry refs  ****
+
+         Check        Calling
+        calling       sequence
+Altret sequence SRef   type   Args  Name
+                       nStd      0 X66_AUTO_0
+                       nStd      0 X66_ARET
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:10   
+
+  ****  Data refs  ****
+
+  Flags:  r = read only, s = secondary
+Flgs Name                             Flgs Name                             Flgs Name
+     M$UC
+
+  ****  Segment refs  ****
+
+  Flags:  r = read only, s = secondary
+Flgs Name                             Flgs Name                             Flgs Name
+     NULLSID                               ISSID
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:11   
+
+
+        1        1        /*M*    XUO$OUROOTDATA -- THIS MODULE CONTAINS ALL DATA RELATING TO THE OBJECT UNIT
+                 1        . */
+        2        2        /*T***********************************************************/
+        3        3        /*T*                                                         */
+        4        4        /*T* Copyright (c) Bull HN Information Systems Inc., 1997    */
+        5        5        /*T*                                                         */
+        6        6        /*T***********************************************************/
+        7        7        /*X* PLM=4,STI=0,IND=4,CTI=3,DCI=4,ECI=4,CSI=0,THI=0,DTI=0,
+        8        8             ENI=4,CLM=0,SQB,NTB,MOC,CCI=3,NLB,MCL=0,EDMC */
+        9        9        /*P*     NAME:     XUO$ROOT
+       10       10                 PURPOSE:  THE XUO$ROOT MODULE IS A REPOSITORY
+       11       11                      FOR ALL DATA REQUIRED BY THE OBJECT CODE
+       12       12                      ROUTINES.
+       13       13        */
+       14       14         /*
+       15       15            */
+       16       16        XUO$OUROOTDATA: PROC;
+
+     16  2 000000   000000 700200 xent  XUO$OUROOTD* TSX0  ! X66_AUTO_0
+         2 000001   000004 000000                    ZERO    4,0
+
+       17       17         /*
+       18       18            */
+       19       19        %INCLUDE ZVA_SYSTEM_FILE;
+       20     6270        %PAGE (ARG=INCLUDES);
+
+              6283    1   /*******************************************************************************
+              6284    1   *                                                                              *
+              6285    1   *        INCLUDES              INCLUDES                                           *
+              6286    1   *                                                                              *
+              6287    1   *******************************************************************************/
+
+       21     6291        %INCLUDE B$OBJECT_C;
+       22     9721        %INCLUDE XUO$OBJ_C;
+       23    10131        %PAGE (ARG=HEAD DATA);
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:12   
+             10144    1   /*******************************************************************************
+             10145    1   *                                                                              *
+             10146    1   *        HEAD DATA              HEAD DATA                                         *
+             10147    1   *                                                                              *
+             10148    1   *******************************************************************************/
+
+       24    10152    1   DCL B$OUHEAD$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       25    10153        %PAGE (ARG=SUBS);
+
+             10166    1   /*******************************************************************************
+             10167    1   *                                                                              *
+             10168    1   *        SUBS              SUBS                                                  *
+             10169    1   *                                                                              *
+             10170    1   *******************************************************************************/
+
+       26    10174        %COMPILERIDSUBS;
+       27    10190        %PAGE (ARG=KEYS);
+
+             10203    1   /*******************************************************************************
+             10204    1   *                                                                              *
+             10205    1   *        KEYS              KEYS                                                  *
+             10206    1   *                                                                              *
+             10207    1   *******************************************************************************/
+
+       28    10211        %B$HEADKEY;
+       29    10223        %B$OUKEY;
+       30    10259         /*THE following pointers point to the keys built in the init routine*/
+       31    10260    1   DCL B$PRGKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       32    10261    1   DCL B$PRGKEY_1$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       33    10262    1   DCL B$PRGKEY_2$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       34    10263    1   DCL B$RELKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       35    10264    1   DCL B$RELKEY_1$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       36    10265    1   DCL B$RELKEY_2$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       37    10266    1   DCL B$FRWDKEY$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       38    10267        %PAGE (ARG=RECORD POINTERS/DATA);
+
+             10280    1   /*******************************************************************************
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:13   
+             10281    1   *                                                                              *
+             10282    1   *        RECORD POINTERS/DATA              RECORD POINTERS/DATA                   *
+             10283    1   *                                                                              *
+             10284    1   *******************************************************************************/
+
+       39    10288        %B_DNAME_POINTERS (STCLASS=STATIC);
+       40    10308        %B_RNAME_POINTERS (STCLASS=STATIC);
+       41    10328        %B_DBGNAME_POINTERS (STCLASS=STATIC);
+       42    10348        %B_SECTION_POINTERS (STCLASS=STATIC);
+       43    10367        %B_EDEF_POINTERS (STCLASS=STATIC);
+       44    10387        %B_EREF_POINTERS (STCLASS=STATIC);
+       45    10407        %B_SDEF_POINTERS (STCLASS=STATIC);
+       46    10427        %B_SREF_POINTERS (STCLASS=STATIC);
+       47    10447        %B_SEGDEF_POINTERS (STCLASS=STATIC);
+       48    10467        %B_SEGREF_POINTERS (STCLASS=STATIC);
+       49    10487        %B_PROGRAM_POINTERS (STCLASS=STATIC);
+       50    10502        %B_RELOCATION_POINTERS (STCLASS=STATIC);
+       51    10517        %B_LOGBLK_POINTERS (STCLASS=STATIC);
+       52    10539        %B_INTNTRY_POINTERS (STCLASS=STATIC);
+       53    10559        %B_EXST_POINTERS (STCLASS=STATIC);
+       54    10579        %B_VREBL_POINTERS (STCLASS=STATIC);
+       55    10599        %B_MULTIBUF_VARS (STCLASS=STATIC);
+       56    10626        %B_TRUST_ME (STCLASS=STATIC);
+       57    10640        %BUFINIT_CALLED (STCLASS=STATIC);
+       58    10654        %PAGE (ARG=FPTS);
+
+             10667    1   /*******************************************************************************
+             10668    1   *                                                                              *
+             10669    1   *        FPTS              FPTS                                                  *
+             10670    1   *                                                                              *
+             10671    1   *******************************************************************************/
+
+       59    10675         /*
+       60    10676         The following fpt is used to get dynamic space for the ou
+       61    10677         */
+       62    10678        %FPT_GDS (FPTN=XUO_OU_GDS_FDS,STCLASS=STATIC SYMDEF);
+       63    10694         /*
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:14   
+       64    10695         The following ptr locates the fpt used to write the head record
+       65    10696         */
+       66    10697    1   DCL XUO_HEAD_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       67    10698         /*
+       68    10699         The following ptrs locate the fpts used to write program/relocation records
+       69    10700         */
+       70    10701    1   DCL XUO_PROGRAM_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       71    10702         /**/
+       72    10703         /**/
+       73    10704    1   DCL XUO_RELOCATION_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       74    10705         /**/
+       75    10706    1   DCL XUO_RELOCATION_READ$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       76    10707         /**/
+       77    10708    1   DCL XUO_RELOCATION_REWRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       78    10709         /*
+       79    10710         The following ptr locates the fpt used to write non program/reloc records
+       80    10711         */
+       81    10712    1   DCL XUO_OU_WRITE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       82    10713         /*
+       83    10714         The following ptr locates the fpt used to open the object unit
+       84    10715         */
+       85    10716    1   DCL XUO_OU_OPEN$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       86    10717         /*
+       87    10718         The following ptr locates the fpt used to close the object unit
+       88    10719         */
+       89    10720    1   DCL XUO_OU_CLOSE$ PTR STATIC SYMDEF INIT(ADDR(NIL));
+       90    10721        %PAGE (ARG=MISC DATA);
+
+             10734    1   /*******************************************************************************
+             10735    1   *                                                                              *
+             10736    1   *        MISC DATA              MISC DATA                                         *
+             10737    1   *                                                                              *
+             10738    1   *******************************************************************************/
+
+       91    10742    1   DCL XUO_OU_DCB_NUMBER SBIN STATIC SYMDEF INIT(DCBNUMNIL);
+       92    10743    1   DCL XUO_CLOSE_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('1'B);
+       93    10744    1   DCL XUO_ERROR_ROUTINE EPTR STATIC SYMDEF INIT(ENTADDR(NIL));
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:15   
+       94    10745    1   DCL XUO_SCHEMA_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('1'B);
+       95    10746    1   DCL 1 XUO_VERSION_NUMBER STATIC SYMDEF ALIGNED,
+       96    10747    1         2 LETTER CHAR(1) UNAL INIT('B'),
+       97    10748    1         2 NUMBER UBIN(9) UNAL INIT(511);
+       98    10749    1   DCL XUO_OU_UTS UBIN STATIC SYMDEF INIT(567890);
+       99    10750    1   DCL XUO_WORDSIZE UBIN STATIC SYMDEF INIT(36);
+      100    10751    1   DCL XUO_CHARSIZE UBIN STATIC SYMDEF INIT(9);
+      101    10752    1   DCL XUO_OU_WRITE_REQUIRED BIT(1) ALIGNED STATIC SYMDEF INIT('0'B);
+      102    10753    1   DCL XUO_MAXIMUM_SEVERITY UBIN STATIC SYMDEF INIT(0);
+      103    10754    1   DCL XUO_COMPILER_ID UBIN STATIC SYMDEF INIT(%PL6ID);
+      104    10755    1   DCL XUO_MOST_RECENT_SECTION SBIN WORD STATIC SYMDEF INIT (-1);
+      105    10756        %VLR_GDS(FPTN=XUO_OU_GDS_RESULTS,STCLASS=STATIC SYMDEF,LOGSIZE=1,REALSIZE=1);
+      106    10784         /*
+      107    10785            */
+      108    10786    1       RETURN;
+
+  10786  2 000002   000000 702200 xent               TSX2  ! X66_ARET
+      109    10787
+      110    10788    1   END XUO$OUROOTDATA;
+
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:16   
+--  Include file information  --
+
+   XUO$OBJ_C.:E05TOU  is referenced.
+   B$OBJECT_C.:E05TOU  is referenced.
+   CP_6_SUBS.:E05TOU  is referenced.
+   CP_6_C.:E05TOU  is referenced.
+   CP_6.:E05TOU  cannot be made into a system file and is referenced.
+   ZVA_FLAGS.:TOOLE04  is referenced.
+   ZVA_SYSTEM_FILE.:TOOLE04  is referenced.
+      No diagnostics issued in procedure XUO$OUROOTDATA.
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:17   
+
+ **** Variables and constants ****
+
+  ****  Section 001  Data  XUO$OUROOTDATA
+
+  ****  Scalars and arrays  ****
+OctLoc.c.b A Datatyp(siz) R M Lvl/name                 OctLoc.c.b A Datatyp(siz) R M Lvl/name
+
+   154-0-0/w PTR         r     1 PTR2_SECTION_ARRAY$      202-0-0/w EPTR        r     1 XUO_ERROR_ROUTINE
+   162-0-0/d STRC(216)   r     1 XUO_OU_GDS_FDS
+
+
+   Procedure XUO$OUROOTDATA requires 3 words for executable code.
+   Procedure XUO$OUROOTDATA requires 4 words of local(AUTO) storage.
+
+    No errors detected in file XUO$ROOT.:E05TSI    .
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:18   
+          *** CROSS REFERENCE LISTING ***
+**     DENOTES     IDENTIFIER DEFINITION
+<<                 IDENTIFIER'S VALUE SET
+>>                 IDENTIFIER'S VALUE USED
+<>                 IDENTIFIER SET AND/OR USED
+--                 IDENTIFIER REFERENCED
+PL6.E3A0      #001=XUO$OUROOTDATA File=XUO$ROOT.:E05TSI                          WED 07/30/97 09:35 Page:19   
+          MINI XREF LISTING
+
+PTR2_SECTION_ARRAY$
+     10613**DCL     10616--IMP-PTR
+XUO_OU_GDS_FDS.V
+     10689**DCL     10689--DCLINIT
+XUO_OU_GDS_RESULTS.VECT.PTR$
+     10774**DCL     10775--REDEF

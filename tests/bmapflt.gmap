@@ -1,0 +1,11 @@
+* phase-5 tail: DPS-8 binary floating-point DEC literals.  Each DEC value with
+* a '.', E exponent, or D exponent assembles to a DPS-8 float word (8-bit
+* two's-complement exponent + normalized two's-complement fraction); D doubles
+* the mantissa to two words.  A trailing Bn binary-scales a fixed value.
+       OUNAME FLTTEST
+       DEC   1.5
+       DEC   1E3
+       DEC   -0.5
+       DEC   1.0D0
+       DEC   3B17
+       END

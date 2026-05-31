@@ -1,0 +1,14 @@
+* BMAP phase-8 listing control: TTL emits a title; LIST OFF suppresses the
+* listing (ADA/STA are still assembled -- the PC advances -- but not shown)
+* until LIST ON; EJECT emits a form feed.
+       TTL    MY PROGRAM TITLE
+       OUNAME LCTEST
+       LDA    0
+       LIST   OFF
+       ADA    1
+       STA    2
+       LIST   ON
+       LDQ    3
+       EJECT
+       STQ    4
+       END

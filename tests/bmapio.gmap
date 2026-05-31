@@ -1,0 +1,8 @@
+* phase-5 tail: IO instructions (IOTD/IOTP/TDCW/IONTP, IOFORM 18|6|12) and
+* ASCNT (ASFORM 16|11|1|8; a trailing ,N clears the count flag).
+       IOTD  5,3
+       IOTP  10,0
+       TDCW  100,7
+       ASCNT 6
+       ASCNT 12,N
+       END

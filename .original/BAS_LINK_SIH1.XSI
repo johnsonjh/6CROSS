@@ -1,0 +1,121 @@
+.*M*
+HELP file for: BAS_LINK
+.*T*
+ **************************************************************
+ *                                                            *
+ *  Copyright (c) Bull HN Information Systems Inc., 1989      *
+ *                                                            *
+ **************************************************************
+.*A*                                                                           
+ 
+BAS_LINK is a programme that performs some linker-like functions
+for object units created by the ASMZ80.X and ASM6502.X packages.
+micro-processor.
+ 
+BAS_LINK is written in CP-6 BASIC.
+.*B*
+ 
+BAS_LINK does the following:
+    o Read a file that contains ASMZ80/6502 schema.
+    o Read a single OU that contains unsatisfied REFs.  Note that
+      this RU can load non-contigious pieces of memory.
+    o The user may create new schema records.
+    o The run-unit (RU) is created in one chunk from the lowest
+      piece of memory loaded to the highest.
+    o Schema may be included in the RU or disgarded after the
+      symbol resolution phase.
+.*B*
+ 
+Invocation syntax:
+ 
+  !BASIC
+  >CLOAD BAS_LINK.X
+  >RUN
+.*B*
+ 
+NOTES:
+ o Unlike a real linker, BAS_LINK does no relocation!  All it does
+   is satisfy DEF/REFs and tweak schema.
+.*B*
+ 
+HINTS:
+  The following example shows BAS_LINK used to link a main routine
+  and its overlays.
+                   *** START BY MAKING A SINGLE FILE WITH ALL THE ***
+                   *** SCHEMA/DEF RECORDS IN ALL THE FILES WE     ***
+                   *** INTEND TO DEAL WITH.                       ***
+     !C ZG? OVER *SCHEMA(LN)
+     ..COPYing
+     !BASIC
+     BASIC C02 HERE
+ 
+     >CLOAD BAS_LINK
+                   *** SATISFY ANY REFS IN THE ROOT THAT MIGHT    ***
+                   *** REFER TO ANY OF THE OVERLAYS.              ***
+     >RUN
+     This is a cheesy linker for ASMZ80/6502 OUs.
+     What file contains input schema (DEFs)?*SCHEMA
+      100 DEFs were found
+     Object-unit file?ZO_DMROOT
+      0 unique symbols were satisfied
+      0 REFs were used
+     Memory used:  E000-E5FB H
+     Do you want to add symbols (schema)?NO
+     Run-unit output file?ZR_DMROOT
+     Do you want schema included in the RU?N
+     HALT AT LINE 1610
+                   *** SATISFY ANY REFS IN THE FIRST OVERLAY THAT ***
+                   *** MIGHT REFER TO THE ROOT.  NOTE THAT SINCE  ***
+                   *** THE LINKER DOES NO RELOCATION, THIS        ***
+                   *** OVERLAY MUST HAVE BEEN ASSEMBLED TO RESIDE ***
+                   *** AT THE RIGHT PLACE IN MEMORY.  IN THIS     ***
+                   *** CASE, 'ORG 346000O' IS USED FOR ALL        ***
+                   *** OVERLAYS.                                  ***
+     >RUN
+     This is a cheesy linker for ASMZ80/6502 OUs.
+     What file contains input schema (DEFs)?*SCHEMA
+      100 DEFs were found
+     Object-unit file?ZO_DMOV01
+      21 unique symbols were satisfied
+      34 REFs were used
+     Memory used:  E600-E7FF H
+     Do you want to add symbols (schema)?NO
+     Run-unit output file?ZR_DMOV01
+     Do you want schema included in the RU?NO
+     HALT AT LINE 1610
+                   *** LINK THE SECOND OVERLAY.  IT, TOO HAS      ***
+                   *** 'ORG 346000O'.                             ***
+     >RUN
+     This is a cheesy linker for ASMZ80/6502 OUs.
+     What file contains input schema (DEFs)?*SCHEMA
+      100 DEFs were found
+     Object-unit file?ZO_DMOV02
+      8 unique symbols were satisfied
+      17 REFs were used
+     Memory used:  E600-E7FF H
+     Do you want to add symbols (schema)?NO
+     Run-unit output file?ZR_DMOV02
+     Do you want schema included in the RU?NO
+     HALT AT LINE 1610
+     >Q
+.*R*
+.*K* XINDEX
+BAS_LINK.X
+.*R*
+AID=MICROPROCESSOR
+.*R*
+LINKING
+.*R*
+CROSS_ASSEMBLER
+.*R*
+.*K* XINDEX_ABSTRACT
+TOOL=BAS_LINK
+.*R*
+Performs some linker-like functions for object units created by  the
+ASMZ80.X and ASM6502.X packages.
+.*K* CHANGES Changes changes
+03/19/83
+.*R*
+Installed in LADC X account.
+.*K* OWNER
+Dennis Griesser, LADC

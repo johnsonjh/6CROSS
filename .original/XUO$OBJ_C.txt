@@ -1,0 +1,424 @@
+
+
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          1    
+    1      /*M*MACROS USED IN CONJUNCTION WITH B$OBJECT_C TO DEAL WITH OBJECT UNITS */
+    2      /*T***********************************************************/
+    3      /*T*                                                         */
+    4      /*T* Copyright (c) Bull HN Information Systems Inc., 1997    */
+    5      /*T*                                                         */
+    6      /*T***********************************************************/
+    7      /*X*DFC,MCL=0,CRM=80,CCC */
+    8      %MACRO B_DNAME_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+    9      %LSET LISTDIR='0'B;
+   10      %LSET LISTEXP='1'B;
+   11      %LSET LISTCOM='0'B;
+   12      %LSET LISTSUB='1'B;
+   13      %IF TEXTCHAR(STCLASS)~='SYMREF';
+   14      %LSET INIT=CHARTEXT('INIT');
+   15      %LSET ENDINIT=CHARTEXT(' ');
+   16      %ELSE;
+   17      %LSET INIT=CHARTEXT('/*INIT');
+   18      %LSET ENDINIT=CHARTEXT('*/');
+   19      %ENDIF;
+   20      DCL B_DNAME_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to start of def name record*/
+   21      DCL B_DNAME_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos in def name record*/
+   22      DCL B_DNAME_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of def name record*/
+   23      DCL B_DNAME_COUNT SBIN STCLASS %INIT(0)%ENDINIT; /*Current word offset into records*/
+   24      DCL B_DNAME_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+   25      %SUB DNAMECOUNT=100;
+   26      DCL B_DNAME_PAGE_SIZE UBIN STCLASS %INIT(DNAMECOUNT)%ENDINIT; /*Page size in words,init # entry*/
+   27      %MEND;
+   28
+   29      %MACRO B_RNAME_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+   30      %LSET LISTDIR='0'B;
+   31      %LSET LISTEXP='1'B;
+   32      %LSET LISTCOM='0'B;
+   33      %LSET LISTSUB='1'B;
+   34      %IF TEXTCHAR(STCLASS)~='SYMREF';
+   35      %LSET INIT=CHARTEXT('INIT');
+   36      %LSET ENDINIT=CHARTEXT(' ');
+   37      %ELSE;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          2    
+   38      %LSET INIT=CHARTEXT('/*INIT');
+   39      %LSET ENDINIT=CHARTEXT('*/');
+   40      %ENDIF;
+   41      DCL B_RNAME_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to start of ref name record*/
+   42      DCL B_RNAME_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos in ref name record*/
+   43      DCL B_RNAME_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of ref name record*/
+   44      DCL B_RNAME_COUNT SBIN STCLASS %INIT(0)%ENDINIT; /*Current word offset into records*/
+   45      DCL B_RNAME_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+   46      %SUB RNAMECOUNT=100;
+   47      DCL B_RNAME_PAGE_SIZE UBIN STCLASS %INIT(RNAMECOUNT)%ENDINIT; /*Page size in words,init # entry*/
+   48      %MEND;
+   49
+   50      %MACRO B_DBGNAME_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+   51      %LSET LISTDIR='0'B;
+   52      %LSET LISTEXP='1'B;
+   53      %LSET LISTCOM='0'B;
+   54      %LSET LISTSUB='1'B;
+   55      %IF TEXTCHAR(STCLASS)~='SYMREF';
+   56      %LSET INIT=CHARTEXT('INIT');
+   57      %LSET ENDINIT=CHARTEXT(' ');
+   58      %ELSE;
+   59      %LSET INIT=CHARTEXT('/*INIT');
+   60      %LSET ENDINIT=CHARTEXT('*/');
+   61      %ENDIF;
+   62      DCL B_DBGNAME_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to start of debug name record*/
+   63      DCL B_DBGNAME_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos in debug name record*/
+   64      DCL B_DBGNAME_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of debug name record*/
+   65      DCL B_DBGNAME_COUNT SBIN STCLASS %INIT(0)%ENDINIT; /*Current word offset into records*/
+   66      DCL B_DBGNAME_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+   67      %SUB DBGNAMECOUNT=1022;
+   68      DCL B_DBGNAME_PAGE_SIZE UBIN STCLASS %INIT(DBGNAMECOUNT)%ENDINIT; /*Page size in words,init # entry*/
+   69      %MEND;
+   70
+   71      %MACRO B_SECTION_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+   72      %LSET LISTDIR='0'B;
+   73      %LSET LISTEXP='1'B;
+   74      %LSET LISTCOM='0'B;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          3    
+   75      %LSET LISTSUB='1'B;
+   76      %IF TEXTCHAR(STCLASS)~='SYMREF';
+   77      %LSET INIT=CHARTEXT('INIT');
+   78      %LSET ENDINIT=CHARTEXT(' ');
+   79      %ELSE;
+   80      %LSET INIT=CHARTEXT('/*INIT');
+   81      %LSET ENDINIT=CHARTEXT('*/');
+   82      %ENDIF;
+   83      DCL B_SECTION_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of section record*/
+   84      DCL B_SECTION_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of section record*/
+   85      DCL B_SECTION_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of section record*/
+   86      DCL B_SECTION_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of number of section defined*/
+   87      %SUB SECTIONCOUNT=30;
+   88      DCL B_SECTION_PAGE_SIZE UBIN STCLASS %INIT(SECTIONCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+   89      %MEND;
+   90
+   91      %MACRO B_EDEF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+   92      %LSET LISTDIR='0'B;
+   93      %LSET LISTEXP='1'B;
+   94      %LSET LISTCOM='0'B;
+   95      %LSET LISTSUB='1'B;
+   96      %IF TEXTCHAR(STCLASS)~='SYMREF';
+   97      %LSET INIT=CHARTEXT('INIT');
+   98      %LSET ENDINIT=CHARTEXT(' ');
+   99      %ELSE;
+  100      %LSET INIT=CHARTEXT('/*INIT');
+  101      %LSET ENDINIT=CHARTEXT('*/');
+  102      %ENDIF;
+  103      DCL B_EDEF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of edef record*/
+  104      DCL B_EDEF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of edef record*/
+  105      DCL B_EDEF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of edef record*/
+  106      DCL B_EDEF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last entry defined*/
+  107      DCL B_EDEF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  108      %SUB EDEFCOUNT=10;
+  109      DCL B_EDEF_PAGE_SIZE UBIN STCLASS %INIT(EDEFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  110      %MEND;
+  111
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          4    
+  112      %MACRO B_EREF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  113      %LSET LISTDIR='0'B;
+  114      %LSET LISTEXP='1'B;
+  115      %LSET LISTCOM='0'B;
+  116      %LSET LISTSUB='1'B;
+  117      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  118      %LSET INIT=CHARTEXT('INIT');
+  119      %LSET ENDINIT=CHARTEXT(' ');
+  120      %ELSE;
+  121      %LSET INIT=CHARTEXT('/*INIT');
+  122      %LSET ENDINIT=CHARTEXT('*/');
+  123      %ENDIF;
+  124      DCL B_EREF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of eref record*/
+  125      DCL B_EREF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of eref record*/
+  126      DCL B_EREF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr tn~ end of eref record*/
+  127      DCL B_EREF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last eref defined*/
+  128      DCL B_EREF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  129      %SUB EREFCOUNT=10;
+  130      DCL B_EREF_PAGE_SIZE UBIN STCLASS %INIT(EREFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  131      %MEND;
+  132
+  133      %MACRO B_SDEF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  134      %LSET LISTDIR='0'B;
+  135      %LSET LISTEXP='1'B;
+  136      %LSET LISTCOM='0'B;
+  137      %LSET LISTSUB='1'B;
+  138      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  139      %LSET INIT=CHARTEXT('INIT');
+  140      %LSET ENDINIT=CHARTEXT(' ');
+  141      %ELSE;
+  142      %LSET INIT=CHARTEXT('/*INIT');
+  143      %LSET ENDINIT=CHARTEXT('*/');
+  144      %ENDIF;
+  145      DCL B_SDEF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of sdef record*/
+  146      DCL B_SDEF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of sref record*/
+  147      DCL B_SDEF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of sdef record*/
+  148      DCL B_SDEF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last sdef defined*/
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          5    
+  149      DCL B_SDEF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  150      %SUB SDEFCOUNT=10;
+  151      DCL B_SDEF_PAGE_SIZE UBIN STCLASS %INIT(SDEFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  152      %MEND;
+  153
+  154      %MACRO B_SREF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  155      %LSET LISTDIR='0'B;
+  156      %LSET LISTEXP='1'B;
+  157      %LSET LISTCOM='0'B;
+  158      %LSET LISTSUB='1'B;
+  159      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  160      %LSET INIT=CHARTEXT('INIT');
+  161      %LSET ENDINIT=CHARTEXT(' ');
+  162      %ELSE;
+  163      %LSET INIT=CHARTEXT('/*INIT');
+  164      %LSET ENDINIT=CHARTEXT('*/');
+  165      %ENDIF;
+  166      DCL B_SREF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of sref record*/
+  167      DCL B_SREF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of sref record*/
+  168      DCL B_SREF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of sref record*/
+  169      DCL B_SREF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last sref defined*/
+  170      DCL B_SREF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  171      %SUB SREFCOUNT=30;
+  172      DCL B_SREF_PAGE_SIZE UBIN STCLASS %INIT(SREFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  173      %MEND;
+  174
+  175      %MACRO B_SEGDEF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  176      %LSET LISTDIR='0'B;
+  177      %LSET LISTEXP='1'B;
+  178      %LSET LISTCOM='0'B;
+  179      %LSET LISTSUB='1'B;
+  180      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  181      %LSET INIT=CHARTEXT('INIT');
+  182      %LSET ENDINIT=CHARTEXT(' ');
+  183      %ELSE;
+  184      %LSET INIT=CHARTEXT('/*INIT');
+  185      %LSET ENDINIT=CHARTEXT('*/');
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          6    
+  186      %ENDIF;
+  187      DCL B_SEGDEF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of segdef record*/
+  188      DCL B_SEGDEF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of segdef record*/
+  189      DCL B_SEGDEF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of segdef record*/
+  190      DCL B_SEGDEF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last segdef defined*/
+  191      DCL B_SEGDEF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  192      %SUB SEGDEFCOUNT=3;
+  193      DCL B_SEGDEF_PAGE_SIZE UBIN STCLASS %INIT(SEGDEFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  194      %MEND;
+  195
+  196      %MACRO B_SEGREF_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  197      %LSET LISTDIR='0'B;
+  198      %LSET LISTEXP='1'B;
+  199      %LSET LISTCOM='0'B;
+  200      %LSET LISTSUB='1'B;
+  201      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  202      %LSET INIT=CHARTEXT('INIT');
+  203      %LSET ENDINIT=CHARTEXT(' ');
+  204      %ELSE;
+  205      %LSET INIT=CHARTEXT('/*INIT');
+  206      %LSET ENDINIT=CHARTEXT('*/');
+  207      %ENDIF;
+  208      DCL B_SEGREF_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of segref record*/
+  209      DCL B_SEGREF_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of segref record*/
+  210      DCL B_SEGREF_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of segref record*/
+  211      DCL B_SEGREF_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last entry defined*/
+  212      DCL B_SEGREF_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  213      %SUB SEGREFCOUNT=3;
+  214      DCL B_SEGREF_PAGE_SIZE UBIN STCLASS %INIT(SEGREFCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  215      %MEND;
+  216
+  217      %MACRO B_PROGRAM_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  218      %LSET LISTDIR='0'B;
+  219      %LSET LISTEXP='1'B;
+  220      %LSET LISTCOM='0'B;
+  221      %LSET LISTSUB='1'B;
+  222      %IF TEXTCHAR(STCLASS)~='SYMREF';
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          7    
+  223      %LSET INIT=CHARTEXT('INIT');
+  224      %LSET ENDINIT=CHARTEXT(' ');
+  225      %ELSE;
+  226      %LSET INIT=CHARTEXT('/*INIT');
+  227      %LSET ENDINIT=CHARTEXT('*/');
+  228      %ENDIF;
+  229      %EQU PROGRAMCOUNT=1022;
+  230      DCL B_PROGRAM_PAGE_SIZE SBIN STCLASS %INIT(%PROGRAMCOUNT)%ENDINIT; /*Page size in words,init # entry*/
+  231      %MEND;
+  232
+  233      %MACRO B_RELOCATION_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  234      %LSET LISTDIR='0'B;
+  235      %LSET LISTEXP='1'B;
+  236      %LSET LISTCOM='0'B;
+  237      %LSET LISTSUB='1'B;
+  238      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  239      %LSET INIT=CHARTEXT('INIT');
+  240      %LSET ENDINIT=CHARTEXT(' ');
+  241      %ELSE;
+  242      %LSET INIT=CHARTEXT('/*INIT');
+  243      %LSET ENDINIT=CHARTEXT('*/');
+  244      %ENDIF;
+  245      %EQU RELOCATIONCOUNT=1022;
+  246      DCL B_RELOCATION_PAGE_SIZE SBIN STCLASS %INIT(%RELOCATIONCOUNT)%ENDINIT; /*Page size in words,init # entry*/
+  247      %MEND;
+  248
+  249      %MACRO B_LOGBLK_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  250      %LSET LISTDIR='0'B;
+  251      %LSET LISTEXP='1'B;
+  252      %LSET LISTCOM='0'B;
+  253      %LSET LISTSUB='1'B;
+  254      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  255      %LSET INIT=CHARTEXT('INIT');
+  256      %LSET ENDINIT=CHARTEXT(' ');
+  257      %ELSE;
+  258      %LSET INIT=CHARTEXT('/*INIT');
+  259      %LSET ENDINIT=CHARTEXT('*/');
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          8    
+  260      %ENDIF;
+  261      DCL B_LOGBLK_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of logblk record*/
+  262      DCL B_LOGBLK_ENTRY0$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to logblk entry 0*/
+  263      DCL B_LOGBLK_ENTRY1$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to logblk entry 1*/
+  264      DCL B_LOGBLK_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur entry--starts at 2*/
+  265      DCL B_LOGBLK_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of logblk record*/
+  266      DCL B_LOGBLK_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last entry defined--start at 0*/
+  267      DCL B_LOGBLK_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys--dummy value*/
+  268      %SUB LOGBLKCOUNT=3;
+  269      DCL B_LOGBLK_PAGE_SIZE UBIN STCLASS %INIT(LOGBLKCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  270      %MEND;
+  271
+  272      %MACRO B_INTNTRY_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  273      %LSET LISTDIR='0'B;
+  274      %LSET LISTEXP='1'B;
+  275      %LSET LISTCOM='0'B;
+  276      %LSET LISTSUB='1'B;
+  277      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  278      %LSET INIT=CHARTEXT('INIT');
+  279      %LSET ENDINIT=CHARTEXT(' ');
+  280      %ELSE;
+  281      %LSET INIT=CHARTEXT('/*INIT');
+  282      %LSET ENDINIT=CHARTEXT('*/');
+  283      %ENDIF;
+  284      DCL B_INTNTRY_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of internal entry record*/
+  285      DCL B_INTNTRY_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos in internal entry record*/
+  286      DCL B_INTNTRY_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of internal entry record*/
+  287      DCL B_INTNTRY_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last internal entry defined*/
+  288      DCL B_INTNTRY_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  289      %SUB INTNTRYCOUNT=3;
+  290      DCL B_INTNTRY_PAGE_SIZE UBIN STCLASS %INIT(INTNTRYCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  291      %MEND;
+  292
+  293      %MACRO B_EXST_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  294      %LSET LISTDIR='0'B;
+  295      %LSET LISTEXP='1'B;
+  296      %LSET LISTCOM='0'B;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          9    
+  297      %LSET LISTSUB='1'B;
+  298      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  299      %LSET INIT=CHARTEXT('INIT');
+  300      %LSET ENDINIT=CHARTEXT(' ');
+  301      %ELSE;
+  302      %LSET INIT=CHARTEXT('/*INIT');
+  303      %LSET ENDINIT=CHARTEXT('*/');
+  304      %ENDIF;
+  305      DCL B_EXST_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of executable statement record*/
+  306      DCL B_EXST_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of exst record*/
+  307      DCL B_EXST_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of exst record*/
+  308      DCL B_EXST_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last exst defined*/
+  309      DCL B_EXST_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  310      %SUB EXSTCOUNT=340;
+  311      DCL B_EXST_PAGE_SIZE UBIN STCLASS %INIT(EXSTCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  312      %MEND;
+  313
+  314      %MACRO B_VREBL_POINTERS(STCLASS(STATIC=STATIC SYMDEF)=SYMREF);
+  315      %LSET LISTDIR='0'B;
+  316      %LSET LISTEXP='1'B;
+  317      %LSET LISTCOM='0'B;
+  318      %LSET LISTSUB='1'B;
+  319      %IF TEXTCHAR(STCLASS)~='SYMREF';
+  320      %LSET INIT=CHARTEXT('INIT');
+  321      %LSET ENDINIT=CHARTEXT(' ');
+  322      %ELSE;
+  323      %LSET INIT=CHARTEXT('/*INIT');
+  324      %LSET ENDINIT=CHARTEXT('*/');
+  325      %ENDIF;
+  326      DCL B_VREBL_BASE$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to base of vaiable record*/
+  327      DCL B_VREBL_CUR$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to cur pos of variable record*/
+  328      DCL B_VREBL_END$ PTR STCLASS %INIT(ADDR(NIL))%ENDINIT; /*Ptr to end of varaible record*/
+  329      DCL B_VREBL_COUNT SBIN STCLASS %INIT(-1)%ENDINIT; /*Count of last vrebl defined*/
+  330      DCL B_VREBL_PAGE SBIN STCLASS %INIT(0)%ENDINIT; /*Page count used for keys*/
+  331      %SUB VREBLCOUNT=204;
+  332      DCL B_VREBL_PAGE_SIZE UBIN STCLASS %INIT(VREBLCOUNT)%ENDINIT; /*Page size of record,init # entry*/
+  333      %MEND;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          10   
+  334
+  335      %MACRO B_MULTIBUF_VARS(STCLASS(STATIC=STATIC SYMDEF) =SYMREF);
+  336      %LSET LISTDIR = '0'B;
+  337      %LSET LISTEXP = '1'B;
+  338      %LSET LISTCOM = '0'B;
+  339      %LSET LISTSUB = '1'B;
+  340
+  341      %IF TEXTCHAR(STCLASS) ~='SYMREF';
+  342      %LSET INIT=CHARTEXT('INIT');
+  343      %LSET ENDINIT=CHARTEXT(' ');
+  344      %ELSE;
+  345      %LSET INIT=CHARTEXT('/*');
+  346      %LSET ENDINIT=CHARTEXT('*/');
+  347      %ENDIF;
+  348
+  349      %EQU TYPRELOC = 16;
+  350      DCL LRU_VECTOR VECTOR STCLASS %INIT(VECTOR(NIL)) %ENDINIT;
+  351      DCL PTR2_SECTION_ARRAY$ PTR STCLASS %INIT(ADDR(NIL)) %ENDINIT;
+  352
+  353      DCL B_NUMBER_OF_SECTIONS UBIN STCLASS %INIT(0) %ENDINIT;
+  354      DCL B_NUMBER_OF_BUFFERS UBIN STCLASS %INIT(0) %ENDINIT;
+  355
+  356      DCL 1 SECTION_ARRAY (0:0) ALIGNED BASED (PTR2_SECTION_ARRAY$),
+  357           2 PROGRAM_CURS UBIN,
+  358           2 RELOCATION_CURS UBIN,
+  359           2 MAX_PROG_RELOC SBIN,
+  360           2 PTR2_LRU$ PTR,
+  361           2 PTR2_PROGRAM_BUF$ PTR,
+  362           2 PTR2_RELOCATION_BUF$ PTR,
+  363           2 BUF_OFFSET UBIN,
+  364           2 PROG_WORD_COUNT UBIN;
+  365
+  366      %MEND;
+  367
+  368      %MACRO B_TRUST_ME (STCLASS(STATIC=STATIC SYMDEF) =SYMREF);
+  369      %LSET LISTDIR = '0'B;
+  370      %LSET LISTEXP = '1'B;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          11   
+  371      %LSET LISTCOM = '0'B;
+  372      %LSET LISTSUB = '1'B;
+  373
+  374      %IF TEXTCHAR(STCLASS) ~='SYMREF';
+  375      %LSET INIT=CHARTEXT('INIT');
+  376      %LSET ENDINIT=CHARTEXT(' ');
+  377      %ELSE;
+  378      %LSET INIT=CHARTEXT('/*');
+  379      %LSET ENDINIT=CHARTEXT('*/');
+  380      %ENDIF;
+  381
+  382      DCL B_TRUST_ME BIT (1) STCLASS %INIT('0'B) %ENDINIT;
+  383
+  384      %MEND;
+  385
+  386      %MACRO LOCAL_STUFF;
+  387      DCL BUBIN UBIN BASED;
+  388      DCL BPTR$ PTR BASED;
+  389      DCL PTR2_LRU$ PTR;
+  390      DCL I UBIN;
+  391      %MEND;
+  392
+  393      %MACRO BUFINIT_CALLED (STCLASS(STATIC=STATIC SYMDEF) =SYMREF);
+  394      %LSET LISTDIR = '0'B;
+  395      %LSET LISTEXP = '1'B;
+  396      %LSET LISTCOM = '0'B;
+  397      %LSET LISTSUB = '1'B;
+  398
+  399      %IF TEXTCHAR(STCLASS) ~='SYMREF';
+  400      %LSET INIT=CHARTEXT('INIT');
+  401      %LSET ENDINIT=CHARTEXT(' ');
+  402      %ELSE;
+  403      %LSET INIT=CHARTEXT('/*');
+  404      %LSET ENDINIT=CHARTEXT('*/');
+  405      %ENDIF;
+  406
+  407      DCL BUFINIT_CALLED BIT (1) STCLASS %INIT('0'B) %ENDINIT;
+15:24 JUL 28 '97 XUO$OBJ_C.:E05SI                                          12   
+  408
+  409      %MEND;
+

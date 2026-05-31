@@ -1,0 +1,403 @@
+/*M* BMAP COMMON DATA */
+/**/
+BMAP_DATA: PROC;
+/**/
+%LIST;
+/*
+/* Parameters
+*/
+%EQU BLANK=10;                         /* Delimiter */
+%EQU COMMA=9;                          /* Delimiter */
+%EQU DIV=4;                            /* Delimiter */
+%EQU ENDM={ENDM};                      /* Index in SPOOL to ENDM op */
+%EQU ENDOP={END};                      /* Index in SPOOL to END op */
+%EQU ESPOOL={SPOOL};                   /* Upper limit of SPOOL resident */
+%EQU ETC={ETC};                        /* Index in SPOOL to ETC op */
+%EQU F='0'B;                           /* FALSE */
+%EQU IDRP={IDRP};                      /* Index in SPOOL to IDRP op */
+%EQU LB=7;                             /* Delimiter */
+%EQU LITERALS=1;                       /* Index in SPOOL to LITERALS section name */
+%EQU LPAR=5;                           /* Delimiter */
+%EQU MARK={MARK};                      /* Index in SPOOL to MARK op */
+%EQU MAXACS=8;                         /* Max. # of accounts to search for LODMs */
+%EQU MINUS=2;                          /* Delimiter */
+%EQU NONOP={NONOP};                    /* Index in SPOOL to NONOP op */
+%EQU OPERREL=15;                       /* Relative address */
+%EQU OPERUNDEF=9;                      /* Undefined symbol */
+%EQU PLUS=1;                           /* Delimiter */
+%EQU RB=8;                             /* Delimiter */
+%EQU REM={REM};                        /* Index in SPOOL to REM op */
+%EQU RPAR=6;                           /* Delimiter */
+%EQU SET={SET};                        /* Index in SPOOL to SET op */
+%EQU SETB={SETB};                      /* Index in SPOOL to SETB op */
+%EQU T='1'B;                           /* TRUE */
+%EQU TIMES=3;                          /* Delimiter */
+%EQU TTL={TTL};                        /* Index in SPOOL to TTL op */
+%EQU TTLS={TTLS};                      /* Index in SPOOL to TTLS op */
+%EQU UNDEF='004401'O;                  /* Relocation word for undefined symbol */
+%EQU XDEF='14'O;                       /* Mask for REL.F.EDEF and REL.F.SDEF */
+%EJECT;
+/* Substitutions
+*/
+%SUB CRSM="LISTING.F(4)";              /* Created symbols (CRSM) flag */
+%SUB DETAIL="LISTING.F(0)";            /* DETAIL flag */
+%SUB FLOATF="LISTING.F(5)";            /* FLOAT flag */
+%SUB HEXFP="LISTING.F(3)";             /* Hex floating point flag */
+%SUB LISTF="LISTING.F(1)";             /* LIST flag */
+%SUB PCCF="LISTING.F(6)";              /* PCC flag */
+%SUB PMC="LISTING.F(2)";               /* Print macro expansion (PMC) flag */
+%SUB REFF="LISTING.F(7)";              /* REF flag */
+%SUB REFMAF="LISTING.F(8)";            /* REFMA flag */
+%EJECT;
+/* MACRO TO CONVERT CHARACTER STRING TO SYMBOL
+*/
+%MACRO CONSYM(#FC=CURRCH,#L=NEXTCH-CURRCH,#SYM=);
+       DO;#SYM(0)=(#L+5)/6;IF #SYM(0)>5 THEN #SYM(0)=5;
+         CALL XLATEV(6,#SYM(1),0,6*#SYM(0),ASCII.ASCII6,SUBSTR(XCARDS,#FC),#L);END;
+%MEND;
+%EJECT;
+/* LITERAL PACKET
+*/
+%MACRO LIT(NAME=LIT,STCLASS="BASED(LIT$)");
+DCL 1 NAME STCLASS ALIGNED,            /* Literal packet */
+      2 LLINK UBIN(18) UNAL,           /* Tree links */
+      2 RLINK UBIN(18) UNAL,
+      2 BAL SBIN(3) UNAL,              /* Tree balance */
+      2 LEN UBIN(9) UNAL,              /* Length (words) of V */
+      2 RX UBIN(6) UNAL,               /* Offset (words) from V to R */
+      2 PC UBIN(18) UNAL,              /* Location */
+      2 V(0:62) SBIN,                  /* Values */
+      %REL(LVL=2,NAME="R(0:20)",STCLASS="REDEF V",W2=FLD); /* Relocation words */
+%MEND;
+%EJECT;
+/* MACRO PARAMETER PACKET
+*/
+%MACRO MAP(NAME=MAP,STCLASS=BASED);
+DCL 1 NAME STCLASS ALIGNED,            /* Macro actual parameter */
+      2 LEN UBIN(9) UNAL,              /* Length of TEXT */
+      2 TEXT CHAR(NAME.LEN);           /* Actual parameter string */
+%MEND;
+%EJECT;
+/* MACRO TO CONVERT STRING TO OBJECT SYMBOL
+*/
+%MACRO OBJSYM(#SYM=,#S=);
+       DO; #SYM.LEN=SIZEC(#S);IF #SYM.LEN>30 THEN #SYM.LEN=30;#SYM.TEXT=#S;END;
+%MEND;
+%EJECT;
+/* RELOCATION PACKET
+*/
+%MACRO REL(LVL=1,NAME=REL,STCLASS="",W2(FLD='1'B)='0'B,
+       LAST(NO='0'B,YES='1'B)='1'B);
+%LSET LISTDIR='0'B;
+%LSET LISTEXP='1'B;
+%LSET LISTSUB='1'B;
+%IF LVL=1;
+DCL
+%ENDIF;
+       LVL NAME STCLASS ALIGNED,
+           %(LVL+1) F,                           /* Flags */
+               %(LVL+2) EQU BIT(1),              /* Symbol defined by EQU */
+               %(LVL+2) SET BIT(1),              /* Symbol defined by SET */
+               %(LVL+2) EDEF BIT(1),             /* ENTDEF */
+               %(LVL+2) SDEF BIT(1),             /* SYMDEF */
+               %(LVL+2) DEFED BIT(1),       /* Symbol DEFed in object module */
+               %(LVL+2) REFED BIT(1),            /* Symbol referenced */
+           %(LVL+1) OPNDTYP UBIN(4) UNAL,        /* Type of OPERAND */
+           %(LVL+1) EVALOP UBIN(4) UNAL,         /* Evaluation operator */
+           %(LVL+1) RELOCOP UBIN(4) UNAL,        /* Relocation operator */
+           %(LVL+1) OPERAND UBIN(18) UNAL, /* Index in table specified by OPNDTYP */
+%IF W2;
+           %(LVL+1) DISP UBIN(18) UNAL,          /* Displacement */
+           %(LVL+1) STBIT UBIN(9) UNAL,          /* Starting bit position */
+           %(LVL+1) ENDBIT UBIN(9) UNAL,         /* Ending bit position */
+%ENDIF;
+           %(LVL+1) VALUE SBIN,                  /* Value for EVALOP */
+           %(LVL+1) S REDEF VALUE,               /* Second relocation word */
+               %(LVL+2) * BIT(6),
+               %(LVL+2) OPNDTYP UBIN(4) UNAL,    /* Type of OPERAND */
+               %(LVL+2) * BIT(4),
+               %(LVL+2) RELOCOP UBIN(4) UNAL,    /* Relocation operator */
+               %(LVL+2) OPERAND UBIN(18) UNAL /* Index in table specified by OPNDTYP */
+%IF LVL=1 OR LAST;
+                                      ;
+%ELSE;
+                                      ,
+%ENDIF;
+%MEND;
+%EJECT;
+/* SYMBOL TABLE PACKET
+*/
+%MACRO SYM(NAME=SYM,STCLASS="BASED(SYM$)");
+%LSET LISTSUB='1'B;
+DCL 1 NAME STCLASS ALIGNED,
+       2 LINKS(0:1) UBIN(18) UNAL,     /* Tree links */
+       2 LINK REDEF LINKS,
+         3 L UBIN(18) UNAL,            /* Index in SPOOL to left subtree */
+         3 R UBIN(18) UNAL,            /* Index in SPOOL to right subtree */
+       2 BAL SBIN(3) UNAL,             /* Balance value */
+       2 LEN UBIN(3) UNAL,             /* Length (words) of symbol name */
+       2 * BIT(12),
+       2 REFLINK UBIN(18) UNAL,        /* Index in SPOOL to reference list */
+       2 FRROOT UBIN(18) UNAL,         /* Index in SPOOL to last FR packet */
+       2 UREF UBIN(18) UNAL,           /* Index in SPOOL to a referencing SYM packet */
+       2 VAL SBIN,                     /* Value */
+       %REL(LVL=2,NAME=R,LAST=NO);     /* Relocation words */
+       2 BOL(0:0) SBIN;                /* Symbol name */
+%MEND;
+%EJECT;
+/* Data
+*/
+[%MACRO BMAP_COMMON;
+DCL 1 ASCII CONSTANT SYMDEF ALIGNED,   /* TABLES FOR CONVERTING ASCII TO: */
+      2 BCD(0:511) UBIN(9) UNAL INIT(  /* GCOS BCD */
+        15*32,
+        16,63,62,11,43,60,26,47,29,45,44,48,59,42,27,49,
+        0,1,2,3,4,5,6,7,8,9,13,46,30,61,14,15,
+        12,17,18,19,20,21,22,23,24,25,33,34,35,36,37,38,
+        39,40,41,50,51,52,53,54,55,56,57,10,31,28,32,58,
+        15,17,18,19,20,21,22,23,24,25,33,34,35,36,37,38,
+        39,40,41,50,51,52,53,54,55,56,57,15*5,
+        15*384),
+      2 EBCDIC(0:511) UBIN(9) UNAL INIT( /* EBCDIC */
+        0,1,2,3,4,9,6,7,8,5,21,11,12,13,14,15,
+        16,17,18,19,20,10,22,23,24,25,26,27,28,29,30,31,
+        64,79,127,123,91,108,80,125,77,93,92,78,107,96,75,97,
+        240,241,242,243,244,245,246,247,248,249,122,94,76,126,110,111,
+        124,193,194,195,196,197,198,199,200,201,209,210,211,212,213,214,
+        215,216,217,226,227,228,229,230,231,232,233,74,224,90,95,109,
+        121,129,130,131,132,133,134,135,136,137,145,146,147,148,149,150,
+        151,152,153,162,163,164,165,166,167,168,169,192,106,204,161,255,
+        0*384),
+      2 ASCII(0:511) UBIN(9) UNAL INIT( /* ASCII */
+        0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+        16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+        32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+        48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,
+        64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+        80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,
+        96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,
+        112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,
+        0*384),
+      2 ASCII6(0:511) UBIN(9) UNAL INIT( /* 6-bit ASCII */
+        0*32,
+        0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+        16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+        32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+        48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,
+        32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+        48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,0,
+        0*384);
+DCL ASCIIT(0:3) REDEF ASCII CHAR(512);
+DCL CARDL SBIN STATIC SYMDEF;          /* Length (characters) of LINE.CARD */
+DCL CARDPR(0:1) BIT(1) STATIC SYMDEF;  /* Line has been printed (source,macro) */
+DCL CRSMNO SBIN STATIC SYMDEF;         /* Next created symbol number */
+DCL CURRCH SBIN STATIC SYMDEF;         /* Index in XCARD of 1st char of field */
+DCL DEL SBIN STATIC SYMDEF;            /* Delimiter at NEXTCH: */
+DCL ERRCT SBIN STATIC SYMDEF;          /* # errors on line */
+DCL ERRNUM(0:4) SBIN STATIC SYMDEF;    /* Error numbers (indexed by ERRCT */
+DCL ERRSEV SBIN STATIC SYMDEF;         /* Error severity */
+DCL 1 FID_SAVE(0:%(MAXACS-1)) STATIC SYMDEF, /* Save FIDs to search for LODMs */
+      2 NAME_ CHAR(32),                /* File name */
+      2 ACCT_ CHAR(8),                 /* Account */
+      2 PASS_ CHAR(8),                 /* Password */
+      2 SN_ CHAR(10) ALIGNED,          /* Volume ID */
+      2 WSN_ CHAR(8),                  /* Workstation name */
+      2 ASN# UBIN(9),                  /* Assignment */
+      2 RES# CHAR(4),                  /* Resource type */
+      2 F ALIGNED,                     /* Flags */
+        3 NAME BIT(1),
+        3 ACCT BIT(1),
+        3 PASS BIT(1),
+        3 SN BIT(1),
+        3 WSN BIT(1),
+        3 ASN BIT(1),
+        3 RES BIT(1);
+DCL 1 FR BASED(FR$) ALIGNED,           /* Forward reference packet */
+      2 LINK UBIN(18) UNAL,            /* Link to next FR packet */
+      2 LEN UBIN(18) UNAL,             /* # relocation entries */
+      2 PC UBIN(18) UNAL,              /* Program counter */
+      2 PCREL UBIN(18) UNAL,           /* Program counter relocation operand */
+      2 V UBIN,                        /* Value of word */
+       %REL(LVL=2,NAME="R(0:0)",W2=FLD); /* Relocation words */
+DCL FR$ PTR STATIC SYMDEF;             /* -> FR packet */
+DCL IDS SBIN STATIC SYMDEF;            /* Index into MF */
+DCL 1 INHIB STATIC SYMDEF ALIGNED,     /* Instruction inhibit bit */
+      2 STACK UBIN(34) UNAL,
+      2 BIT28 UBIN(2) UNAL;
+DCL INHIBI REDEF INHIB UBIN;
+DCL IOP SBIN STATIC SYMDEF;            /* Index in SPOOL to current op-code */
+DCL KEY CHAR(10) STATIC SYMDEF;        /* Key of current source line */
+DCL 1 LINE STATIC SYMDEF ALIGNED,      /* Print buffer */
+       2 OCTAL CHAR(44),               /* Octal information */
+       2 CARD CHAR(140);               /* Card read buffer */
+DCL LINES REDEF LINE CHAR(184);
+DCL LINECT SBIN STATIC SYMDEF;         /* Length (chars) of LINE */
+DCL 1 LINEF STATIC SYMDEF,             /* Line print control flags */
+       2 CODE BIT(1),                  /* Code field present */
+       2 LOC BIT(1);                   /* Location field present */
+DCL 1 LISTING(0:8) STATIC SYMDEF ALIGNED, /* DETAIL,LIST,PMC,HEXFP,CRSM,FLOAT,PCC,REF,REFMA flags */
+      2 F BIT(1),
+      2 STACK BIT(35);
+DCL LIT$ PTR STATIC SYMDEF;            /* -> current literal table entry */
+DCL LITLOC SBIN STATIC SYMDEF;         /* Current literal location counter */
+DCL LITROOT SBIN STATIC SYMDEF;        /* Index in SPOOL to root of literal table */
+DCL LITSECT SBIN STATIC SYMDEF;        /* Current literal section number */
+DCL LOC(0:5) SBIN STATIC SYMDEF;       /* Location field symbol */
+DCL LODMF BIT(1) STATIC SYMDEF;         /* Input being read from LODM file */
+DCL LOGBLK UBIN STATIC SYMDEF;         /* Logical block index for debug schema */
+DCL 1 MAC BASED(MAC$) ALIGNED,         /* Macro packet */
+      2 DUP BIT(1),                    /* DUP in progress */
+      2 DUPSV BIT(1),                  /* DUP being saved */
+      2 LIT BIT(1),                    /* M literal being processed */
+      2 CARDF BIT(1),                  /* Next card has not been processed */
+      2 * BIT(14),
+      2 DUPFC UBIN(18) UNAL,           /* Index in MPOOL to 1st card of DUP */
+      2 DUPIC UBIN(18) UNAL,           /* DUP card counter */
+      2 DUPNC UBIN(18) UNAL,           /* # cards in DUP */
+      2 DUPNR SBIN(18) UNAL,           /* # DUP repetitions remaining -1 */
+      2 DUPX UBIN(18) UNAL,            /* Index in MPOOL to next card of DUP */
+      2 IDRPCT UBIN(18) UNAL,          /* RMCT of 1st card in IDRP */
+      2 IDRPFC UBIN(18) UNAL,          /* Index in MPOOL of 1st card of IDRP */
+      2 IDRPN UBIN(18) UNAL,           /* IDRP parameter number */
+      2 IDRPP UBIN(18) UNAL,           /* Index in MPOOL to IDRP parameter count */
+      2 IDRPX UBIN(18) UNAL,           /* Index in MPOOL to current IDRP parameter */
+      2 LINK UBIN(18) UNAL,            /* Index in MPOOL to previous macro stack entry */
+      2 MPAR UBIN(18) UNAL,            /* Index in MPOOL to macro parameters */
+      2 RMCT UBIN(18) UNAL,            /* # remaining cards in macro */
+      2 RMCX UBIN(18) UNAL,            /* Index in MPOOL to next card of macro */
+      2 SKIP(0:5) SBIN;                /* <0: - # remaining cards to skip */
+                                       /* >0: location field symbol to stop skip */
+DCL MAC$ PTR STATIC SYMDEF;            /* -> current macro stack entry */
+DCL MACBOT SBIN STATIC SYMDEF;         /* Index in MPOOL to 1st word of MPOOL dynamic space */
+DCL MACSV BIT(1) STATIC SYMDEF;        /* Macro being saved */
+DCL MCARDS CHAR(140) BASED ALIGNED;    /* Macro card image */
+DCL MCX SBIN STATIC SYMDEF;            /* Index in MPOOL to current allocated packet */
+DCL 1 MF(0:3) STATIC SYMDEF,           /* EIS instruction modifier fields */
+       2 V ALIGNED,                    /* Value */
+         3 * BIT(29),
+         3 AR UBIN(1) UNAL,            /* Descriptor specifies AR. */
+         3 RL UBIN(1) UNAL,            /* Record length in register */
+         3 ID UBIN(1) UNAL,            /* Indirect address to descriptor */
+         3 REG UBIN(4) UNAL,           /* Register containing bit/character offset */
+       %REL(LVL=2);                    /* Relocation words */
+DCL MLVL SBIN STATIC SYMDEF;           /* Index in MPOOL to current macro stack entry */
+DCL MMAX SBIN STATIC SYMDEF;           /* Index in MPOOL to last word used +1 */
+DCL MPOOL(0:14) SBIN STATIC SYMDEF ALIGNED INIT(0*15); /* index in MPOOL to last word allocated, */
+                                       /* Source level macro stack entry */
+DCL 1 MP(0:14) REDEF MPOOL,            /* 1st word of macro body storage */
+      2 REF UBIN(18) UNAL,             /* Index in SPOOL to reference list */
+      2 NC UBIN(18) UNAL;              /* # cards in macro body */
+DCL NDS SBIN STATIC SYMDEF;            /* Number of entries in MF */
+DCL NEXTCH SBIN STATIC SYMDEF;         /* Index in XCARD to next delimiter */
+DCL NONBLK(0:511) UBIN(9) UNAL CONSTANT SYMDEF INIT(0*33,1*94,0*385); /* Nonblank character table for SEARCH */
+DCL NONDGT(0:511) UBIN(9) UNAL CONSTANT SYMDEF INIT(1*48,0*10,1*7,9,1*14,4,1*16,9,1*14,4,1*399); /* Non-digit character table for SEARCH */
+DCL OLDREL BIT(36) STATIC SYMDEF ALIGNED; /* old location counter relocation */
+DCL 1 OP BASED(OP$) ALIGNED,           /* Op-code packet */
+      2 LLINK UBIN(18) UNAL,           /* tree links */
+      2 RLINK UBIN(18) UNAL,
+      2 BAL SBIN(3) UNAL,              /* balance value */
+      2 LEN UBIN(3) UNAL,              /* Length(words) of SYM */
+      2 VAL UBIN(18) UNAL,             /* value */
+      2 MASK UBIN(2) UNAL,             /* Modifier field code (1=octal, 2=symbolic) */
+      2 AR BIT(1),                     /* AR field required */
+      2 RPL BIT(1),                    /* RPL instruction */
+      2 PRFS BIT(2),                   /* Print flags ('10'B=code,'01'B=location) */
+      2 TYPE UBIN(6) UNAL,             /* op-code type: */
+/*                                0 IGNORE
+/*                                1 NON-EIS INSTRUCTIONS
+/*                                2 INDEX INSTS
+/*                                3 TALLY
+/*                                4 REPEAT INSTS
+/*                                5 RPTX, RPDX
+/*                                6 INSTS  W/O VARS
+/*                                7 USE, BLOCK
+/*                                8 EJECT
+/*                                9 END
+/*                               10 INHIB
+/*                               11 EIGHT, EVEN, ODD, PAGE
+/*                               12 ORG
+/*                               13 BOOL, EQU, SET
+/*                               14 ENTDEF, ENTREF, SYMDEF, SYMREF
+/*                               15 ASCII
+/*                               16 DEC, OCT
+/*                               17 ZERO
+/*                               18 VFD, OPD
+/*                               19 DUP
+/*                               20 MACRO
+/*                               21 MACRO CALL
+/*                               22 IFE, IFG, IFL, INE
+/*                               23 I/O
+/*                               24 BSS
+/*                               25 IDCW
+/*                               26 CLIMB
+/*                               27 EIS INSTRUCTIONS
+/*                               28 BDSC
+/*                               29 ADSC
+/*                               30 NDSC
+/*                               31 MICROP
+/*                               32 ASCNT
+/*                               33 NSA POINTER
+/*                               34 NSA VECTORS (EVEN)
+/*                               35 NSA DESCRIPTORS (EVEN)
+/*                               36 NSA ENTRY DESCRIPTOR (EVEN)
+/*                               37 IDRP
+/*                               38 OPSYN
+/*                               39 DETAIL, LIST, PMC, HEXFP, CRSM
+/*                               40 OUNAME
+/*                               41 LODM
+/*                               42 EDEC
+/*                               43 ORGCSM
+/*                               44 DATE, TTLDAT
+/*                               45 LIT
+*/
+      2 SYM(0:0) SBIN;                 /* Mnemonic op-code */
+DCL OP$ PTR STATIC SYMDEF;             /* -> current op-code entry */
+DCL 1 OP1 BASED(OP$) ALIGNED,          /* Redef of OP */
+      2 LLINK UBIN(18) UNAL,           /* Tree links */
+      2 RLINK UBIN(18) UNAL,
+      2 BAL SBIN(3) UNAL,              /* Tree balance */
+      2 LEN UBIN(3) UNAL,              /* Length (words) of OP.SYM */
+      2 TYPE UBIN(30) UNAL;            /* OP.VAL,MASK,AR,RPL,PRFS,TYPE */
+DCL OPROOT SBIN STATIC SYMDEF INIT({OPROOT}); /* Index in SPOOL to root of op-code table */
+DCL 1 OPTIONS STATIC SYMDEF ALIGNED,   /* Assembly options: */
+      2 NACS UBIN(18) UNAL,            /* # accounts to search */
+      2 LS BIT(1),                     /* Listing output */
+      2 ND BIT(1),                     /* No debug schema */
+      2 OU BIT(1),                     /* Object output */
+      2 P2 BIT(1),                     /* 2-pass assembly */
+      2 SO BIT(1),                     /* Source output */
+      2 UI BIT(1),                     /* Update input */
+      2 XR BIT(1),                     /* Cross-reference listing */
+      2 LU BIT(1);                     /* List updates            */
+DCL 1 OUNAME STATIC SYMDEF ALIGNED,    /* Object unit name */
+      2 LEN UBIN(18) UNAL,             /* Length of TEXT */
+      2 TEXT CHAR(30);                 /* Name */
+DCL OUNAMESW UBIN STATIC SYMDEF;       /* OUNAME switch: 0=none, 1=SYMDEF, 2=ENTDEF, 3=OUNAME */
+DCL PASS2 SBIN STATIC SYMDEF;          /* -1=1-pass, 0=pass 1, 1=pass 2 */
+DCL PC SBIN STATIC SYMDEF;             /* Program counter */
+%REL(NAME=PCREL,STCLASS="STATIC SYMDEF"); /* Program counter relocation */
+DCL PRIMENT UBIN STATIC SYMDEF;        /* Index in SPOOL to primary ENTDEF */
+DCL RECORDCT SBIN STATIC SYMDEF;       /* Count of records read */
+DCL 1 REF BASED(REF$) ALIGNED,         /* Cross-reference packet */
+       2 DEF BIT(1),                   /* Line contains definition */
+       2 * BIT(17),
+      2 LINK UBIN(18) UNAL,            /* Index in SPOOL of next entry in list */
+      2 KEY UBIN;                      /* Packed key of line of reference */
+DCL REF$ PTR STATIC SYMDEF;            /* -> current reference entry */
+DCL SPOOLB(0:%ESPOOL) BIT(36) STATIC SYMDEF ALIGNED INIT('0'B, /* index in SPOOL to lowest allocated dynamic word */
+       '000000000002'O,'545164456241'O,'546300000000'O, /* LITERALS */
+{OPS}
+DCL SPOOL(0:%ESPOOL) REDEF SPOOLB UBIN;
+DCL STMNTCT SBIN STATIC SYMDEF;        /* Count of statements processed */
+DCL SYM$ PTR STATIC SYMDEF;            /* -> current symbol table entry */
+DCL SYMROOT SBIN STATIC SYMDEF;        /* Index in SPOOL to root of symbol table */
+DCL SYMTOP SBIN STATIC SYMDEF;         /* Index in SPOOL to last word allocated +1 */
+DCL SYMX SBIN STATIC SYMDEF;           /* Index in SPOOL to current symbol table entry */
+DCL TERRCT SBIN STATIC SYMDEF;         /* total error count */
+DCL TITLEF BIT(1) STATIC SYMDEF;       /* title has been printed */
+DCL TTLDAT UBIN STATIC SYMDEF;         /* TTLDAT field from last TTL (BCD) */
+DCL XCARD(0:255) CHAR(1) STATIC SYMDEF; /* current card image being processed */
+DCL XCARDS REDEF XCARD CHAR(256) ALIGNED;
+DCL XCARDL SBIN STATIC SYMDEF;         /* Length(chars) of XCARD */
+[%MEND;
+END BMAP_DATA;

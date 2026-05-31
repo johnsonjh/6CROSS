@@ -1,0 +1,420 @@
+        ***** BMAP - The CP-6 Macro Assembly Program *****
+ 
+USAGE:
+ 
+!BMAP.:SYS source[,update] [{ON|OVER|INTO} [object][,listing]] [(options)]
+ 
+The following DCBs are used:
+ 
+         source    M$SI
+         update    M$UI
+         object    M$OU
+         listing   M$LO
+ 
+Options:
+ 
+         1P        1-pass assembly (default is 2 pass)
+         2P        2-pass assembly (default is 2 pass)
+         LU        List the update file
+         LS        Produce source listing, including octal, on M$LO. (default
+                   if listing file specified)
+         NLS       No listing
+         OU        Produce object output on M$OU. (default if object file
+                   specified)
+         NOU       No object output
+         SC[HEMA]  Include debug schema in object output. (default)
+         NSC[HEMA] No debug schema
+         SO        Produce (updated) source output on M$SO.
+         SR[CH](fid,fid,...) Specify accounts to be searched for LODM files.
+                   These accounts are searched in order, then the current
+                   account, then :SYS.
+         UI        Read update input from M$UI. (default if update file
+                   specified)
+         NUI       No update input
+         XR[EF]    Produce symbol and macro cross-reference listings on M$LO.
+ 
+         If no options are specified, 2P, LS and OU are assumed.
+ 
+FEATURES:
+ 
+BMAP accepts GMAP language with the following exceptions:
+ 
+The location field must begin in column 1.
+The operation field must start within 15 columns of the location field.
+The variable field must start within 15 columns of the operation field.
+If the first 16 columns of an input line are blank, the card will be treated as
+a comment card.  Otherwise a blank operation field is treated as a NULL
+pseudo-operation.
+E/O/8 in column 7 is not recognized; use EVEN, ODD, or EIGHT.
+ 
+The following pseudo-operations are not implemented:
+ 
+       ABS     BEGIN   CALL    DCARD   ERLK    FEQU    FUL     HEAD
+       LOC     LODST   MASK    MAX     MIN     OLDALT  PRGST   PUNCH
+       PUNM    PUNST   RETURN  SAVE    TCD     TOC
+ 
+The following pseudo-operations are ignored:
+ 
+       CPR     CPRU    DELM    EDITP   LBL     MAXSZ
+ 
+The defaults for the following ON/OFF pseudo-operations are:
+ 
+       CRSM    OFF
+       DETAIL  ON
+       HEXFP   ON
+       LIST    ON
+       PCC     ON
+       PMC     OFF
+       REF     ON
+       REFMA   ON
+ 
+The following pseudo-operations are implemented differently in BMAP:
+ 
+       BLOCK,USE The variable field contains an optional second subfield,
+               namely, an expression to specify the section type according to
+               the table on p. 10 of AF#0073C-0 (section 8.6).  The default
+               section types are:
+ 
+                   BLOCK   4 (non-root labeled COMMON)
+                   USE     1 (procedure)
+ 
+       DEC,OCT In each subfield, if the first nondelimiter is a letter, the
+               subfield is evaluated as an expression.  Otherwise, it is
+               evaluated as a decimal or octal number.
+ 
+       LIT     The literals declared up to this point are generated.  A symbol
+               in the location field, if any, is defined to be the first
+               location of the current literal control section.  Then a new
+               literal control section is allocated.  The names of all of the
+               literal control sections are the same, namely, 'LITERALS'.
+ 
+       TTLS    TTL and TTLS are identical.  There is one heading
+               line which contains the title specified on the
+               most recent TTL or TTLS.
+ 
+       VEC,VECB,FVEC,FVECB,SVEC,SVECB  The generated size field is
+               1 byte less than the size parameter.
+ 
+The following GCOS macros are implemented as pseudo-operations:
+ 
+       DDSC    wsr,base,size,flags (flags=R,W,S,B,X,E,P,N,M,ALL)
+       DDSCW   wsn,base,size,flags
+       DLDSC
+       EDSCnn  wsr,base,size,isegno,entry,S (nn=16, 24, OR 64; size in
+                                             descriptors)
+       IDSC    wsr,loc
+       ODSB    wsr,base,size,flags (base,size in bytes)
+       ODSBW   wsn,base,size,flags (base,size in bytes)
+       ODSC    wsr,base,size,flags
+       ODSCW   wsn,base,size,flags
+ 
+These macros generate a bound field that is 1 byte less
+than the specified size parameter.
+ 
+The following additional pseudo-operations are available:
+ 
+       ENTDEF  declares procedure entry points.
+ 
+       ENTREF  defines external procedure references.
+ 
+       HEXFP   Controls the generation of floating point numbers:
+                   ON (default) Generate hexadecimal floating point numbers.
+                   OFF Generate binary floating point numbers.
+ 
+       PAGE    forces page boundary alignment (like EIGHT).
+ 
+       SEGREF  defines external segment references.
+ 
+Literals may be used for constants in expressions, in instruction address
+fields with index modification, and in non-address fields.
+ 
+Default section name = blank, type = procedure.
+Literal section name = 'LITERALS', type = read-only data.
+ 
+All symbols other than operations and macro names must be unique.
+Symbols may include the characters . $ @ _
+Symbols may be up to 30 characters long; more will be ignored.
+At least one character must not be a digit.
+ 
+*******************************************************************************
+ 
+Version B03 of BMAP available 2/2/79.
+ 
+New Features:
+ 
+       Debug Schema
+       1-pass Assembly
+       New options (see below)
+       Complex Relocation:
+           Two additive relocations or one multiplicative relocation are
+           allowed.  Thus, the following expressions are legal:
+ 
+               R1+R2
+               R1-R2
+               R1*A
+               R1/A
+ 
+           where R1 and R2 are simple relocatable values,
+           and A is an absolute value.
+ 
+*******************************************************************************
+ 
+Version B04 of BMAP available March 7, 1979.
+ 
+Correction:
+ 
+         Bad relocation entries.
+ 
+*******************************************************************************
+ 
+Version B05 available March 9, 1979.
+ 
+Correction:
+ 
+ 
+         Bad relocation entries for EVEN, EIGHT or PAGE pseudo-ops.
+ 
+New feature:
+ 
+         Scaled fixed-point numbers of the form, nBm, where n is an integer.
+ 
+***** WARNING: Do not ORG backwards then assemble code.  This may cause BMAP
+*****          not to generate an object unit.
+ 
+*******************************************************************************
+ 
+Version B06 available April 5, 1979.
+ 
+Correction:
+ 
+       If I/O errors occur, standard system error messages are displayed
+       through M$DO.
+ 
+New features:
+ 
+       The Step Condition Code is now set to indicate assembly or
+       I/O errors:
+ 
+           Severity    STEPCC
+               0          0     No errors.
+               4          1     Assembly errors or list file errors.
+               7          2     Not used.
+              11          3     Input file errors.
+              15          4     Object file errors (no object generated).
+ 
+       Pressing BREAK causes the current pass and line number to be displayed
+       through M$DO.
+ 
+*******************************************************************************
+ 
+Version B07 available June 14, 1979.
+ 
+Corrections:
+ 
+       =M and =V literals now assemble properly.
+ 
+       The format of input lines has been changed to be more compatible with
+       GMAP. (See above)
+ 
+       The parameter scan on macro calls and IDRPs now processes parentheses
+       and brackets correctly.
+ 
+       A bug in the IDRP processing which caused BMAP to loop has been fixed.
+ 
+       The ENTDEF or SYMDEF of a symbol may now follow the symbol.
+ 
+       Strange sequences of EQUs, definitions, and references will now
+       assemble correctly.  If they don't, try the 2P option.
+ 
+       The macro expansion buffer has been increased to 256 characters.
+ 
+New features:
+ 
+       Floating point numbers may now be assembled.  The HEXFP pseudo-operation
+       (see above) controls whether binary or hexadecimal floating point values
+       are generated.
+ 
+       The EDEC pseudo-operation is now implemented.
+ 
+       A number of GMAP pseudo-ops which were previously not implemented are
+       now ignored.
+ 
+*******************************************************************************
+ 
+Version 08 available August 22, 1979.
+ 
+Corrections:
+ 
+       The input card scanner has reverted to version B06.
+ 
+       The DEC and OCT pseudo-operations will now accept both numeric values,
+       such as floating-point, and expressions. (See above.)
+ 
+       If there is no ENTDEF, one will be created with the object unit name.
+ 
+       The BLOCK pseudo-operation now more closely resembles that of GMAP,
+       in that the section name and type are now both in the variable field.
+ 
+       The TTL and TTLS pseudo-operations now start the variable field in
+       column 16 or the first non-blank after the operation field, whichever
+       comes first.
+ 
+       The VFD pseudo-operation now accepts fields > 36 bits in any position.
+ 
+       When BREAK is struck, the pass and line number are now output through
+       M$ME, instead of M$DO.
+ 
+       Errors in the scanning of macro calls ending in commas which were not
+       continued are now corrected.
+ 
+New features:
+ 
+       The DATE, PCC, REF, REFMA, TTLDAT, CRSM, and ORGCSM pseudo-operations
+       are now implemented.
+ 
+       Created symbols (see GMAP manual, DD08, p. 6-55) are now implemented.
+       Their format is _nnnn_, where nnnn is a decimal number starting at 0000.
+ 
+       The title line format has been changed to resemble that of PL6.
+       The account name is suppressed if it matches the current account name.
+       If space is available, the update file name.account is included in the
+       title line.
+ 
+       The symbol cross-reference listing now indicates (with a *) the line(s)
+       where the symbol is defined.
+ 
+       The REF bit of the object unit variable debug record entries is now set
+       if the symbol is referenced.
+ 
+       The circumflex ('^') is no longer used as an end-of-line delimiter.
+ 
+*****************************************************************************
+ 
+Version 09 available September 7, 1979.
+ 
+Corrections:
+ 
+       Within macro calls with PMC OFF, don't print line with only location
+       value.
+ 
+       DETAIL OFF suppresses printing of forward reference resolutions
+       and literals.
+ 
+       PCC OFF now does not suppress printing of (some) comments.
+ 
+       If a macro contains LIST OFF as the first line, PMC OFF now does not
+       suppress printing of the macro call line.
+ 
+New features:
+ 
+       Within macro calls with PMC OFF, the octal for EQUs is printed.
+ 
+       PCC OFF suppresses the printing of lines skipped by IFE, INE, IFG, IFL.
+ 
+       The FLOAT, BFS, and LIT pseudo-operations are now implemented.
+       (See above.)
+ 
+       The END pseudo-operation prints the start address, if any.
+ 
+*****************************************************************************
+ 
+Version 10 available January 1985.
+ 
+New features:
+ 
+       The following S-1000 instructions have been added:
+          DFLP, DFSBI, FLP, FRAN, FSBI, FTR, LCCL, LIMR, LLUF,
+          QFAD, QFLD, QFMP, QFSB, QFST, QFSTR, QSMP, RCCL, RIMR,
+          RPN, SFR, TRCT, UFTR, and XRAN.
+ 
+       In addition, the vector instructions have been added:
+          VDFAD, VDFDV, VDFIG, VDFIN, VDFIP, VDFIT, VDFMA, VDFMN,
+          VDFMP, VDFMS, VDFMX, VDFNG, VDFSB, VDFSM, VDFSN, VDFTN,
+          VDFVN, VDFVP, VDFXG, VFAD, VFDV, VFIP, VFIPN, VFIT,
+          VFITN, VFMA, VFMAX, VFMDS, VFMIG, VFMIN, VFMP, VFMS,
+          VFMSD, VFMVN, VFMVP, VFMXG, VFNG, VFSB, VFSM, VFSN,
+          VIAD, VIIP, VIIPN, VIIT, VIITN, VIMA, VIMAX, VIMIG,
+          VIMIN, VIMP, VIMS, VIMVN, VIMVP, VIMXG, VING, VISB,
+          VISM, VISN, VLAN, VLER, VLOR, VMVD, and VMVS.
+ 
+       In coding uses of these vector instructions, one, two, or three
+       MFn fields must be specified in the variable field, as appropriate
+       for the instruction being used.  RL and ID should be zero, while
+       REG must indicate an index register.
+ 
+       Each use of these vector instructions must be immediately
+       followed by one, two, or three vector descriptors as
+       approprite to the particular instruction being used.  To
+       facilitate construction of these descriptors, the following
+       two new descriptor operations have been added:
+ 
+          VDSC - Vector Descriptor with Explicit Separation
+          VDSCX - Vector Descriptor with Separation in Index Register
+ 
+       The format for use of these is:
+ 
+          VDSC  LOCSYM,SEP[,[RN][,AM]]
+          VDSCX LOCSYM,SEP[,[RN][,AM]]
+       where:
+          LOCSYM is as used in other descriptors such as ADESC
+          SEP is the specification of the number of words separating
+             elements of the vector; it is a decimal value for VDSC
+             and an index register nomination for VDSCX.
+          RN is the specification of the index register which
+             contains the count of the number of vector elements
+             which must be present in the first/only descriptor.
+          AM is as used in other descriptors.
+ 
+       Secondary reference pseudo-ops have also been added as
+ 
+          SENTRF - Secondary ENTREF
+          SSEGRF - Secondary SEGREF
+          SSYMRF - Secondary SYMREF
+ 
+       In response to star #15424, the following message has been added:
+          2 PASS INPUT UNBALANCED
+ 
+       Stars  3729 and 8771 are closed by this release.  For 8771, the
+following DSC type operations have been added:
+ 
+          ADSC4X, ADSC6X, ADSC9X, BDSCX, NDSC4X, & NDSC9X
+ 
+       These force the length specification to be treated as a register
+specification.
+**********************************************************************
+ 
+Version 11 available August 1987.
+ 
+New features:
+ 
+       The following RPM instructions have been added:
+          LCON, RCW, RIW, RMID, RMR, RRES, SIW, SMID, SMR, SYNC.
+ 
+       The optional UI flag is now set on the source in open.
+HELP file for: BMAP
+ **************************************************************
+ *                                                            *
+ *  Copyright (c) Bull HN Information Systems Inc., 1989      *
+ *                                                            *
+ **************************************************************
+30/10/91 - modify source to handle new UTS values
+04/21/89 - In fixing 37583, added parens to expression operators.
+   Using parens disables the built-in address modification mnemonics.
+870722 TWM
+RPM instructions added, optional UI facility enabled.
+850509 TWM
+Star 24631 closed by ignoring the 1P/2P option to make all assemblies
+two pass.
+850110 TWM
+Version 10 changes made; see rest of HELP file.
+??/??/??
+Installed in LADC X account.
+CHANGES
+Tom Martin, LADC
+BMAP.:SYS
+AID=PROGRAMMING_LANGUAGE
+ASSEMBLER
+GMAP6
+TOOL=BMAP
+The CP-6 Macro Assembly Program.
+CHANGES

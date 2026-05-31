@@ -1,0 +1,8 @@
+* phase-5 tail: CLIMB family (ENTER/EXIT/GOTO/PASS/PMME) -- two words, word 1
+* via IFORM, word 2 via CL2FORM 1|9|8|6|12; OP.AR selects the operand path and
+* a parenthesized operand pulls in a register modifier.
+       ENTER 1,2,3
+       EXIT
+       GOTO  1,2,(3,X1)
+       PMME
+       END

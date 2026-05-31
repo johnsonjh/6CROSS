@@ -1,0 +1,23 @@
+* BMAP IDRP refinements (deferred #3): nested IDRP and the literal-list form.
+*   PAIR: an outer "IDRP #1" containing an inner "IDRP #2" -- the body (OCT #1 /
+*         OCT #2) is emitted for every (#1,#2) pair.  PAIR (1,2),(7,8) ->
+*         1,7,1,8 (for #1=1) then 2,7,2,8 (for #1=2).
+*   EMIT: a literal-list "IDRP (5,6,7)" -- the inline list is bound to the
+*         block's dummy parameter #9.  -> OCT 5,6,7.
+       OUNAME IDRP2
+PAIR   MACRO
+       IDRP   #1
+       IDRP   #2
+       OCT    #1
+       OCT    #2
+       IDRP
+       IDRP
+       ENDM
+EMIT   MACRO
+       IDRP   (5,6,7)
+       OCT    #9
+       IDRP
+       ENDM
+       PAIR   (1,2),(7,8)
+       EMIT
+       END

@@ -1,0 +1,11 @@
+* BMAP phase-8 OPSYN: "NEW OPSYN OLD" aliases NEW to the existing op OLD, so it
+* assembles identically.  LOADA->LDA and STOREQ->STQ: the alias and the original
+* must produce the same word.
+       OUNAME OPSYNT
+LOADA  OPSYN  LDA
+STOREQ OPSYN  STQ
+       LOADA  5
+       LDA    5
+       STOREQ 10
+       STQ    10
+       END

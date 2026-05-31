@@ -1,0 +1,12 @@
+* BMAP phase-6 part-1 object test (absolute program -> .obj byte-walk)
+       OUNAME OBJTEST
+KON    EQU    7
+       LDA    5
+       ADA    KON
+       STA    10
+       NOP
+       OCT    777,123
+       DEC    1,2,3
+       ORG    100
+       LDQ    0
+       END

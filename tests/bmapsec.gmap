@@ -1,0 +1,11 @@
+* phase-6: control sections (USE/BLOCK).  Code goes in the blank section 0;
+* BLOCK opens a labeled-common section COMM, and the `,0` overrides its type to
+* a write-access data control section (0).  VAL lands in COMM at its own offset
+* 0; LDA VAL relocates against section COMM, while TRA START stays a section-0
+* relocation.
+       OUNAME SECTEST
+START  LDA   VAL
+       TRA   START
+       BLOCK COMM,0
+VAL    OCT   123
+       END   START

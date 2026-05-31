@@ -1,0 +1,15 @@
+* BMAP phase-7 macros: MACRO/ENDM definition, #N positional substitution, and
+* a macro that calls another macro (nested expansion).  ADD2 a,b -> ADA a/ADA b;
+* DBL n -> ADD2 n,n.  ADA n = 0oNNNNNN075000.
+       OUNAME MACTST
+ADD2   MACRO
+       ADA    #1
+       ADA    #2
+       ENDM
+DBL    MACRO
+       ADD2   #1,#1
+       ENDM
+       LDA    0
+       ADD2   3,5
+       DBL    7
+       END

@@ -1,0 +1,9 @@
+       TITLE   COVER
+       MOVE    1,FOO+3
+       MOVE    2,FOO-1
+       JRST    .
+FOO    MOVEI   3,10
+       ADDI    4,FOO
+       DC      FOO
+       SUB     1,2(5)
+       END

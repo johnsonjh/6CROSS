@@ -1,0 +1,166 @@
+.*M*
+MSA6800
+.*T*
+ **************************************************************
+ *                                                            *
+ *  Copyright (c) Bull HN Information Systems Inc., 1989      *
+ *                                                            *
+ **************************************************************
+.*A*                                                                           
+MSA6800 is a reverse assembler for 6800-based machine code.
+ 
+.*K* INPUT_FORMAT
+Input must be in the form of ASM6800-formatted records.  That is, each
+record is in the general format of
+ 
+    :aabbbbcc[dd]...ee
+ 
+where
+ 
+    :   is a re-sync character beginning each record.
+    aa  is the count of the number of dd bytes in the record, in
+        "printable hex" (see below).
+  bbbb  is an address field, MSB first.
+    cc  is the record type.
+    dd  are data bytes, depending on the record type.
+    ee  is the record checksum, computed by forming the arithmetic
+        inverse of the arithmetic sum of all the (hexadecimal) bytes
+        in the record, aa through dd.  Thus, the sum of all the
+        previous bytes is zero, modulo 256, when added to ee.
+ 
+"printable hex" consists of two characters, '0'-'9' and 'A'-'F', for
+each internal byte of data.  The characters may be in ASCII or EBCDIC
+depending on the host's character set.
+ 
+.*K* OUTPUT_FORMAT
+Output consists of a Edit-keyed file of "source" commands, each of
+which is 80 bytes.  The output may be used as input to ASM6800, often
+without modification.
+ 
+.*K* OPTIONS USAGE
+To use MSA6800:
+ 
+    !MSA6800.Z source OVER output
+ 
+where "source" defines the 6800 object unit file and "output" defines
+the reverse-assembled source file.  "OVER" is required.  MSA6800 works
+in three phases:
+ 
+    Phase 1 reads the "source" file and stores the information in
+    simulated 6800 memory.  64K bytes are reserved for this memory.
+    Only record types 00/10 (data), 01/11 (entry), 05/15 (memory
+    reserve), and 80-82 (symbol table information) are processed.
+    Relocation information records are ignored.  Input may also be
+    in an alternate form consisting of records containing "printable
+    hex" characters keyed with an EDIT key whose integral value is
+    the location of the first byte of the record in memory.  Any
+    error during Phase 1 causes the run to be aborted.
+ 
+    Phase 2 prompts the user for entry points into the program just
+    loaded.  If an entry type record (01/11) was found in the input
+    file, that chain has already been chased.  Commands are of the
+    form
+ 
+        Jxxxx
+        Bxxxx
+ 
+    where "J" specifies that a JSR (subroutine jump) is to be made
+    to "xxxx", where "xxxx" is a one-to-four nibble hexadecimal
+    address.  "B" specifies that a Bxx (branch) is to be made to
+    "xxxx".  MSA6800 will enter the instruction sequence at the
+    location specified and trace instructions until a terminating
+    condition is encountered.  Terminating conditions include
+ 
+    1.  Execution of any RTI, RTS, indirect JMP or JSR, or illegal
+        instruction.
+ 
+    2.  Execution of any instruction which has already been visited.
+ 
+    3.  Execution of any instruction which is in the middle of
+        another instruction.
+ 
+    Unconditional branches and jumps are "taken"; that is, tracing
+    automatically restarts at the destination address.  When a
+    terminating condition is encountered, Phase 2 initiates a scan
+    of all of memory for an instruction that has been tagged as the
+    target of a branch or call instruction which has not been
+    visited.  Tracing automatically resumes at that point.  When
+    there are no more untraced threads, control returns to the user
+    for another entry.
+ 
+    At the end of each segment trace, Phase 2 prints a status message
+    in the form
+ 
+        nnn byte(s) out of mmmm accounted for (zz%)
+ 
+    where "mmmm" indicates the total number of bytes loaded from the
+    input file (including reserve-memory bytes), and "nnn" indicates
+    the number of instruction bytes that have been visited.  "zz" is
+    the percentage of "mmmm" that "nnn" represents.
+ 
+    During Phase 2 the user may also enter the command Pxxxx, which
+    will cause Phase 2 to print a summary of the areas of memory
+    which have been decoded.  The display takes the form of
+ 
+        $xxxx-$yyyy type
+ 
+    "xxxx" and "yyyy" are (inclusive) brackets for the type of memory
+    defined by "type".  "type" may be "Data" or "Instructions".
+    Memory which has had no data stored into it from Phase 1 is not
+    listed.  This list may be lengthy; the user may bracket the
+    display by specifying a start address in the P command ("xxxx")
+    and he may use the BREAK key to stop the display.
+ 
+    Two other commands which can be used during Phase 2 to assist in
+    the tracing process are Mxxxx and Dxxxx.  Both produce the same
+    output; however, M directs the output to the user's terminal while
+    D directs it to the output file.  The output is a formatted dump
+    of memory, beginning with "xxxx" (0 if not specified).  Memory
+    which has not been loded during phase 1 is not dumped.  the dump
+    takes the format
+ 
+        llll xxxxxxxx oooooooo ffffffff cccccccc
+ 
+    Eight bytes are dumped per line.  "llll" is the address of the
+    first byte position (regardless of whether one is printed there or
+    not), and it will always be a multiple of 8.  "xxxxxxxx" is the
+    hexadecimal representation of the eight bytes.  "oooooooo" is an
+    interpretation of the byte as an opcode.  "ffffffff" are the MSA
+    access flags, Read=8, Write=4, JSR=2, and Bxx=1.  Finally,
+    "cccccccc" is the ASCII interpretation of the bytes, with
+    unprintable characters replaced by periods.  The user may
+    interrupt an online Mxxxx command by hitting the BREAK key.
+ 
+    When the user is satisfied with the extent of the tracing process,
+    he enters the END command to enter Phase 3 to produce the output
+    file.  If no END command is entered, no output file is built;
+    however, any pre-existing file of the same name will be deleted.
+    Control returns to the Phase 2 prompt when this is completed.  The
+    user may enter more tracing commands, if desired, and issue the
+    END command again; this will append another copy of the reverse-
+    assembled program onto the end of the output file.
+ 
+    When the user wishes to end the session, QUIT is entered.  The
+    output file will be closed and saved.
+.*R*
+.*K* OWNER
+Lee Hallin, NSS/CP-6, LADC, inherited from Bruce Beaumont late of LADC
+.*K* XINDEX
+MSA6800.X
+.*R*
+AID=MICROPROCESSOR
+.*R*
+DISASSEMBLER
+.*R*
+.*K* XINDEX_ABSTRACT
+TOOL=MSA6800
+.*R*
+A reverse assembler for 6800-based machine code.
+.*K* CHANGES Changes changes
+08/06/85
+.*R*
+Made minor changes to make the listing smaller.
+.*B*
+??/??/??
+.*R*
+Installed in LADC X account.

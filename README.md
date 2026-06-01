@@ -49,20 +49,20 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 ## Quick start
 
 ```
-make                 # build everything
-make test            # run the test suite (49 checks)
-make clean           # cleanup build artifacts
+make        # build everything
+make test   # run the test suite (49 checks)
+make clean  # cleanup build artifacts
 ```
 
 ```sh
 # microprocessor assemblers -> generate object (.obj) + listing (.lst)
-./asmz80  prog.z80
+./asmz80 prog.z80
 ./asm6502 prog.s
 ```
 
 ```sh
 # disassemble an object back to source
-./msaz80  prog.obj -o prog.z80
+./msaz80 prog.obj -o prog.z80
 ```
 
 ```sh
@@ -72,20 +72,20 @@ make clean           # cleanup build artifacts
 
 ```sh
 # convert object(s) -> raw binary / Intel HEX
-./ouconv  prog.obj -o prog.com         # raw binary (e.g. a CP/M .COM)
-./ouconv  prog.obj -o prog.hex --ihex  # Intel HEX
+./ouconv prog.obj -o prog.com         # raw binary (e.g. a CP/M .COM)
+./ouconv prog.obj -o prog.hex --ihex  # Intel HEX
 ```
 
 ```sh
 # ASMDAL: assemble a DAL (PDP‑10) program
-./asmdal  prog.dal                     # -> prog.obj + prog.lst
+./asmdal prog.dal  # -> prog.obj + prog.lst
 ```
 
 ```sh
 # BMAP: assemble a GMAP (DPS‑8) program -> octal listing + object unit (.obj)
-./bmap    prog.gmap                    # -> prog.scan (octal listing)
-./bmap    prog.gmap -S                 # -S/--scan: scanner trace only
-./bmap    prog.gmap -g                 # -g/--debug: also emit the debug schema
+./bmap prog.gmap     # -> prog.scan (octal listing)
+./bmap prog.gmap -S  # -S/--scan: scanner trace only
+./bmap prog.gmap -g  # -g/--debug: also emit the debug schema
 ```
 
 * Options (the CP‑6 option list) are passed as extra arguments, e.g.

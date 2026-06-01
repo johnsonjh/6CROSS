@@ -133,8 +133,8 @@ make clean               # cleanup build artifacts
 
 * **ASMZ80 / ASM6502** assemble to the documented object‑unit format with
   correct opcodes, checksums and listings.  A simple CP/M‑80 "Hello World"
-  program is built with the assembler and executed using the `tnylpo` emulator
-  as a test.
+  program is built with the assembler and executed using the
+  [`tnylpo`](https://gitlab.com/gbrein/tnylpo) emulator as a test.
 
 * **MSA disassemblers** work; Z80 and 6502 round‑trip byte‑identically
   against their assemblers (`ASM -> MSA -> ASM`), the others on hand‑built

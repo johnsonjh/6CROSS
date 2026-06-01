@@ -107,7 +107,7 @@ msa8748: $(OBJDIR)/msa_engine.o $(OBJDIR)/msa8748.o
 test: all tools
 	tests/run_tests.sh
 
-clean:
+clean distclean:
 	rm -rf $(OBJDIR) asmz80 asm6502 cp6link ouconv sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
 
-.PHONY: all tools test clean
+.PHONY: all asm tools test clean distclean

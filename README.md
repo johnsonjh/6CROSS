@@ -48,11 +48,11 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 
 ## Quick start
 
-```
-make                    # build everything
-make FC=gfortran CC=gcc # build everything, specify compilers
-make test               # run the test suite (49 checks)
-make clean              # cleanup build artifacts
+```sh
+make                     # build everything
+make FC=gfortran CC=gcc  # build everything (specify compilers)
+make test                # run the test suite (49 checks)
+make clean               # cleanup build artifacts
 ```
 
 ```sh

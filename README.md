@@ -98,17 +98,26 @@ make clean           # cleanup build artifacts
 
 ## How the port works
 
-* The approach was **faithful per-module** where practical.  Algorithms,
-  control flow, `COMMON` blocks, data layouts, and fixed-form source are
-  preserved. AI *was* used (Gemini, Claude, and ChatGPT), especially with
-  the PL/6 to C conversions, the **ASMDAL** and **BMAP** ports, and for
-  producing the automated test suites based on many hand-written test cases.
+* AI *was* used (Gemini, Claude, and ChatGPT), *especially* with the PL/6
+  to C conversions, the **ASMDAL** and **BMAP** ports, and for producing
+  the automated test suites based on many hand-written test cases.  This
+  project was essentially an experiment in automated test-driven porting
+  of production software written in a "dead" language (PL/6), for which
+  no compilers are known to exist, which ran only on an operating system
+  which is now lost to the ages (Honeywell/Bull CP-6), which itself ran
+  only ran on an very exotic platform, the GE/Honeywell/Bull DPS-8 36-bit
+  large systems mainframe with the NSA/VU (New System Architecture) ISA
+  extensions.
+
+* The approach was intended to be **faithful per-module** where practical.
+  Algorithms, control flow, FORTRAN `COMMON` blocks, data layouts, and
+  style (fixed-form source) are preserved where possible.
 
   * **36-bit words**: The FORTRAN code is built with `-fdefault-integer-8` so
     an `INTEGER` holds a CP-6 36-bit word; `cp6_compat.f` reproduces the CP-6
-    shift/logical intrinsics with exact 36-bit semantics.  The C tools model
-    a word as a `uint64_t` masked to 36 bits, and packing instruction fields
-    big-endian (MSB-first).
+    shift/logical intrinsics with exact 36-bit semantics.  The C-language tools
+    model a "word" as a `uint64_t` masked to 36 bits, and packing instruction
+    fields big-endian (MSB-first).
 
   * **9-bit characters**: Characters live in 9-bit bytes (4 per word); emitted
     output is plain ASCII and host-independent.

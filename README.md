@@ -98,16 +98,18 @@ make clean           # cleanup build artifacts
 
 ## How the port works
 
-* AI *was* used (Gemini, Claude, and ChatGPT), *especially* with the PL/6
-  to C conversions, the **ASMDAL** and **BMAP** ports, and for producing
-  the automated test suites based on many hand-written test cases.  This
-  project was essentially an experiment in automated test-driven porting
-  of production software written in a "dead" language (PL/6), for which
-  no compilers are known to exist, which ran only on an operating system
-  which is now lost to the ages (Honeywell/Bull CP-6), which itself ran
-  only ran on an very exotic platform, the GE/Honeywell/Bull DPS-8 36-bit
-  large systems mainframe with the NSA/VU (New System Architecture) ISA
-  extensions.
+* AI *was* used (Gemini, Claude, Copilot, and ChatGPT), *especially* with
+  the PL/6 to C conversions, the I/O routines, the bulk of the **ASMDAL** and
+  **BMAP** ports, and for producing the automated test suites based on many
+  hand-written test cases.
+
+  * This project was essentially an experiment in automated test-driven
+    porting of legacy production software written in a "dead" language (PL/6),
+    for which no compilers are known to exist, which ran only on an operating
+    system which is now lost to the ages (Honeywell/Bull CP-6), which itself
+    ran only ran on a very exotic platform, the GE/Honeywell/Bull DPS-8/C
+    36-bit large systems mainframe with the NSA/VU (New System Architecture)
+    ISA extensions.
 
 * The approach was intended to be **faithful per-module** where practical.
   Algorithms, control flow, FORTRAN `COMMON` blocks, data layouts, and

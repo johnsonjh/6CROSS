@@ -856,7 +856,7 @@ static void pass_1(FILE *src)
             if (!T->no_code) { process_operand(); location++; }
         }
     }
-    if (assembly_switch) {               /* synthesise an END line */
+    if (assembly_switch) {               /* synthesize an END line */
         T = next_token();
         memcpy(T->source_line, "       END", 10);
         T->location = location;

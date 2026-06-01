@@ -817,7 +817,7 @@ static int read_raw(void)
  * card, skipping (and -- in later phases -- listing) comment cards, runs
  * SCANOP, captures the location field into LOC, and positions CURRCH at the
  * start of the variable field (DEL=0), or sets DEL=BLANK when there is none.
- * At end of input an END card is synthesised so the pass loop terminates.
+ * At end of input an END card is synthesized so the pass loop terminates.
  *
  * `cont` (the original CONT arg, used by NEXTFLD for continuation cards) is
  * accepted for signature fidelity; continuation is a phase-7 concern. */

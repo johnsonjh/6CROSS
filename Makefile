@@ -8,24 +8,25 @@
 #
 # All source lives in source/; the original CP-6 sources are in .original/.
 
-FC      = gfortran
-CC      = cc
+FC = gfortran
+CC = cc
 
 # Faithful-port flags: legacy fixed-form, 64-bit integers (a CP-6 36-bit
 # word fits), static locals, and '$' allowed in identifiers (CLK$, DAT$).
 #
-# -w: the build was audited with warnings ON.  The only actionable findings were
-# fixed (a dropped OBJOUT byte-count argument in asm6502_sif1, and four
-# assumed-size dummy buffers declared (1)/(4) -> (*) in asmz80_sif2).  The rest
-# -- ~38 "rank mismatch (rank-1 and scalar)" notes -- are valid FORTRAN-77
-# sequence association: a 1-word scalar passed as a 1-element buffer to the
-# string packers S2W/W2S/PACK (whose dummy is assumed-size W(*)), used as a
-# scalar elsewhere.  gfortran 14 has no targeted flag for these (only -w; even
-# -std=legacy implies -fallow-argument-mismatch and still warns), so -w is the
-# only way to suppress the irreducible idiom.  Drop -w to re-audit.
+# -w: the FORTRAN build was audited with warnings ON.  The only actionable
+# findings were fixed (a dropped OBJOUT byte-count argument in asm6502_sif1,
+# and four assumed-size dummy buffers declared (1)/(4) -> (*) in asmz80_sif2).
+# The rest -- ~38 "rank mismatch (rank-1 and scalar)" notes -- are valid
+# FORTRAN-77 sequence association: a 1-word scalar passed as a 1-element buffer
+# to the string packers S2W/W2S/PACK (whose dummy is assumed-size W(*)), used
+# as a scalar elsewhere.  gfortran 14 has no targeted flag for these (only -w;
+# even -std=legacy implies -fallow-argument-mismatch and still warns), so -w
+# is the only way to suppress the irreducible idiom.  Drop -w to re-audit.
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
-          -O0 -g -w
+          -O0 -g -w -m64
+CFLAGS  = -O0 -g -m64
 
 SRCDIR  = source
 OBJDIR  = build
@@ -61,12 +62,12 @@ $(OBJDIR):
 tools: cp6link ouconv sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
 
 cp6link: $(SRCDIR)/cp6link.c
-	$(CC) -O2 -Wall -o $@ $(SRCDIR)/cp6link.c
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/cp6link.c
 
 # ASMDAL: two-pass DAL (PDP-10) assembler, C port of ASMDAL_SI61 (PL/6).
 # asmdal_tables.h is generated from the PL/6 source by asmdal_tables.py.
 asmdal: $(SRCDIR)/asmdal.c $(SRCDIR)/asmdal_tables.h
-	$(CC) -O2 -Wall -o $@ $(SRCDIR)/asmdal.c
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/asmdal.c
 
 # BMAP: GMAP (Honeywell DPS-8, 36-bit) macro assembler, C port of BMAP_SI61
 # (PL/6).  Assembles to an octal listing and a relocatable object unit; full
@@ -74,32 +75,32 @@ asmdal: $(SRCDIR)/asmdal.c $(SRCDIR)/asmdal_tables.h
 # generated from .original/BMAP_DA2.XSI / BMAP_DA1.XSI by their committed .py
 # generators.  See source/BMAP_NOTES.md.
 bmap: $(SRCDIR)/bmap.c $(SRCDIR)/bmap_opcodes.h $(SRCDIR)/bmap_asciitbl.h
-	$(CC) -O2 -Wall -o $@ $(SRCDIR)/bmap.c -lm
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/bmap.c -lm
 
 ouconv: $(SRCDIR)/ouconv.c
-	$(CC) -O2 -Wall -o $@ $(SRCDIR)/ouconv.c
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/ouconv.c
 
 sim6502: $(SRCDIR)/sim6502.c
-	$(CC) -O2 -Wall -o $@ $(SRCDIR)/sim6502.c
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/sim6502.c
 
 # disassemblers: one shared msa_engine.o + a per-CPU decode object
 $(OBJDIR)/msa%.o: $(SRCDIR)/msa%.c $(SRCDIR)/msa.h | $(OBJDIR)
-	$(CC) -O2 -Wall -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 msaz80:  $(OBJDIR)/msa_engine.o $(OBJDIR)/msaz80.o
-	$(CC) -O2 -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 msa6502: $(OBJDIR)/msa_engine.o $(OBJDIR)/msa6502.o
-	$(CC) -O2 -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 msa6800: $(OBJDIR)/msa_engine.o $(OBJDIR)/msa6800.o
-	$(CC) -O2 -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 msa8085: $(OBJDIR)/msa_engine.o $(OBJDIR)/msa8085.o
-	$(CC) -O2 -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 msa8748: $(OBJDIR)/msa_engine.o $(OBJDIR)/msa8748.o
-	$(CC) -O2 -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 # `make test` builds the full toolchain (both assemblers + the C tools) so it
 # is correct from a clean tree, then runs the suite.

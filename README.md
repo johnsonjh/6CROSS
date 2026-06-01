@@ -1,10 +1,10 @@
 # 6CROSS: Honeywell/Bull CP‑6 cross‑assembler suite
 
-This is a Linux port of the Honeywell/Bull **CP‑6** cross‑assembler
+This is a UNIX port of the Honeywell/Bull **CP‑6** cross‑assembler
 toolchain.  The original CP‑6 software was written in a mix of
-FORTRAN, PL/6, and CP‑6 BASIC.
-
-This port builds and runs on any Linux system with `gfortran` and `gcc`.
+FORTRAN, PL/6, and CP‑6 BASIC.  This port should builds and runs on
+any 64‑bit UNIX‑like system with GNU `make`, `gfortran`, and a C
+compiler (*e.g.*, `clang`, `gcc`).
 
 It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 
@@ -49,9 +49,10 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 ## Quick start
 
 ```
-make        # build everything
-make test   # run the test suite (49 checks)
-make clean  # cleanup build artifacts
+make                    # build everything
+make FC=gfortran CC=gcc # build everything, specify compilers
+make test               # run the test suite (49 checks)
+make clean              # cleanup build artifacts
 ```
 
 ```sh

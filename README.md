@@ -29,7 +29,7 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 []()
 * **BMAP**: CP‑6 Macro Assembly Program for `GMAP` (for the 36‑bit
   Honeywell/Bull DPS‑8).
-  * A complete port of the PL/6 [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
+  * A port of the PL/6 [`BMAP_SI61.XSI`](.original/BMAP_SI61.XSI).
   * It assembles `GMAP` programs to an octal listing (with cross‑reference)
     and a complete relocatable object unit, with support for the full
     instruction set, macros, and literals.
@@ -142,14 +142,13 @@ make clean               # cleanup build artifacts
 
 * **ASMDAL** is fully ported and verified (two‑pass, `AVL` symbol table, three
   word formats, the object unit.  All instruction words hand‑checked vs. the
-  PDP‑10 encodings). See [`source/ASMDAL_NOTES.md`](source/ASMDAL_NOTES.md).
+  PDP‑10 encodings).
 
 * **BMAP** is complete: `bmap prog.gmap` assembles to a real octal listing
   **and** a complete relocatable object unit (`.obj`) - relocation, def/ref +
   segment‑ref records, control sections (`USE`/`BLOCK`), and (with `-g`) full
   debug schema.  The **real** CP‑6 `BMAP` subroutine library (`BMAP_SIG.XSI`,
-  253 code words) assembles to a hand‑walked, byte‑verified object. See
-  [`source/BMAP_NOTES.md`](source/BMAP_NOTES.md).
+  253 code words) assembles to a hand‑walked, byte‑verified object.
 
 * `make test` runs **49 checks**.
 

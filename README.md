@@ -147,9 +147,9 @@ make clean               # cleanup build artifacts
 * **BMAP** is complete: `bmap prog.gmap` assembles to a real octal listing
   **and** a complete relocatable object unit (`.obj`) - relocation, def/ref +
   segment‑ref records, control sections (`USE`/`BLOCK`), and (with `-g`) full
-  debug symbols.  The real CP‑6 `BMAP` subroutine library (`BMAP_SIG.XSI`, 253
-  code words) assembles to a hand‑walked, byte‑verified object.
-  See [`source/BMAP_NOTES.md`](source/BMAP_NOTES.md).
+  debug schema.  The **real** CP‑6 `BMAP` subroutine library (`BMAP_SIG.XSI`,
+  253 code words) assembles to a hand‑walked, byte‑verified object. See
+  [`source/BMAP_NOTES.md`](source/BMAP_NOTES.md).
 
 * `make test` runs **49 checks**.
 

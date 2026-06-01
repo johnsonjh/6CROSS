@@ -1,4 +1,4 @@
-# BMAP — porting notes & plan
+# BMAP — historical porting notes & plan
 
 `BMAP` is **the CP‑6 Macro Assembly Program**: a full production macro assembler
 that accepts **GMAP** (the Honeywell GCOS / Level‑66 / DPS‑8 36‑bit assembly
@@ -6,10 +6,11 @@ language). Copyright (c) Bull HN Information Systems Inc., 1989; author Tom
 Martin, LADC. It is far larger and richer than ASMDAL: macros (DUP/IDRP/created
 symbols), literals, complex relocation, control sections, floating point,
 cross‑reference, and a debug schema, emitting a CP‑6/GCOS relocatable object
-unit. Target is **Honeywell DPS‑8**.
+unit. Target is **GE/Honeywell/Bull DPS‑8/C**.
 
-This file is the map and plan for the C port (which is a multi‑phase effort).
-The opcode table has already been extracted (see "Foundation done", below).
+This file is the map and plan for the C-language port (which is a multi‑phase
+effort).  The opcode table has already been extracted (see "Foundation done",
+below).
 
 ## Source modules (in the repo root)
 

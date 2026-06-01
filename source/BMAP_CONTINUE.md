@@ -41,9 +41,8 @@ OP.TYPE→handler table, the object‑unit spec, and the 9‑phase plan.
 
 ## The three non‑obvious facts about BMAP
 
-1. BMAP assembles **GMAP** for **Honeywell GCOS / DPS‑8 (36‑bit)** — *not* PDP‑10.
-   So **KLH10 does not apply to BMAP** (ASMDAL's deferred emulator is irrelevant
-   here; a dps8m sim could run output someday, out of scope).
+1. BMAP assembles **GMAP** for **Honeywell GCOS / DPS‑8 (36‑bit)**;
+   the dps8m sim could run output maybe someday, out of scope.
 2. `BMAP_C` and `BMAP_SI62` are **generated** at build‑time (from `DA1` templates
    + `DA2` opcodes by the self‑hosting LINKOP tool, `BMAP_SI64`) and are **not in
    the repo**. The port **replaces that whole bootstrap** with `bmap_opcodes.h` +

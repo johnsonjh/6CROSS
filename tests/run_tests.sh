@@ -192,7 +192,7 @@ if [ -x "$BMAP" ]; then
     if [ -f "$TDIR/bmaperr.gmap" ]; then
         cp "$TDIR/bmaperr.gmap" "$WORK/"
         ( cd "$WORK" && "$BMAP" bmaperr.gmap >/dev/null 2>&1 ); rc=$?
-        sev=$(od -An -tu1 -j4 -N1 "$WORK/bmaperr.obj" 2>/dev/null | tr -d ' ')
+        sev=$(od -An -tu1 -j4 -N1 "$WORK/bmaperr.obj" 2>/dev/null | awk '{print $1+0}')
         if [ "$rc" -ne 0 ] && [ "$sev" = "4" ]; then
             echo "PASS  bmaperr        	invalid op flagged (exit $rc, HEAD severity 4)"
         else

@@ -25,8 +25,8 @@ CC = cc
 # is the only way to suppress the irreducible idiom.  Drop -w to re-audit.
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
-          -O0 -g -w -m64
-CFLAGS  = -O0 -g -m64
+          -O -g -w
+CFLAGS  = -Wall -Wextra -O -g
 
 SRCDIR  = source
 OBJDIR  = build

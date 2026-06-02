@@ -640,9 +640,9 @@ static int dps8_float(double x, int dbl, W *out)
  * are exact; base-10 floats accumulate a host double (mantissa * 10^(E - frac
  * digits), the equivalent of CONVERTSTEP + SCALE) returned in *dval with *type
  * 1 (SPFP) or 2 (DPFP); a scaled `nBm` value is fixed to *val (value * 2^m). */
-static void convert(int base, long *val, int *type, int *deferred, double *dval)
+static void convert(int base, int64_t *val, int *type, int *deferred, double *dval)
 {
-    long v = 0;
+    int64_t v = 0;
     double mant = 0.0;
     int j, frac = 0, sawpt = 0, sf = 0, sh = 0;
     *val = 0; *type = 0; *deferred = 0; *dval = 0.0;
@@ -653,7 +653,7 @@ static void convert(int base, long *val, int *type, int *deferred, double *dval)
             v = v * base + (j - 10);
             CURRCH++;
         }
-        *val = v & (long)M36;
+        *val = v & (int64_t)M36;
         return;
     }
     for (;;) {                          /* base 10 */
@@ -666,15 +666,15 @@ static void convert(int base, long *val, int *type, int *deferred, double *dval)
         else break;
         CURRCH++;
     }
-    if (*type == 0) { *val = v & (long)M36; return; }   /* integer */
+    if (*type == 0) { *val = v & (int64_t)M36; return; }   /* integer */
     {
         double value = mant * pow(10.0, (double)(sf - frac));
         if (*type >= 4) {                               /* scaled fixed (B) */
-            *val = (long)llround(ldexp(value, sh)) & (long)M36;
+            *val = (int64_t)llround(ldexp(value, sh)) & (int64_t)M36;
             *type = 0;
         } else {                                        /* SPFP (1/E) or DPFP (D) */
             *dval = value;
-            *val = (long)value & (long)M36;             /* integer part (expr fallback) */
+            *val = (int64_t)value & (int64_t)M36;             /* integer part (expr fallback) */
             *type = (*type == 3) ? 2 : 1;
         }
     }
@@ -975,14 +975,14 @@ static void xlatev(int nb, W *dest, int destfc, int destnc,
                    const unsigned short *table, int srcoff, int srcnc);  /* fwd */
 #define LITSECT 1
 #define LITMAXW 4                          /* widest literal we form (a few words) */
-struct lit_ent { long v[LITMAXW]; int nw; int pc; };
+struct lit_ent { int64_t v[LITMAXW]; int nw; int pc; };
 static struct lit_ent *LITTAB;
 static int n_lit, cap_lit, LITLOC;
 
 /* Intern an nw-word literal -- deduped by value -- into the LITERALS section,
  * returning its pc (LIT-relative offset).  A 2-word (double) literal is aligned
  * to an even pc, as SI61 does. */
-static int lit_intern(const long *v, int nw)
+static int lit_intern(const int64_t *v, int nw)
 {
     int i, j;
     for (i = 0; i < n_lit; i++) {
@@ -1006,7 +1006,7 @@ static int lit_intern(const long *v, int nw)
  * being the type letter) translated by `type` (A/U=9-bit ASCII, H=6-bit BCD,
  * Z/R = those right-justified) into w[].  Returns the word count; advances
  * CURRCH past the text. */
-static int lit_char(int type, int count, long *w)
+static int lit_char(int type, int count, int64_t *w)
 {
     int m  = (type == 'A' || type == 'U' || type == 'Z') ? 9 : 6;   /* bits/char */
     int sh = (type == 'A' || type == 'U' || type == 'Z') ? 2 : 0;   /* asciit: 2=ASCII,0=BCD */
@@ -1020,7 +1020,7 @@ static int lit_char(int type, int count, long *w)
     for (i = 0; i < nw; i++) wb[i] = 0;
     fc = right ? (nw * cpw - count) : 0;       /* right-justify: pad on the left */
     xlatev(m, wb, fc, nw * cpw, bmap_asciit[sh], CURRCH + 1, count);
-    for (i = 0; i < nw; i++) w[i] = (long)wb[i];
+    for (i = 0; i < nw; i++) w[i] = (int64_t)wb[i];
     CURRCH += count + 1;                       /* past the type letter + text */
     return nw;
 }
@@ -1030,9 +1030,9 @@ static int lit_char(int type, int count, long *w)
  * =<count><A|U|H|Z|R>text suffixed forms (character).  `isconst` (SI61's
  * ~TYPE&4: the field takes no literal address) returns the value itself instead
  * of interning a pool word.  =M (instruction) and =V (VFD) are not yet ported. */
-static void literal(long *out_val, struct rel *out_rel, int isconst)
+static void literal(int64_t *out_val, struct rel *out_rel, int isconst)
 {
-    long w[LITMAXW]; long v; int nw = 1, base = 10, neg = 0, c0, ct = 0, cd = 0;
+    int64_t w[LITMAXW]; int64_t v; int nw = 1, base = 10, neg = 0, c0, ct = 0, cd = 0;
     double dv = 0.0;
     memset(out_rel, 0, sizeof *out_rel);
     w[0] = 0;
@@ -1051,7 +1051,7 @@ static void literal(long *out_val, struct rel *out_rel, int isconst)
     convert(base, &v, &ct, &cd, &dv);
     if (ct != 0) {                              /* floating point -> 1 or 2 words */
         W fw[2]; nw = dps8_float(neg ? -dv : dv, ct == 2, fw);
-        w[0] = (long)fw[0]; if (nw > 1) w[1] = (long)fw[1];
+        w[0] = (int64_t)fw[0]; if (nw > 1) w[1] = (int64_t)fw[1];
     } else {
         int sfx = upch((unsigned char)XCARD[CURRCH]);   /* optional A/U/H/Z/R suffix */
         if (sfx == 'A' || sfx == 'U' || sfx == 'H' || sfx == 'Z' || sfx == 'R') {
@@ -1069,7 +1069,7 @@ done:
     out_rel->operand = LITSECT;
 }
 
-static void varscan(long *out_val, struct rel *out_rel, int type)
+static void varscan(int64_t *out_val, struct rel *out_rel, int type)
 {
     int64_t V[20];
     struct rel R[20];
@@ -1100,7 +1100,7 @@ S20:
         } else if (XCARD[CURRCH] == '=') {                      /* literal leaf (immediate) */
             literal(&V[VX], &R[VX], 1);
         } else if (all_digits(CURRCH, NEXTCH)) {                /* number */
-            long cv; int ct, cd; double cdv;
+            int64_t cv; int ct, cd; double cdv;
             convert(BASE, &cv, &ct, &cd, &cdv);
             if (ct != 0 || CURRCH != NEXTCH) error(9);          /* float -> error here */
             V[VX] = sx36(cv); memset(&R[VX], 0, sizeof R[VX]);
@@ -1753,13 +1753,13 @@ static int gen_logn;
 static W   gen_val;                      /* EQU/SET value (for the listing) */
 static int gen_has_val;
 
-static void genloc(int has_val, long val, int has_sect, int sect)
+static void genloc(int has_val, int64_t val, int has_sect, int sect)
 {
     if (has_val) { PC = (int)val; if (has_sect) PCREL.operand = sect; }
     if (PASS2 == 0) return;
     gen_loc_pc = PC; gen_loc_sect = PCREL.operand;
 }
-static void genval(int nf, const int *nb, const long *val, const struct rel *rel)
+static void genval(int nf, const int *nb, const int64_t *val, const struct rel *rel)
 {
     char *p = gen_octal;
     int i, d;
@@ -1776,7 +1776,7 @@ static void genval(int nf, const int *nb, const long *val, const struct rel *rel
     }
     *p = '\0';
 }
-static void gen(int nf, const int *nb, const long *val, const struct rel *rel)
+static void gen(int nf, const int *nb, const int64_t *val, const struct rel *rel)
 {
     W tval = 0;
     int i;
@@ -1852,7 +1852,7 @@ static void genlits(void)
         int j;
         PC = LITTAB[i].pc;
         for (j = 0; j < LITTAB[i].nw; j++) {    /* each word (gen bumps PC) */
-            long v = LITTAB[i].v[j];
+            int64_t v = LITTAB[i].v[j];
             memset(&r, 0, sizeof r);
             gen(1, NB36, &v, &r);
         }
@@ -1872,11 +1872,11 @@ static void genlits(void)
  * equivalent per-word accumulator.  OPD (the opcode-defining form) is deferred. */
 static void vfd(void)
 {
-    long fval[40]; int fw[40]; struct rel frel[40];
+    int64_t fval[40]; int fw[40]; struct rel frel[40];
     int nf = 0, b = 0, i;
     for (;;) {                                   /* L1810: one field per pass */
         int j, m = 0, tx = 0, ww = 0, rem, split = 0;
-        long fv = 0, v; struct rel frl;
+        int64_t fv = 0, v; struct rel frl;
         if (nextfld()) break;                    /* L1835: no more fields */
         j = CONTROLS[(unsigned char)XCARD[CURRCH]];
         switch (j) {
@@ -1907,7 +1907,7 @@ static void vfd(void)
             nc = NEXTCH - ti;
             if (m < 0 && nc > jc) ti += nc - jc; /* right-justified */
             xlatev(am, &cw, fc, jc, bmap_asciit[tx], ti, nc);
-            fv = (long)cw;
+            fv = (int64_t)cw;
             CURRCH = NEXTCH;
         } else {                                 /* octal / value field */
             if (ww > 36) { error(4); ww = 36; }
@@ -1915,10 +1915,10 @@ static void vfd(void)
             varscan(&fv, &frl, m + 4);           /* m=1 -> octal+lit, m=0 -> dec+lit */
         }
         rem = ww;
-        v = fv & (rem >= 36 ? (long)M36 : (((long)1 << rem) - 1));
+        v = fv & (rem >= 36 ? (int64_t)M36 : (((int64_t)1 << rem) - 1));
         while (rem > 0) {                        /* place ww bits, splitting at word edge */
             int avail = 36 - b, take = rem < avail ? rem : avail;
-            fval[nf] = (v >> (rem - take)) & (((long)1 << take) - 1);
+            fval[nf] = (v >> (rem - take)) & (((int64_t)1 << take) - 1);
             fw[nf] = take;
             if (take == ww && !split) frel[nf] = frl;        /* whole field */
             else { if (rel_nz(&frl)) error(5); memset(&frel[nf], 0, sizeof frel[nf]); split = 1; }
@@ -1939,7 +1939,7 @@ static void vfd(void)
  * (ignore); the data/EIS/descriptor/IO/CLIMB types are deferred. */
 
 /* IC-relative address fix-up shared by the IFORM/XFORM paths (SI61 2167). */
-static void ic_relative(long *val, struct rel *rel, int ai, int ti)
+static void ic_relative(int64_t *val, struct rel *rel, int ai, int ti)
 {
     if (rel[ti].opndtyp == OPERREL
         || (LISTING.floatf && val[ti] == 0 && !rel_nz(&rel[ti])
@@ -1956,7 +1956,7 @@ static void ic_relative(long *val, struct rel *rel, int ai, int ti)
 }
 /* L102 (SI61 2164): scan address + tag, IC fix-up, optional AR field, emit
  * the 3- or 4-field IFORM word.  Caller has set val[2]/rel[2] = opcode. */
-static void inst_l102(long *val, struct rel *rel)
+static void inst_l102(int64_t *val, struct rel *rel)
 {
     int k;
     varscan(&val[1], &rel[1], 4);            /* address (literal allowed) */
@@ -1982,7 +1982,7 @@ static const int EFORM[42] = {
  * packing AR(bit29)|RL(30)|ID(31)|REG(32-35) -- i.e. AR<<6|RL<<5|ID<<4|REG in
  * the low 7 bits; reg is a register modifier name (type 2).  An empty field
  * leaves MF = 0. */
-struct mf { long v; struct rel rel; };
+struct mf { int64_t v; struct rel rel; };
 static void mfscan(struct mf *m)
 {
     m->v = 0; memset(&m->rel, 0, sizeof m->rel);
@@ -1993,7 +1993,7 @@ static void mfscan(struct mf *m)
     }
     if (DEL != D_LPAR) { CURRCH = NEXTCH; return; }   /* S30: no field, not "(" */
     {   /* parenthesized (ar,rl,id,reg) */
-        long ar = 0, rl = 0, id = 0, reg = 0, vv; int j;
+        int64_t ar = 0, rl = 0, id = 0, reg = 0, vv; int j;
         for (j = 0; j <= 3; j++) {
             varscan(&vv, &m->rel, j < 3 ? 0 : 2);    /* reg (j=3) is a modifier name */
             if (rel_nz(&m->rel) && j < 3) error(5);
@@ -2029,7 +2029,7 @@ static const int VECFORM[30]= {18,2,9,2,5, 20,9,2,5,0, 18,2,4,12,0, 20,4,12,0,0,
  * of M/N/P/E/X/B/S/W/R sets bit 2^(name index): M=1, N=2, ... R=256.  ALL=0o777,
  * NONE=3, NOT inverts the following names.  If absent (and the next char is not
  * `(`), *tv keeps the caller's default. */
-static void flags_scan(long *tv)
+static void flags_scan(int64_t *tv)
 {
     static const char *const FLAG[12] =
         {"M","N","P","E","X","B","S","W","R","ALL","NONE","NOT"};
@@ -2045,7 +2045,7 @@ static void flags_scan(long *tv)
             if ((int)strlen(FLAG[i]) == n && !memcmp(&XCARD[CURRCH], FLAG[i], (size_t)n))
                 { k = i + 1; break; }
         if (k == 0) error(4);
-        else if (k <= 9) { long b = 1L << (k - 1); if (notf) *tv &= ~b; else *tv |= b; }
+        else if (k <= 9) { int64_t b = (int64_t)1 << (k - 1); if (notf) *tv &= ~b; else *tv |= b; }
         else if (k == 10) *tv = 0777;
         else if (k == 11) { *tv = 3; return; }
         else notf = 1;
@@ -2070,18 +2070,18 @@ static int charbin(int s, int e)
  * group is left clear, so a group-aligned FB is bumped past it first).  Each
  * call consumes one of the NC field positions and is a no-op once NC hits 0,
  * which is how the field is padded/truncated to exactly NC characters. */
-static void edec_edins(int CH, int NB, int *NC, int *FB, long *acc, int *NW)
+static void edec_edins(int CH, int NB, int *NC, int *FB, int64_t *acc, int *NW)
 {
     static const int NB36[1] = { 36 };
     struct rel r;
-    long w;
+    int64_t w;
     if (*NC <= 0) return;
     if (NB == 4 && (*FB % 9) == 0) (*FB)++;
-    *acc |= (long)(CH & ((1 << NB) - 1)) << (36 - *FB - NB);
+    *acc |= (int64_t)(CH & ((1 << NB) - 1)) << (36 - *FB - NB);
     (*NC)--;
     *FB += NB;
     if (*FB >= 36) {
-        w = *acc & (long)M36;
+        w = *acc & (int64_t)M36;
         memset(&r, 0, sizeof r);
         gen(1, NB36, &w, &r);            /* GEN(1,36,VAL.I,0); PRINT; NW=NW+1 */
         (*NW)++;
@@ -2130,9 +2130,9 @@ static void inst(void)
 {
     /* two guard slots below index 0: the NSA descriptor (CASE 35, ODSB) can
      * transiently index val[-1], as SI61 does off the front of VAL. */
-    long valbuf[40];
+    int64_t valbuf[40];
     struct rel relbuf[40];
-    long *val = valbuf + 2;
+    int64_t *val = valbuf + 2;
     struct rel *rel = relbuf + 2;
     int k;
 
@@ -2195,7 +2195,7 @@ static void inst(void)
     case 4: {                                /* REPEAT (RPT/RPD/...) */
         static const char *const condsym[7] =
             { "TOV", "TNC", "TRC", "TMI", "TPL", "TZE", "TNZ" };
-        long cond = 0;
+        int64_t cond = 0;
         if (PASS2 == 0) { PC++; return; }
         STMNTCT++;
         varscan(&val[0], &rel[0], 0);                    /* repeat count */
@@ -2204,7 +2204,7 @@ static void inst(void)
         for (;;) {                                       /* condition list */
             if (nextfld()) break;
             if (XCARD[CURRCH] >= '0' && XCARD[CURRCH] <= '9') {
-                long cv; int ct, cd; double cdv;
+                int64_t cv; int ct, cd; double cdv;
                 convert(8, &cv, &ct, &cd, &cdv);
                 if (CURRCH != NEXTCH) error(9);
                 cond |= cv;                              /* numeric condition */
@@ -2254,7 +2254,7 @@ static void inst(void)
         break;
     case 15: {                               /* ASCII, BCI, EBCDIC, UASCI */
         static const int W36[1] = {36};
-        long nw; struct rel r;
+        int64_t nw; struct rel r;
         int m, nb, j, nwi;
         W words[64];
         varscan(&nw, &r, 0);                 /* word count */
@@ -2267,7 +2267,7 @@ static void inst(void)
         for (j = 0; j < nwi; j++) words[j] = 0;
         xlatev(nb, words, 0, m * nwi, bmap_asciit[OP->val], CURRCH + 1, m * nwi);
         for (j = 0; j < nwi; j++) {
-            long v = (long)words[j];
+            int64_t v = (int64_t)words[j];
             memset(&rel[0], 0, sizeof rel[0]);
             gen(1, W36, &v, &rel[0]);
         }
@@ -2285,7 +2285,7 @@ static void inst(void)
                 CURRCH--; DEL = 0;
                 varscan(&val[0], &rel[0], OP->mask);
             } else {                                 /* number */
-                long cv; int ct, cd, minus = 0; double dv;
+                int64_t cv; int ct, cd, minus = 0; double dv;
                 if (XCARD[CURRCH] == '-') { minus = 1; CURRCH++; }
                 else if (XCARD[CURRCH] == '+') CURRCH++;
                 convert(base, &cv, &ct, &cd, &dv);
@@ -2293,9 +2293,9 @@ static void inst(void)
                 if (ct == 1 || ct == 2) {            /* SPFP / DPFP -> DPS-8 float */
                     W fw[2];
                     ty = dps8_float(minus ? -dv : dv, ct == 2, fw);
-                    val[0] = (long)fw[0]; if (ty > 1) val[1] = (long)fw[1];
+                    val[0] = (int64_t)fw[0]; if (ty > 1) val[1] = (int64_t)fw[1];
                 } else {                             /* integer / scaled fixed */
-                    if (minus) cv = (base == 10) ? -cv : (cv ^ ((long)1 << 35));
+                    if (minus) cv = (base == 10) ? -cv : (cv ^ ((int64_t)1 << 35));
                     val[0] = cv; ty = 0;
                 }
             }
@@ -2477,7 +2477,7 @@ static void inst(void)
     }
     case 35: {                               /* NSA descriptors ODSC/DDSC/IDSC/ODSB (SI61 2975) */
         int K = OP->mask - 1, K2 = 1 - K, L, j;
-        long tv = 043;
+        int64_t tv = 043;
         if (PASS2 == 0) { PC += 2; return; }
         STMNTCT++;
         for (j = -1; j < 8; j++) { val[j] = 0; memset(&rel[j], 0, sizeof rel[j]); }
@@ -2523,7 +2523,7 @@ static void inst(void)
     case 34: {                               /* NSA vectors VEC/FVEC/SVEC/CVEC (SI61 2927) */
         static const int W36[1] = {36};
         int K = OP->mask / 2, K2 = 5 + K, K3 = 9 + K, j;
-        long tv = 0777;
+        int64_t tv = 0777;
         if (PASS2 == 0) { PC += OP->val / 256; return; }
         STMNTCT++;
         for (j = 0; j < 12; j++) { val[j] = 0; memset(&rel[j], 0, sizeof rel[j]); }
@@ -2605,7 +2605,7 @@ static void inst(void)
     case 42: {                               /* EDEC: decimal-edit compiler (SI61 3067) */
         int NW = 0, FB = 0, NB = 0, NC = 0, CT, DP = 0, SF, FC, CC, I, cls;
         int FP, LEFT, MINUS;
-        long acc = 0;                        /* VAL.I(0): the word being filled */
+        int64_t acc = 0;                     /* VAL.I(0): the word being filled */
         STMNTCT++;
         while (DEL <= D_COMMA) {              /* one comma-separated field per turn */
             FP = 0;
@@ -2694,7 +2694,7 @@ static void inst(void)
       edec_end:
         if (FB != 0) {                       /* flush the last partial word */
             static const int NB36[1] = { 36 };
-            long w = acc & (long)M36;
+            int64_t w = acc & (int64_t)M36;
             struct rel r; memset(&r, 0, sizeof r);
             gen(1, NB36, &w, &r);
             NW++;
@@ -2703,11 +2703,11 @@ static void inst(void)
         break;
     }
     case 44: {                               /* DATE: emit the date word (SI61 3194) */
-        long v; struct rel r;
+        int64_t v; struct rel r;
         static const int NB36[1] = { 36 };
         STMNTCT++;
         if (PASS2 == 0) { PC++; break; }
-        v = (OP->val == 0) ? (long)date_word() : (long)TTLDAT;
+        v = (OP->val == 0) ? (int64_t)date_word() : (int64_t)TTLDAT;
         memset(&r, 0, sizeof r);
         gen(1, NB36, &v, &r);
         break;
@@ -2728,7 +2728,7 @@ static void inst(void)
 static void boundary(int nw, int odd, int cdf)
 {
     int newpc;
-    long val[3];
+    int64_t val[3];
     struct rel rel[3];
     (void)cdf;
     if (PC % nw == odd) return;
@@ -2747,7 +2747,7 @@ static void case_boundary(void)              /* EVEN/ODD/EIGHT/PAGE (type 11) */
 }
 static void case_org(void)                   /* ORG (type 12) */
 {
-    long v; struct rel r;
+    int64_t v; struct rel r;
     STMNTCT++;
     varscan(&v, &r, 0);
     if (r.opndtyp == OPERUNDEF) error(-6);
@@ -2756,7 +2756,7 @@ static void case_org(void)                   /* ORG (type 12) */
 }
 static void case_bss(void)                   /* BSS (type 24) */
 {
-    long cnt; struct rel r;
+    int64_t cnt; struct rel r;
     STMNTCT++;
     varscan(&cnt, &r, 0);
     if (rel_nz(&r)) error(-5);               /* count must be absolute */
@@ -2857,7 +2857,7 @@ static void case_use(void)
     PCREL.operand = target;
     PC = (target >= 0 && target < NOSECT) ? OSECT[target].pc : 0;
     if (DEL == D_COMMA && target >= 0 && target < NOSECT) {   /* `,type` override */
-        long tv; struct rel tr;
+        int64_t tv; struct rel tr;
         CURRCH = NEXTCH;                         /* step to the comma; varscan skips it */
         varscan(&tv, &tr, 0);
         if (rel_nz(&tr)) error(5);
@@ -3128,7 +3128,7 @@ static void case_macro_call(void)
  * being zero is a no-op (SI61). */
 static void case_dup(void)
 {
-    long ncards = 0, nreps = 0;
+    int64_t ncards = 0, nreps = 0;
     struct rel r0, r1;
     char **block, **exp;
     int i, j, got;
@@ -3161,7 +3161,7 @@ static void case_dup(void)
  * SI61's two compare paths. */
 static void case_if(void)
 {
-    long skip = 1;
+    int64_t skip = 1;
     int cond = 0, sp = CURRCH + 1, qx;
     STMNTCT++;
     /* string-compare form (SI61 L2210): the first or second operand is quoted */
@@ -3200,7 +3200,7 @@ static void case_if(void)
     }
     /* numeric form: two VARSCAN expressions */
     {
-        long a = 0, b = 0; struct rel ra, rb, rs;
+        int64_t a = 0, b = 0; struct rel ra, rb, rs;
         varscan(&a, &ra, 0);
         varscan(&b, &rb, 0);
         switch (OP->val) {
@@ -3636,7 +3636,7 @@ static void run_selftests(void)
         {"AAA",1}, {"DELTA",4},
     };
     int i;
-    long v; int type, def; double dv;
+    int64_t v; int type, def; double dv;
     struct rel r, cst;
 
     fprintf(LO, "convert:\n");
@@ -3651,8 +3651,8 @@ static void run_selftests(void)
                          ct[i].s, ct[i].base, (unsigned long long)fw[0],
                          (unsigned long long)fw[1], type);
         } else
-            fprintf(LO, "  %-13s base %2d -> %ld = 0%lo type=%d\n",
-                    ct[i].s, ct[i].base, v, (unsigned long)v, type);
+            fprintf(LO, "  %-13s base %2d -> %lld = 0%llo type=%d\n",
+                    ct[i].s, ct[i].base, (long long)v, (unsigned long long)v, type);
     }
 
     fprintf(LO, "symtab:\n");
@@ -3692,12 +3692,12 @@ static void run_selftests(void)
         };
         int k;
         for (k = 0; k < (int)(sizeof ve / sizeof ve[0]); k++) {
-            long val; struct rel rr;
+            int64_t val; struct rel rr;
             TERRCT = 0; ERRSEV = 0; ERRCT = 0;
             set_xcard_expr(ve[k].e);
             varscan(&val, &rr, ve[k].type);
             fprintf(LO, "  %-9s t%d -> %lld = 0%012llo  ", ve[k].e, ve[k].type,
-                    (long long)sx36(val), (unsigned long long)((unsigned long)val & M36));
+                    (long long)sx36(val), (unsigned long long)((uint64_t)val & M36));
             print_rel(&rr);
             if (TERRCT) fprintf(LO, "  [err]");
             fputc('\n', LO);

@@ -2,7 +2,7 @@
 
 This is a UNIX port of the Honeywell/Bull **CP‑6** cross‑assembler
 toolchain.  The original CP‑6 software was written in a mix of
-FORTRAN, PL/6, and CP‑6 BASIC.  This port should build and runs on
+FORTRAN, PL/6, and CP‑6 BASIC.  This port should build and run on
 any UNIX‑like system with GNU `make`, `gfortran`, and a C compiler
 (*e.g.*, `clang`, `gcc`).
 
@@ -73,7 +73,7 @@ make clean               # cleanup build artifacts
 
 ```sh
 # convert object(s) -> raw binary / Intel HEX
-./ouconv prog.obj -o prog.com         # raw binary (e.g. a CP/M .COM)
+./ouconv prog.obj -o prog.com         # raw binary (e.g., a CP/M .COM)
 ./ouconv prog.obj -o prog.hex --ihex  # Intel HEX
 ```
 
@@ -89,11 +89,11 @@ make clean               # cleanup build artifacts
 ./bmap prog.gmap -g  # -g/--debug: also emit the debug schema
 ```
 
-* Options (the CP‑6 option list) are passed as extra arguments, e.g.
+* Options (the CP‑6 option list) are passed as extra arguments, *e.g.*,
   `./asmz80 prog.z80 "(LS,OU,XR)"`. By default `LS` (listing) and `OU`
   (object output) are on.
 
-* For reproducible builds using `BMAP`, the `DATE` pseudo‑op honours the
+* For reproducible builds using `BMAP`, the `DATE` pseudo‑op honors the
   standard [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
   environment variable.  When set, `DATE` emits a fixed date word instead
   of reading the live clock.
@@ -140,9 +140,9 @@ make clean               # cleanup build artifacts
   against their assemblers (`ASM -> MSA -> ASM`), the others on hand‑built
   objects.
 
-* **ASMDAL** is fully ported and verified (two‑pass, `AVL` symbol table, three
-  word formats, the object unit.  All instruction words hand‑checked vs. the
-  PDP‑10 encodings).
+* **ASMDAL** is fully ported and verified (two‑pass, AVL symbol table, three
+  word formats, and the object unit; all instruction words were hand‑checked
+  against the PDP‑10 encodings).
 
 * **BMAP** is complete: `bmap prog.gmap` assembles to a real octal listing
   **and** a complete relocatable object unit (`.obj`) - relocation, def/ref +

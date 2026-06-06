@@ -27,38 +27,54 @@ def process_line(line):
         if quote:
             out.append(ch)
             if ch == quote:
-                if i + 1 < n and line[i + 1] == quote:   # doubled-quote escape
-                    out.append(line[i + 1]); i += 2; continue
+                if i + 1 < n and line[i + 1] == quote:  # doubled-quote escape
+                    out.append(line[i + 1])
+                    i += 2
+                    continue
                 quote = None
-            i += 1; continue
+            i += 1
+            continue
         if ch in "'\"":
-            quote = ch; out.append(ch); i += 1; continue
+            quote = ch
+            out.append(ch)
+            i += 1
+            continue
         # Hollerith must start at col 7+ (i>=6). At col 7 (i==6) the
         # preceding char is the column-6 continuation marker, not a token,
         # so skip the "preceded by alnum" guard there.
-        if (ch == '1' and i + 2 < n and line[i + 1] in 'Hh'
-                and i >= 6
-                and (i == 6 or not line[i - 1].isalnum())):
+        if (
+            ch == "1"
+            and i + 2 < n
+            and line[i + 1] in "Hh"
+            and i >= 6
+            and (i == 6 or not line[i - 1].isalnum())
+        ):
             out.append(str(ord(line[i + 2]) << 27))
-            i += 3; count += 1; continue
-        out.append(ch); i += 1
-    return ''.join(out), count
+            i += 3
+            count += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out), count
 
 
 def main():
     total = 0
     for path in sys.argv[1:]:
         with open(path) as f:
-            lines = f.read().split('\n')
+            lines = f.read().split("\n")
         res = []
         for ln in lines:
             new, c = process_line(ln)
-            res.append(new); total += c
-        with open(path, 'w') as f:
-            f.write('\n'.join(res))
-        print(f"{path}: converted {sum(process_line(l)[1] for l in lines)} Hollerith constants")
+            res.append(new)
+            total += c
+        with open(path, "w") as f:
+            f.write("\n".join(res))
+        print(
+            f"{path}: converted {sum(process_line(l)[1] for l in lines)} Hollerith constants"
+        )
     print(f"total converted: {total}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

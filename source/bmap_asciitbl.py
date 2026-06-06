@@ -9,10 +9,15 @@
 import os, re, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", ".original", "BMAP_DA1.XSI")
+src = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.path.join(here, "..", ".original", "BMAP_DA1.XSI")
+)
 out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, "bmap_asciitbl.h")
 
 text = open(src).read()
+
 
 def extract(name):
     # find  "2 NAME(0:511) UBIN(9) UNAL INIT( ... )"  and expand its items
@@ -22,18 +27,20 @@ def extract(name):
     i = m.end()
     depth = 1
     j = i
-    while depth:                              # find the matching ')'
-        if text[j] == '(': depth += 1
-        elif text[j] == ')': depth -= 1
+    while depth:  # find the matching ')'
+        if text[j] == "(":
+            depth += 1
+        elif text[j] == ")":
+            depth -= 1
         j += 1
-    body = text[i:j-1]
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)   # strip PL/6 comments
+    body = text[i : j - 1]
+    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)  # strip PL/6 comments
     vals = []
     for item in body.replace("\n", " ").split(","):
         item = item.strip().rstrip(";")
         if not item:
             continue
-        if "*" in item:                       # run-length: VALUE*COUNT
+        if "*" in item:  # run-length: VALUE*COUNT
             v, c = item.split("*")
             vals += [int(v)] * int(c)
         else:
@@ -42,8 +49,13 @@ def extract(name):
         raise SystemExit("table %s: expected 512 entries, got %d" % (name, len(vals)))
     return vals
 
-tables = [("bcd", extract("BCD")), ("ebcdic", extract("EBCDIC")),
-          ("ascii", extract("ASCII")), ("ascii6", extract("ASCII6"))]
+
+tables = [
+    ("bcd", extract("BCD")),
+    ("ebcdic", extract("EBCDIC")),
+    ("ascii", extract("ASCII")),
+    ("ascii6", extract("ASCII6")),
+]
 
 L = []
 w = L.append
@@ -61,7 +73,7 @@ w("static const unsigned short bmap_asciit[4][512] = {")
 for name, vals in tables:
     w("    {   /* %s */" % name)
     for k in range(0, 512, 16):
-        w("    " + " ".join("%3d," % v for v in vals[k:k+16]))
+        w("    " + " ".join("%3d," % v for v in vals[k : k + 16]))
     w("    },")
 w("};")
 w("")

@@ -18,7 +18,11 @@
 import os, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", ".original", "BMAP_DA2.XSI")
+src = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.path.join(here, "..", ".original", "BMAP_DA2.XSI")
+)
 out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, "bmap_opcodes.h")
 
 ops = []
@@ -34,10 +38,10 @@ for ln, line in enumerate(open(src), 1):
     seen.add(mnem)
     val = int(val_o, 8)
     assert len(flags) == 6 and set(flags) <= {"0", "1"}, (ln, flags)
-    mask = int(flags[0:2], 2)        # 1=octal modifier, 2=symbolic modifier
-    ar = int(flags[2])               # AR field required
-    rpl = int(flags[3])              # RPL instruction
-    prfs = int(flags[4:6], 2)        # print flags: 2=octal, 1=location
+    mask = int(flags[0:2], 2)  # 1=octal modifier, 2=symbolic modifier
+    ar = int(flags[2])  # AR field required
+    rpl = int(flags[3])  # RPL instruction
+    prfs = int(flags[4:6], 2)  # print flags: 2=octal, 1=location
     ops.append((mnem, val, mask, ar, rpl, prfs, int(typ)))
 
 # sorted by mnemonic for binary search in the C port
@@ -45,12 +49,51 @@ ops.sort(key=lambda o: o[0])
 
 # The 46 OP.TYPE codes (BMAP_DA1.XSI:305-352), kept for reference in the port.
 TYPE_NAMES = [
-    "IGNORE", "NON_EIS", "INDEX", "TALLY", "REPEAT", "RPTX_RPDX", "NO_VAR",
-    "USE_BLOCK", "EJECT", "END", "INHIB", "BOUND", "ORG", "BOOL_EQU_SET",
-    "DEF_REF", "ASCII", "DEC_OCT", "ZERO", "VFD_OPD", "DUP", "MACRO",
-    "MACRO_CALL", "IF", "IO", "BSS", "IDCW", "CLIMB", "EIS", "BDSC", "ADSC",
-    "NDSC", "MICROP", "ASCNT", "NSA_PTR", "NSA_VEC", "NSA_DESC", "NSA_ENTRY",
-    "IDRP", "OPSYN", "LISTCTL", "OUNAME", "LODM", "EDEC", "ORGCSM", "DATE",
+    "IGNORE",
+    "NON_EIS",
+    "INDEX",
+    "TALLY",
+    "REPEAT",
+    "RPTX_RPDX",
+    "NO_VAR",
+    "USE_BLOCK",
+    "EJECT",
+    "END",
+    "INHIB",
+    "BOUND",
+    "ORG",
+    "BOOL_EQU_SET",
+    "DEF_REF",
+    "ASCII",
+    "DEC_OCT",
+    "ZERO",
+    "VFD_OPD",
+    "DUP",
+    "MACRO",
+    "MACRO_CALL",
+    "IF",
+    "IO",
+    "BSS",
+    "IDCW",
+    "CLIMB",
+    "EIS",
+    "BDSC",
+    "ADSC",
+    "NDSC",
+    "MICROP",
+    "ASCNT",
+    "NSA_PTR",
+    "NSA_VEC",
+    "NSA_DESC",
+    "NSA_ENTRY",
+    "IDRP",
+    "OPSYN",
+    "LISTCTL",
+    "OUNAME",
+    "LODM",
+    "EDEC",
+    "ORGCSM",
+    "DATE",
     "LIT",
 ]
 
@@ -69,21 +112,25 @@ w(" *   type : OP.TYPE 0..45 (see bmap_optype below / BMAP_DA1 lines 305-352) */
 w("#ifndef BMAP_OPCODES_H")
 w("#define BMAP_OPCODES_H")
 w("")
-w("struct bmap_op { const char *mnem; unsigned val; "
-  "unsigned char mask, ar, rpl, prfs, type; };")
+w(
+    "struct bmap_op { const char *mnem; unsigned val; "
+    "unsigned char mask, ar, rpl, prfs, type; };"
+)
 w("")
 w("#define NBMAPOP %d" % len(ops))
 w("static const struct bmap_op bmap_ops[NBMAPOP] = {")
 for mnem, val, mask, ar, rpl, prfs, typ in ops:
-    w('    { "%s",%s0%o, %d, %d, %d, %d, %2d },'
-      % (mnem, " " * (8 - len(mnem)), val, mask, ar, rpl, prfs, typ))
+    w(
+        '    { "%s",%s0%o, %d, %d, %d, %d, %2d },'
+        % (mnem, " " * (8 - len(mnem)), val, mask, ar, rpl, prfs, typ)
+    )
 w("};")
 w("")
 w("/* OP.TYPE names, indexed 0..45 */")
 w("#define NBMAPTYPE %d" % len(TYPE_NAMES))
 w("static const char *const bmap_optype[NBMAPTYPE] = {")
 for i in range(0, len(TYPE_NAMES), 6):
-    w("    " + ", ".join('"%s"' % t for t in TYPE_NAMES[i:i+6]) + ",")
+    w("    " + ", ".join('"%s"' % t for t in TYPE_NAMES[i : i + 6]) + ",")
 w("};")
 w("")
 w("#endif")

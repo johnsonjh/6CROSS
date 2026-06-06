@@ -13,7 +13,11 @@
 import os, re, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-src_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", ".original", "ASMDAL_SI61.XSI")
+src_path = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.path.join(here, "..", ".original", "ASMDAL_SI61.XSI")
+)
 out_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, "asmdal_tables.h")
 src = open(src_path).read()
 
@@ -25,7 +29,7 @@ def between(text, start_anchor, end_anchor, frm=0):
     return text[i:j], j
 
 
-opc = src[src.index("DCL 1 OPCODE_TABLE"):]
+opc = src[src.index("DCL 1 OPCODE_TABLE") :]
 # Mnemonic lines end in "',"; the INIT list closes with "'),", so "),"
 # first appears at the list terminator.
 mn_block, _ = between(opc, "2 MNEMONIC", "),")
@@ -38,7 +42,7 @@ opval = re.findall(r"'([0-7]+)'O", op_block)
 ty_block, _ = between(opc, "2 TYPE", ");")
 types = re.findall(r"\b([0-3])\b", ty_block.split("INIT(", 1)[1])
 
-jt = src[src.index("DCL 1 JSYS_TABLE"):]
+jt = src[src.index("DCL 1 JSYS_TABLE") :]
 jn_block, _ = between(jt, "2 NAME", "),")
 jname = re.findall(r"'(.{6})'", jn_block)
 jv_block, _ = between(jt, "2 NUMBER", "));")
@@ -52,7 +56,7 @@ assert len(jname) == 65 and len(jnum) == 65, (len(jname), len(jnum))
 assert (mnem[0], opval[0], types[0]) == ("ADD   ", "270", "0")
 assert (mnem[377], opval[377]) == ("XORM  ", "432")
 assert (mnem[206], opval[206], types[206]) == ("JSYS  ", "104", "2")  # JSYS instr
-assert (opval[40], types[40]) == ("000", "1")                        # BLKI, I/O
+assert (opval[40], types[40]) == ("000", "1")  # BLKI, I/O
 assert (jname[0], jnum[0]) == ("BIN   ", "050")
 assert (jname[64], jnum[64]) == ("WAIT  ", "306")
 

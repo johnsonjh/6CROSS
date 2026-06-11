@@ -59,7 +59,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.f $(INC) | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-tools: cp6link ouconv sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
+tools: cp6link ouconv bin2hex sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
 
 cp6link: $(SRCDIR)/cp6link.c
 	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/cp6link.c
@@ -79,6 +79,11 @@ bmap: $(SRCDIR)/bmap.c $(SRCDIR)/bmap_opcodes.h $(SRCDIR)/bmap_asciitbl.h
 
 ouconv: $(SRCDIR)/ouconv.c
 	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/ouconv.c
+
+# bin2hex: wrap a raw binary (e.g. a CP/M .COM) in the Intel HEX object format
+# the MSA disassemblers read, so they can disassemble arbitrary files.
+bin2hex: $(SRCDIR)/bin2hex.c
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/bin2hex.c
 
 sim6502: $(SRCDIR)/sim6502.c
 	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/sim6502.c
@@ -108,6 +113,6 @@ test: all tools
 	tests/run_tests.sh
 
 clean distclean:
-	rm -rf $(OBJDIR) asmz80 asm6502 cp6link ouconv sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
+	rm -rf $(OBJDIR) asmz80 asm6502 cp6link ouconv bin2hex sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
 
 .PHONY: all asm tools test clean distclean

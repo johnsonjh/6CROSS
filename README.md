@@ -44,6 +44,13 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 []()
 
 []()
+* **bin2hex**: wrap a raw binary (*e.g.*, a CP/M `.COM`) in the Intel HEX
+  object format the `MSA` disassemblers read, so they can disassemble
+  arbitrary files.  Works with any `MSA` CPU (the loader is shared); choose
+  the load address with `-a` (default `$0100`, the CP/M TPA).
+[]()
+
+[]()
 * **sim6502**: a small 6502 emulator for running tests (not from CP‑6).
 
 ## Quick start
@@ -75,6 +82,12 @@ make clean               # cleanup build artifacts
 # convert object(s) -> raw binary / Intel HEX
 ./ouconv prog.obj -o prog.com         # raw binary (e.g., a CP/M .COM)
 ./ouconv prog.obj -o prog.hex --ihex  # Intel HEX
+```
+
+```sh
+# disassemble an arbitrary raw binary (e.g., a CP/M .COM) -> source
+./bin2hex prog.com -o prog.hex   # raw binary -> Intel HEX (-a base, default $0100)
+./msaz80 prog.hex -o prog.z80    # any MSA disassembler (msa6502, msa6800, ...)
 ```
 
 ```sh

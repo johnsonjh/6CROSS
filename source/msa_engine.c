@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int val[65536];
 unsigned char some[65536], rd[65536], wr[65536], jmp[65536];
@@ -56,12 +57,12 @@ hx (const char *p, int n)
   return v;
 }
 
-static void
+static int
 load (const char *fn)
 {
   FILE *f = fopen (fn, "r");
   char line[1024];
-  int i;
+  int i, loaded = 0;
 
   for (i = 0; i < 65536; i++)
     {
@@ -142,12 +143,18 @@ load (const char *fn)
 
               val[a] = b;
               some[a] = 1;
+              loaded++;
             }
 
           break;
 
         case 1:
-          begin = addr;
+          if (cnt == 0 && addr == 0)
+            {
+              break; /* standard Intel HEX EOF record: not an entry point */
+            }
+
+          begin = addr; /* ASM* object: a type-1 record carries the entry */
           break;
 
         case 5:
@@ -161,6 +168,7 @@ load (const char *fn)
                     val[a] = RESV;
                     some[a] = 1;
                     visit[a] = 1;
+                    loaded++;
                   }
               }
 
@@ -169,6 +177,7 @@ load (const char *fn)
         }
     }
   fclose (f);
+  return loaded;
 }
 
 const char *
@@ -482,7 +491,14 @@ main (int argc, char **argv)
       return 1;
     }
 
-  load (in);
+  if (load (in) == 0)
+    {
+      fprintf (stderr,
+               "msa: %s: no object records loaded; if this is a raw "
+               "binary, convert it with bin2hex first\n",
+               in);
+    }
+
   for (i = 0; i < ne; i++)
     {
       enq (ent[i], 1);
@@ -493,7 +509,13 @@ main (int argc, char **argv)
       enq (begin, 1);
     }
 
-  while (fgets (cmd, sizeof cmd, stdin))
+  /*
+   * Optional J/C/Q/E commands (from a pipe or file) add entry points before the
+   * trace.  Skip when stdin is an interactive terminal, else fgets blocks and
+   * appears to hang.
+   */
+
+  while (!isatty (fileno (stdin)) && fgets (cmd, sizeof cmd, stdin))
     {
       if (cmd[0] == 'Q' || cmd[0] == 'q')
         {

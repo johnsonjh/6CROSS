@@ -1,18 +1,19 @@
 # ---- build products (built in the repo root by the Makefile) ----
+/asm6502
+/asmdal
+/asmz80
+/bin2hex
+/bmap
 /build/
 /build.log
-/asmz80
-/asm6502
 /cp6link
-/ouconv
-/sim6502
-/msaz80
 /msa6502
 /msa6800
 /msa8085
 /msa8748
-/asmdal
-/bmap
+/msaz80
+/ouconv
+/sim6502
 *.o
 *.mod
 

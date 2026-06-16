@@ -26,14 +26,15 @@ CC = cc
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
           -O3 -w
-CFLAGS  = -Wall -Wextra -O3
+CFLAGS  = -std=gnu9x -Wall -O3
 
 SRCDIR  = source
 OBJDIR  = build
 INC     = $(SRCDIR)/asmz80_c1.finc $(SRCDIR)/asm6502_c1.finc
 
 # Link order: leaf utilities, then BLOCK DATA, driver and support.
-FOBJS = $(OBJDIR)/cp6_compat.o $(OBJDIR)/cp6_init.o $(OBJDIR)/cp6_io.o \
+FOBJS = $(OBJDIR)/shifta.o      $(OBJDIR)/cp6_compat.o \
+        $(OBJDIR)/cp6_init.o    $(OBJDIR)/cp6_io.o \
         $(OBJDIR)/cp6_startup.o $(OBJDIR)/asmz80_sif0.o \
         $(OBJDIR)/asmz80_sif1.o $(OBJDIR)/asmz80_sif2.o
 
@@ -46,9 +47,10 @@ asmz80: $(FOBJS)
 
 # ASM6502 reuses the shared support (asmz80_sif2) and the compat/io/startup
 # layers; only its BLOCK DATA, driver and opcode-init are 6502-specific.
-A6OBJS = $(OBJDIR)/cp6_compat.o $(OBJDIR)/cp6_io.o $(OBJDIR)/cp6_startup.o \
+A6OBJS = $(OBJDIR)/shifta.o        $(OBJDIR)/cp6_compat.o \
+         $(OBJDIR)/cp6_io.o        $(OBJDIR)/cp6_startup.o \
          $(OBJDIR)/cp6_init_6502.o $(OBJDIR)/asm6502_sif0.o \
-         $(OBJDIR)/asm6502_sif1.o $(OBJDIR)/asmz80_sif2.o
+         $(OBJDIR)/asm6502_sif1.o  $(OBJDIR)/asmz80_sif2.o
 
 asm6502: $(A6OBJS)
 	$(FC) $(FFLAGS) -o $@ $(A6OBJS)

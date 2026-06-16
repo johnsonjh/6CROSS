@@ -41,7 +41,7 @@ C
       ELSE
          V=IAND(IV,M36)
          IF (IAND(V,SB).NE.0) V=IOR(V,NOT(M36))
-         ISA=IAND(SHIFTA(V,-ISH),M36)
+         ISA=IAND(XSHIFTA(V,-ISH),M36)
       END IF
       RETURN
       END

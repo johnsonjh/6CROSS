@@ -1,7 +1,7 @@
-      INTEGER FUNCTION XSHIFTA(I, SHIFT)
+      INTEGER*8 FUNCTION XSHIFTA(I, SHIFT)
 
-      INTEGER I, SHIFT
-      INTEGER K, TMP
+      INTEGER*8 I, SHIFT
+      INTEGER*8 K, TMP
 
       IF (SHIFT .LE. 0) THEN
          XSHIFTA = I
@@ -17,7 +17,7 @@
          IF (TMP .GE. 0) THEN
             TMP = TMP / 2
          ELSE
-            IF (MOD(TMP, 2) .NE. 0) THEN
+            IF (MOD(TMP, 2_8) .NE. 0) THEN
                TMP = TMP / 2 - 1
             ELSE
                TMP = TMP / 2

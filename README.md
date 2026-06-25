@@ -62,8 +62,9 @@ make clean               # cleanup build artifacts
 ```
 
 The `gfortran` (GNU), `flang` (LLVM), `nvfortran` (NVIDIA HPC SDK),
-and Oracle FORTRAN compilers are supported.  See the
-[`GNUmakefile`](GNUmakefile) for the proper invocations.
+and Oracle FORTRAN (`f90`) compilers are currently supported.
+
+See the [`GNUmakefile`](GNUmakefile) for the proper invocations.
 
 ```sh
 # microprocessor assemblers -> generate object (.obj) + listing (.lst)

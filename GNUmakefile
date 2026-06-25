@@ -37,6 +37,12 @@ CC = cc
 # Oracle Developer Studio f90 (or f77):
 #   make FC=f90 \
 #     FFLAGS="-fixed -e -xtypemap=integer:64 -w"
+#
+# Work-in-progress support:
+#
+# LFortran (currently still has problems with v0.63.0-881)
+#   make FC=lfortran \
+#     FFLAGS="--fixed-form -fdefault-integer-8 --std=legacy"
 
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
@@ -73,6 +79,22 @@ asm6502: $(A6OBJS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.f $(INC) | $(OBJDIR)
 	$(FC) $(FFLAGS) -I$(SRCDIR) -c $< -o $@
+
+# Special handling for LFortran (alpha) which requires INTEGER*4 for the
+# COMMAND_ARGUMENT_COUNT/GET_COMMAND_ARGUMENT position argument when
+# -fdefault-integer-8 is active. We auto-patch a temp copy of cp6_io.f
+# in the $(OBJDIR) but only when the FC basename contains "lfortran".
+$(OBJDIR)/cp6_io.o: $(SRCDIR)/cp6_io.f $(INC) | $(OBJDIR)
+	@if echo "$(FC)" | grep -qi lfortran; then \
+	  sed -e 's/      INTEGER NARG,I,L,IDOT/      INTEGER*4 NARG4,I4\n      INTEGER NARG,I,L,IDOT/' \
+	      -e 's/NARG=COMMAND_ARGUMENT_COUNT()/NARG4=COMMAND_ARGUMENT_COUNT()\n      NARG=NARG4/' \
+	      -e 's/CALL GET_COMMAND_ARGUMENT(1,SRCNAM)/I4=1\n      CALL GET_COMMAND_ARGUMENT(I4,SRCNAM)/' \
+	      -e 's/         CALL GET_COMMAND_ARGUMENT(I,ARG)/         I4 = I\n         CALL GET_COMMAND_ARGUMENT(I4,ARG)/' \
+	      $(SRCDIR)/cp6_io.f > $(OBJDIR)/cp6_io_lf.f ; \
+	  $(FC) $(FFLAGS) -I$(SRCDIR) -c $(OBJDIR)/cp6_io_lf.f -o $@ ; \
+	else \
+	  $(FC) $(FFLAGS) -I$(SRCDIR) -c $< -o $@ ; \
+	fi
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)

@@ -86,10 +86,10 @@ C
       RETURN
       END
 C
-C     CLK$ - store the time of day as 8 characters "HH:MM:SS"
+C     CLK_ - store the time of day as 8 characters "HH:MM:SS"
 C     packed (4 chars/word) into TIME(2).
 C
-      SUBROUTINE CLK$(TIME)
+      SUBROUTINE CLK_(TIME)
       INTEGER*8 TIME(2)
       CHARACTER*8 S
       INTEGER V(8)
@@ -100,10 +100,10 @@ C
       RETURN
       END
 C
-C     DAT$ - store the date as 8 characters "MM/DD/YY" packed into
+C     DAT_ - store the date as 8 characters "MM/DD/YY" packed into
 C     DATE(2).
 C
-      SUBROUTINE DAT$(DATE)
+      SUBROUTINE DAT_(DATE)
       INTEGER*8 DATE(2)
       CHARACTER*8 S
       INTEGER V(8)
@@ -144,8 +144,8 @@ C
       DO I=1,NW
          DO K=1,CPW
             P=P+1
-            C=IAND(ISHFT(W(I),-(27-9*(K-1))),511)
-            S(P:P)=CHAR(IAND(INT(C),255))
+            C=IAND(ISHFT(W(I),-(27-9*(K-1))),511_8)
+            S(P:P)=CHAR(IAND(C,255_8))
          END DO
       END DO
       RETURN

@@ -20,12 +20,18 @@ fail=0
 check_obj()
 { # $1 = test name
   exp="$TDIR/expected/$1.obj"
+  produced="$WORK/$1.obj"
+  if [ ! -f "$produced" ]; then
+    echo "FAIL  $1        	no $1.obj produced"
+    fail=1
+    return
+  fi
   if [ -f "$exp" ]; then
-    if diff -q "$exp" "$WORK/$1.obj" > /dev/null 2>&1; then
+    if diff -q "$exp" "$produced" > /dev/null 2>&1; then
       echo "PASS  $1        	object unit matches fixture"
     else
       echo "FAIL  $1        	object unit differs:"
-      diff "$exp" "$WORK/$1.obj" 2>&1 | sed 's/^/        /'
+      diff "$exp" "$produced" 2>&1 | sed 's/^/        /'
       fail=1
     fi
   else
@@ -49,20 +55,41 @@ check_scan()
   fi
 }
 
-for src in "$TDIR"/*.z80; do
-  [ -e "$src" ] || continue
-  name=$(basename "$src" .z80)
-  cp "$src" "$WORK/"
-  (cd "$WORK" && "$ASMZ80" "$name.z80" > /dev/null 2>&1)
-  check_obj "$name"
-done
-for src in "$TDIR"/*.s; do
-  [ -e "$src" ] || continue
-  name=$(basename "$src" .s)
-  cp "$src" "$WORK/"
-  (cd "$WORK" && "$ASM6502" "$name.s" > /dev/null 2>&1)
-  check_obj "$name"
-done
+if [ -x "$ASMZ80" ]; then
+  for src in "$TDIR"/*.z80; do
+    [ -e "$src" ] || continue
+    name=$(basename "$src" .z80)
+    cp "$src" "$WORK/"
+    (cd "$WORK" && "$ASMZ80" "$name.z80" > /dev/null 2>&1)
+    asm_rc=$?
+    if [ "$asm_rc" -ne 0 ]; then
+      echo "FAIL  $name        	asmz80 exited $asm_rc"
+      fail=1
+      continue
+    fi
+    check_obj "$name"
+  done
+else
+  echo "SKIP  asmz80 tests   	(asmz80 not built)"
+fi
+
+if [ -x "$ASM6502" ]; then
+  for src in "$TDIR"/*.s; do
+    [ -e "$src" ] || continue
+    name=$(basename "$src" .s)
+    cp "$src" "$WORK/"
+    (cd "$WORK" && "$ASM6502" "$name.s" > /dev/null 2>&1)
+    asm_rc=$?
+    if [ "$asm_rc" -ne 0 ]; then
+      echo "FAIL  $name        	asm6502 exited $asm_rc"
+      fail=1
+      continue
+    fi
+    check_obj "$name"
+  done
+else
+  echo "SKIP  asm6502 tests   	(asm6502 not built)"
+fi
 # ASMDAL: each tests/*.dal is assembled and its object unit compared against
 # the hand-verified fixture (every 36-bit instruction word was checked by
 # hand against the PDP-10 opcode table).  dalerr.dal is the error case.
@@ -289,7 +316,11 @@ else
 fi
 
 # Execution test: the Z80 hello program prints its message under tnylpo.
-if command -v tnylpo > /dev/null 2>&1 && [ -f "$WORK/hello.obj" ]; then
+if ! command -v tnylpo > /dev/null 2>&1; then
+  echo "SKIP  hello-run     	(tnylpo not found)"
+elif [ ! -f "$WORK/hello.obj" ]; then
+  echo "SKIP  hello-run     	(hello.obj not generated)"
+else
   (cd "$WORK" && "$CONV" hello.obj -o hello.com > /dev/null 2>&1)
   out=$(cd "$WORK" && tnylpo hello.com 2> /dev/null | tr -d '\r')
   if [ "$out" = "HELLO FROM CP-6 ASMZ80" ]; then
@@ -298,12 +329,14 @@ if command -v tnylpo > /dev/null 2>&1 && [ -f "$WORK/hello.obj" ]; then
     echo "FAIL  hello-run     	tnylpo printed: '$out'"
     fail=1
   fi
-else
-  echo "SKIP  hello-run     	(tnylpo not found)"
 fi
 
 # Execution test: the 6502 run6502 program computes 5*3=15 into $80.
-if [ -x "$ROOT/sim6502" ] && [ -f "$WORK/run6502.obj" ]; then
+if [ ! -x "$ROOT/sim6502" ]; then
+  echo "SKIP  run6502-run    	(sim6502 not built)"
+elif [ ! -f "$WORK/run6502.obj" ]; then
+  echo "SKIP  run6502-run    	(run6502.obj not generated)"
+else
   "$CONV" "$WORK/run6502.obj" -o "$WORK/run6502.bin" > /dev/null 2>&1
   out=$("$ROOT/sim6502" "$WORK/run6502.bin" -l 0x200 -d 0x80)
   if [ "$out" = "0F" ]; then
@@ -312,8 +345,6 @@ if [ -x "$ROOT/sim6502" ] && [ -f "$WORK/run6502.obj" ]; then
     echo "FAIL  run6502-run   	sim6502: \$80 = '$out' (expected 0F)"
     fail=1
   fi
-else
-  echo "SKIP  run6502-run    	(sim6502 not built)"
 fi
 
 # Round-trip: asmz80 -> msaz80 (disassemble) -> asmz80 must reproduce the obj.

@@ -23,9 +23,25 @@ CC = cc
 # as a scalar elsewhere.  gfortran 14 has no targeted flag for these (only -w;
 # even -std=legacy implies -fallow-argument-mismatch and still warns), so -w
 # is the only way to suppress the irreducible idiom.  Drop -w to re-audit.
+#
+# Alternative Fortran compilers are supported:
+#
+# flang / flang-new (LLVM):
+#   make FC=flang \
+#     FFLAGS="-ffixed-form -ffixed-line-length=1000 -fdefault-integer-8 -fno-automatic -w"
+#
+# NVFORTRAN (NVIDIA HPC SDK):
+#   make FC=nvfortran \
+#     FFLAGS="-Mfixed -i8 -Msave -Mextend -w"
+#
+# Oracle Developer Studio f90 (or f77):
+#   make FC=f90 \
+#     FFLAGS="-fixed -e -xtypemap=integer:64 -w"
+
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
           -O3 -w
+
 CFLAGS  = -std=gnu9x -Wall -O3
 
 SRCDIR  = source

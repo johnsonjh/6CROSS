@@ -3,8 +3,7 @@
 This is a UNIX port of the Honeywell/Bull **CP‑6** cross‑assembler
 toolchain.  The original CP‑6 software was written in a mix of
 FORTRAN, PL/6, and CP‑6 BASIC.  This port should build and run on
-any UNIX‑like system with GNU `make`, `gfortran`, and a C compiler
-(*e.g.*, `clang`, `gcc`).
+any UNIX‑like system providing C, FORTRAN, and GNU `make`.
 
 It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 
@@ -61,6 +60,10 @@ make FC=gfortran CC=gcc  # build everything (specify compilers)
 make test                # run the test suite (49 checks)
 make clean               # cleanup build artifacts
 ```
+
+The `gfortran` (GNU), `flang` (LLVM), `nvfortran` (NVIDIA HPC SDK),
+and Oracle FORTRAN compilers are supported.  See the
+[`GNUmakefile`](GNUmakefile) for the proper invocations.
 
 ```sh
 # microprocessor assemblers -> generate object (.obj) + listing (.lst)

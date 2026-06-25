@@ -55,16 +55,22 @@ It includes the full set of CP‑6 assemblers, disassemblers, and tools:
 ## Quick start
 
 ```sh
-make                     # build everything
-make FC=gfortran CC=gcc  # build everything (specify compilers)
-make test                # run the test suite (49 checks)
+make                     # build everything (defaults)
+make FC=gfortran         # build using GNU FORTRAN
+make FC=flang            # build using LLVM FORTRAN
+make FC=nvfortran        # build using NVIDIA FORTRAN
+make FC=ifx              # build using Intel FORTRAN
+make FC=f90              # build using Oracle FORTRAN
+make test                # run the full test suite
 make clean               # cleanup build artifacts
 ```
 
-The `gfortran` (GNU), `flang` (LLVM), `nvfortran` (NVIDIA HPC SDK),
-and Oracle FORTRAN (`f90`) compilers are currently supported.
+The `gfortran` (GNU), `flang` (LLVM), `nvfortran` (NVIDIA),
+`f90` (Oracle), and `ifx`/`ifort` (Intel) FORTRAN compilers
+are currently fully supported.
 
-See the [`GNUmakefile`](GNUmakefile) for the proper invocations.
+See the [`GNUmakefile`](GNUmakefile) for more details on FORTRAN
+(and C) compiler invocations.
 
 ```sh
 # microprocessor assemblers -> generate object (.obj) + listing (.lst)

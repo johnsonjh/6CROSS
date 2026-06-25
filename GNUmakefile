@@ -1,7 +1,8 @@
 # Makefile for the CP-6 cross-assembler suite, Linux port.
 #
 #   make            build everything
-#   make asm        build the asmz80 + asm6502 assemblers (gfortran)
+#   make asm        build the asmz80 + asm6502 assemblers (default: gfortran;
+#                   use FC=ifx/flang/nvfortran/f90/lfortran for others)
 #   make tools      build the C tools (cp6link ouconv sim6502 msa* asmdal bmap)
 #   make test       build everything and run the test suite
 #   make clean      remove build artifacts
@@ -26,27 +27,45 @@ CC = cc
 #
 # Alternative Fortran compilers are supported:
 #
-# flang / flang-new (LLVM):
-#   make FC=flang \
-#     FFLAGS="-ffixed-form -ffixed-line-length=1000 -fdefault-integer-8 -fno-automatic -w"
+# Intel IFX or IFORT: make FC=ifx
 #
-# NVFORTRAN (NVIDIA HPC SDK):
-#   make FC=nvfortran \
-#     FFLAGS="-Mfixed -i8 -Msave -Mextend -w"
+# LLVM flang: make FC=flang
 #
-# Oracle Developer Studio f90 (or f77):
-#   make FC=f90 \
-#     FFLAGS="-fixed -e -xtypemap=integer:64 -w"
+# NVIDIA FORTRAN: make FC=nvfortran
 #
-# Work-in-progress support:
+# Oracle FORTRAN: make FC=f90
 #
-# LFortran (currently still has problems with v0.63.0-881)
-#   make FC=lfortran \
-#     FFLAGS="--fixed-form -fdefault-integer-8 --std=legacy"
+# Work-in-progress:
+#   LFortran (currently still has problems with v0.63.0-881)
+#     make FC=lfortran \
+#       FFLAGS="--fixed-form -fdefault-integer-8 --std=legacy"
 
 FFLAGS  = -std=legacy -ffixed-form -ffixed-line-length-none \
           -fdefault-integer-8 -fno-automatic -fno-range-check -fdollar-ok \
           -O3 -w
+
+# Compute a basename for more reliable matching when users pass FC as an
+# absolute path (e.g. FC=/opt/.../nvfortran) rather than just the command name.
+FC_BASENAME := $(notdir $(FC))
+
+# Provide compiler-appropriate FFLAGS when a non-default FC is chosen on
+# the command line and the user did not also pass an explicit FFLAGS=.
+# This makes "make FC=ifx" (etc.) work out of the box.  FC may be a bare
+# command name or a full path (e.g. FC=/opt/nvidia/.../nvfortran); we match
+# on both $(FC) and $(FC_BASENAME).
+ifneq ($(origin FFLAGS),command line)
+  ifneq (,$(findstring ifx,$(FC))$(findstring ifort,$(FC))$(findstring ifx,$(FC_BASENAME))$(findstring ifort,$(FC_BASENAME)))
+    FFLAGS := -fixed -i8 -save -extend-source 132 -O3 -w
+  else ifneq (,$(findstring flang,$(FC))$(findstring flang,$(FC_BASENAME)))
+    FFLAGS := -ffixed-form -ffixed-line-length=1000 -fdefault-integer-8 -fno-automatic -w
+  else ifneq (,$(findstring nvfortran,$(FC))$(findstring nvfortran,$(FC_BASENAME))$(findstring pgf90,$(FC))$(findstring pgf90,$(FC_BASENAME)))
+    FFLAGS := -Mfixed -i8 -Msave -Mextend -O3 -w
+  else ifneq (,$(findstring f90,$(FC))$(findstring f90,$(FC_BASENAME))$(findstring f95,$(FC))$(findstring f95,$(FC_BASENAME)))
+    FFLAGS := -fixed -e -xtypemap=integer:64 -O3 -w
+  else ifneq (,$(findstring lfortran,$(FC))$(findstring lfortran,$(FC_BASENAME)))
+    FFLAGS := --fixed-form -fdefault-integer-8 --std=legacy
+  endif
+endif
 
 CFLAGS  = -std=gnu9x -Wall -O3
 
@@ -85,7 +104,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.f $(INC) | $(OBJDIR)
 # -fdefault-integer-8 is active. We auto-patch a temp copy of cp6_io.f
 # in the $(OBJDIR) but only when the FC basename contains "lfortran".
 $(OBJDIR)/cp6_io.o: $(SRCDIR)/cp6_io.f $(INC) | $(OBJDIR)
-	@if echo "$(FC)" | grep -qi lfortran; then \
+	@if echo "$(notdir $(FC))" | grep -qi lfortran; then \
 	  sed -e 's/      INTEGER NARG,I,L,IDOT/      INTEGER*4 NARG4,I4\n      INTEGER NARG,I,L,IDOT/' \
 	      -e 's/NARG=COMMAND_ARGUMENT_COUNT()/NARG4=COMMAND_ARGUMENT_COUNT()\n      NARG=NARG4/' \
 	      -e 's/CALL GET_COMMAND_ARGUMENT(1,SRCNAM)/I4=1\n      CALL GET_COMMAND_ARGUMENT(I4,SRCNAM)/' \

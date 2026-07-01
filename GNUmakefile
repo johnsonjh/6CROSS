@@ -174,4 +174,23 @@ test: all tools
 clean distclean:
 	rm -rf $(OBJDIR) asmz80 asm6502 cp6link ouconv bin2hex sim6502 msaz80 msa6502 msa6800 msa8085 msa8748 asmdal bmap
 
-.PHONY: all asm tools test clean distclean
+scc: README.md
+	"$${MAKE:-$(MAKE)}" distclean
+	awk '/<!-- scc-start -->/ { \
+		print; system("scc \
+			--count-as-pattern \"*.f:FORTRAN:FORTRAN Legacy\" \
+			--exclude-ext md --count-as \"gmap:Assembly\" \
+			--count-as \"dal:Assembly\" --count-as \"z80:Assembly\" \
+			--exclude-dir .original --exclude-file README.awk \
+			--no-cocomo -u --no-size -s lines -f html-table; \
+			printf \"\n%s\n\" \"<!-- scc-end -->\""); \
+			skip=1; next } \
+		skip && /<!-- scc-end -->/ { skip=0; next } \
+		!skip' README.md > README.awk && \
+	mv -f README.awk README.md && \
+	expand README.md > README.out && \
+	mv -f README.out README.md
+
+################################################################################
+
+.PHONY: all asm tools test clean distclean scc

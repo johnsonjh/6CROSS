@@ -75,7 +75,7 @@ load (const char *fn)
       exit (1);
     }
 
-  while (fgets (line, sizeof line, f))
+  while (fgets (line, sizeof (line), f))
     {
       int cnt, addr, type, k, sum, len = (int)strlen (line);
       while (len && (line[len - 1] == '\n' || line[len - 1] == '\r'))
@@ -515,7 +515,7 @@ main (int argc, char **argv)
    * appears to hang.
    */
 
-  while (!isatty (fileno (stdin)) && fgets (cmd, sizeof cmd, stdin))
+  while (!isatty (fileno (stdin)) && fgets (cmd, sizeof (cmd), stdin))
     {
       if (cmd[0] == 'Q' || cmd[0] == 'q')
         {

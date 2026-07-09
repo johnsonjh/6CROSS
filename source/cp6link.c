@@ -106,7 +106,7 @@ load_schema (const char *fn)
       exit (1);
     }
 
-  while (fgets (line, sizeof line, f))
+  while (fgets (line, sizeof (line), f))
     {
       if (line[0] != ':' || strlen (line) < 9)
         {
@@ -140,7 +140,7 @@ process (const char *fn)
       exit (1);
     }
 
-  while (fgets (line, sizeof line, f))
+  while (fgets (line, sizeof (line), f))
     {
       int cnt, addr, k, L;
       if (line[0] != ':' || strlen (line) < 9)
@@ -335,7 +335,10 @@ int
 main (int argc, char **argv)
 {
   const char *out = "a.ru", *schema = NULL;
-  const char *objs[64];
+#ifndef _CH_
+  const
+#endif
+  char *objs[64];
   int nobj = 0, i;
 
   for (i = 1; i < argc; i++)
@@ -359,7 +362,7 @@ main (int argc, char **argv)
             {
               char nm[9];
               *eq = 0;
-              snprintf (nm, sizeof nm, "%-8.8s", a);
+              snprintf (nm, sizeof (nm), "%-8.8s", a);
               add_sym (nm, (int)strtol (eq + 1, NULL, 16));
             }
         }

@@ -59,7 +59,7 @@ load (const char *fn)
       exit (1);
     }
 
-  while (fgets (line, sizeof line, f))
+  while (fgets (line, sizeof (line), f))
     {
       int cnt, addr, k;
       if (line[0] != ':' || strlen (line) < 9)
@@ -201,7 +201,7 @@ main (int argc, char **argv)
 
   if (!out)
     {
-      snprintf (defout, sizeof defout, "%s.%s", in, ihex ? "hex" : "bin");
+      snprintf (defout, sizeof (defout), "%s.%s", in, ihex ? "hex" : "bin");
       out = defout;
     }
 

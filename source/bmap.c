@@ -251,7 +251,7 @@ sym_addref (struct sym *s, int ln)
   if (s->nref >= s->caprefs)
     {
       s->caprefs = s->caprefs ? s->caprefs * 2 : 8;
-      s->refs = (int *)realloc (s->refs, (size_t)s->caprefs * sizeof *s->refs);
+      s->refs = (int *)realloc (s->refs, (size_t)s->caprefs * sizeof (*s->refs));
     }
 
   s->refs[s->nref++] = ln;
@@ -359,7 +359,7 @@ macro_add (const char *name, char **body, int nbody)
       if (n_macros >= cap_macros)
         {
           cap_macros = cap_macros ? cap_macros * 2 : 16;
-          MACROS = (struct macro *)realloc (MACROS, (size_t)cap_macros * sizeof *MACROS);
+          MACROS = (struct macro *)realloc (MACROS, (size_t)cap_macros * sizeof (*MACROS));
         }
 
       m = &MACROS[n_macros++];
@@ -432,7 +432,7 @@ opsyn_add (const char *name, const struct bmap_op *op)
   if (n_opsyn >= cap_opsyn)
     {
       cap_opsyn = cap_opsyn ? cap_opsyn * 2 : 16;
-      OPSYNS = (struct opsyn_ent *)realloc (OPSYNS, (size_t)cap_opsyn * sizeof *OPSYNS);
+      OPSYNS = (struct opsyn_ent *)realloc (OPSYNS, (size_t)cap_opsyn * sizeof (*OPSYNS));
     }
 
   strncpy (OPSYNS[n_opsyn].name, name, MAXSYM);
@@ -674,7 +674,7 @@ find_op (int s, int e)
     }
 
   return (struct bmap_op *)bsearch (
-          buf, bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
+          buf, bmap_ops, NBMAPOP, sizeof (bmap_ops[0]), op_cmp);
 }
 
 /* ----------------------------------------------------------- ERROR (1247) -
@@ -718,7 +718,7 @@ error (int code)
 static struct sym *
 new_sym (const char *name)
 {
-  struct sym *p = (struct sym *)calloc (1, sizeof *p);
+  struct sym *p = (struct sym *)calloc (1, sizeof (*p));
 
   if (!p)
     {
@@ -1441,7 +1441,7 @@ read_raw (void)
 
   XCARD[XCSIZE] = '\0';
   XCARDL = n;
-  snprintf (KEY, sizeof KEY, "%d", RECORDCT);
+  snprintf (KEY, sizeof (KEY), "%d", RECORDCT);
   return 0;
 }
 
@@ -1731,7 +1731,7 @@ lit_intern (const int64_t *v, int nw)
   if (n_lit >= cap_lit)
     {
       cap_lit = cap_lit ? cap_lit * 2 : 32;
-      LITTAB = (struct lit_ent *)realloc (LITTAB, (size_t)cap_lit * sizeof *LITTAB);
+      LITTAB = (struct lit_ent *)realloc (LITTAB, (size_t)cap_lit * sizeof (*LITTAB));
     }
 
   if (nw == 2 && (LITLOC & 1))
@@ -1813,7 +1813,7 @@ literal (int64_t *out_val, struct rel *out_rel, int isconst)
   int nw = 1, base = 10, neg = 0, c0, ct = 0, cd = 0;
   double dv = 0.0;
 
-  memset (out_rel, 0, sizeof *out_rel);
+  memset (out_rel, 0, sizeof (*out_rel));
   w[0] = 0;
   CURRCH++; /* skip '=' */
   c0 = upch ((unsigned char)XCARD[CURRCH]);
@@ -1908,7 +1908,7 @@ varscan (int64_t *out_val, struct rel *out_rel, int type)
   struct rel REL;
   char buf[MAXSYM + 1];
 
-  memset (&REL, 0, sizeof REL);
+  memset (&REL, 0, sizeof (REL));
   OPX = 0;
   OPSTK[0] = 12;
   VX = -1; /* OPSTK[0] = PREC-0 sentinel */
@@ -1970,7 +1970,7 @@ S20:
             }
 
           V[VX] = sx36 (cv);
-          memset (&R[VX], 0, sizeof R[VX]);
+          memset (&R[VX], 0, sizeof (R[VX]));
         }
       else
         { /* symbol */
@@ -2011,7 +2011,7 @@ S40:
     {
       VX++;
       V[VX] = 0;
-      memset (&R[VX], 0, sizeof R[VX]);
+      memset (&R[VX], 0, sizeof (R[VX]));
       TUNARY = 0;
     }
 
@@ -2035,7 +2035,7 @@ S40:
               && R[VX - 1].operand == R[VX].operand
               && R[VX - 1].value == R[VX].value)
             {
-              memset (&R[VX], 0, sizeof R[VX]);
+              memset (&R[VX], 0, sizeof (R[VX]));
             }
           else if (R[VX - 1].evalop != 0 || rel_s_nz (&R[VX - 1])
                    || R[VX].evalop != 0 || rel_s_nz (&R[VX]))
@@ -2083,7 +2083,7 @@ S40:
         {
           if (rel_eq (&R[VX - 1], &R[VX]))
             {
-              memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+              memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
             }
           else if (R[VX - 1].evalop != 0 || rel_s_nz (&R[VX - 1])
                    || R[VX].evalop != 0 || rel_s_nz (&R[VX]))
@@ -2104,7 +2104,7 @@ S40:
       if (UNARY[OPX])
         {
           V[VX] = 0;
-          memset (&R[VX], 0, sizeof R[VX]);
+          memset (&R[VX], 0, sizeof (R[VX]));
           goto S51;
         }
 
@@ -2125,7 +2125,7 @@ S40:
 
       if (V[VX] == 0)
         {
-          memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+          memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
         }
 
       if (rel_nz (&R[VX - 1]) && V[VX] != 1)
@@ -2173,7 +2173,7 @@ S40:
       if (UNARY[OPX])
         {
           V[VX] = 0;
-          memset (&R[VX], 0, sizeof R[VX]);
+          memset (&R[VX], 0, sizeof (R[VX]));
           goto S51;
         }
 
@@ -2237,7 +2237,7 @@ S40:
           || (V[VX - 1] != 0 && rel_nz (&R[VX])))
         {
           error (5);
-          memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+          memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
         }
       else if (!rel_nz (&R[VX - 1]))
         {
@@ -2258,7 +2258,7 @@ S40:
           || (V[VX - 1] != 0 && rel_nz (&R[VX])))
         {
           error (5);
-          memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+          memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
         }
       else if (!rel_nz (&R[VX - 1]))
         {
@@ -2272,7 +2272,7 @@ S40:
       if (UNARY[OPX])
         {
           V[VX] = 0;
-          memset (&R[VX], 0, sizeof R[VX]);
+          memset (&R[VX], 0, sizeof (R[VX]));
           goto S51;
         }
 
@@ -2280,14 +2280,14 @@ S40:
         {
           if (!rel_nz (&R[VX]) && V[VX] == 0)
             {
-              memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+              memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
               V[VX - 1] = 0;
             }
           else if ((rel_nz (&R[VX - 1]) && (rel_nz (&R[VX]) || V[VX] != -1))
                    || (V[VX - 1] != -1 && rel_nz (&R[VX])))
             {
               error (5);
-              memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+              memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
             }
           else if (!rel_nz (&R[VX - 1]))
             {
@@ -2304,7 +2304,7 @@ S40:
           if (rel_nz (&R[VX]))
             {
               error (5);
-              memset (&R[VX], 0, sizeof R[VX]);
+              memset (&R[VX], 0, sizeof (R[VX]));
             }
 
           V[VX] = sx36 ((~(uint64_t)V[VX]) & M36);
@@ -2315,7 +2315,7 @@ S40:
         {
           if (!rel_nz (&R[VX]) && V[VX] == -1)
             {
-              memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+              memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
               V[VX - 1] = 0;
             }
           else if (V[VX] != 0)
@@ -2325,7 +2325,7 @@ S40:
                   error (5);
                 }
 
-              memset (&R[VX - 1], 0, sizeof R[VX - 1]);
+              memset (&R[VX - 1], 0, sizeof (R[VX - 1]));
             }
         }
 
@@ -2690,7 +2690,7 @@ static void
 xuo_prgm (int section, int pc, W word)
 {
   if (PA_n > 0 && section == PA_sect && pc == PA_off + PA_n
-      && PA_n < (int)(sizeof PA_w / sizeof PA_w[0]))
+      && PA_n < (int)(sizeof (PA_w) / sizeof (PA_w[0])))
     {
       PA_w[PA_n++] = word & M36;
     }
@@ -3366,7 +3366,7 @@ gen (int nf, const int *nb, const int64_t *val, const struct rel *rel)
 
   gen_word = tval;
   gen_has_word = 1;
-  if (gen_logn < (int)(sizeof gen_log / sizeof gen_log[0]))
+  if (gen_logn < (int)(sizeof (gen_log) / sizeof (gen_log[0])))
     {
       gen_log[gen_logn++] = tval;
     }
@@ -3451,7 +3451,7 @@ genlits (void)
       for (j = 0; j < LITTAB[i].nw; j++)
         { /* each word (gen bumps PC) */
           int64_t v = LITTAB[i].v[j];
-          memset (&r, 0, sizeof r);
+          memset (&r, 0, sizeof (r));
           gen (1, NB36, &v, &r);
         }
     }
@@ -3555,7 +3555,7 @@ vfd (void)
           error (4);
         }
 
-      memset (&frl, 0, sizeof frl);
+      memset (&frl, 0, sizeof (frl));
       if (m > 1 || m < 0)
         { /* character field */
           int am = m < 0 ? -m : m, jc, cpw, fc, ti, p, nc;
@@ -3622,7 +3622,7 @@ vfd (void)
                   error (5);
                 }
 
-              memset (&frel[nf], 0, sizeof frel[nf]);
+              memset (&frel[nf], 0, sizeof (frel[nf]));
               split = 1;
             }
 
@@ -3645,7 +3645,7 @@ vfd (void)
   if (b != 0)
     { /* L1835: pad partial word + emit */
       fval[nf] = 0;
-      memset (&frel[nf], 0, sizeof frel[nf]);
+      memset (&frel[nf], 0, sizeof (frel[nf]));
       fw[nf] = 36 - b;
       nf++;
     }
@@ -3674,7 +3674,7 @@ ic_relative (int64_t *val, struct rel *rel, int ai, int ti)
       val[ai] -= PC;
       if (rel_eq (&rel[ai], &PCREL))
         {
-          memset (&rel[ai], 0, sizeof rel[ai]);
+          memset (&rel[ai], 0, sizeof (rel[ai]));
         }
       else if (rel[ai].evalop == 0 && !rel_s_nz (&rel[ai]))
         {
@@ -3687,7 +3687,7 @@ ic_relative (int64_t *val, struct rel *rel, int ai, int ti)
         }
 
       val[ti] = 4;
-      memset (&rel[ti], 0, sizeof rel[ti]); /* IC */
+      memset (&rel[ti], 0, sizeof (rel[ti])); /* IC */
     }
 }
 /* L102 (SI61 2164): scan address + tag, IC fix-up, optional AR field, emit
@@ -3745,7 +3745,7 @@ static void
 mfscan (struct mf *m)
 {
   m->v = 0;
-  memset (&m->rel, 0, sizeof m->rel);
+  memset (&m->rel, 0, sizeof (m->rel));
   if (!nextfld ())
     { /* a field is present -> plain value */
       CURRCH--;
@@ -3962,7 +3962,7 @@ edec_edins (int CH, int NB, int *NC, int *FB, int64_t *acc, int *NW)
   if (*FB >= 36)
     {
       w = *acc & (int64_t)M36;
-      memset (&r, 0, sizeof r);
+      memset (&r, 0, sizeof (r));
       gen (1, NB36, &w, &r); /* GEN(1,36,VAL.I,0); PRINT; NW=NW+1 */
       (*NW)++;
       *acc = 0;
@@ -4009,10 +4009,10 @@ date_word (void)
     }
   else
     {
-      memset (&tmv, 0, sizeof tmv);
+      memset (&tmv, 0, sizeof (tmv));
     }
 
-  strftime (dbuf, sizeof dbuf, "%m/%d/%y", &tmv); /* DBUF = "MM/DD/YY" */
+  strftime (dbuf, sizeof (dbuf), "%m/%d/%y", &tmv); /* DBUF = "MM/DD/YY" */
   dbuf[5] = dbuf[0];      /* INSERT(DBUF,6,2,DBUF): pos 6, */
   dbuf[6] = dbuf[1];      /*   1-based, overwrite with "MM" */
   for (i = 0; i < 6; i++) /* XLATEV 6 BCD from SUBSTR(DBUF,2) */
@@ -4051,7 +4051,7 @@ inst (void)
       STMNTCT++;
       IDS++;
       val[2] = OP->val + INHIB_BIT28;
-      memset (&rel[2], 0, sizeof rel[2]);
+      memset (&rel[2], 0, sizeof (rel[2]));
       inst_l102 (val, rel);
       break;
 
@@ -4073,7 +4073,7 @@ inst (void)
             }
 
           val[2] = 8 * val[2] + OP->val + INHIB_BIT28;
-          memset (&rel[2], 0, sizeof rel[2]);
+          memset (&rel[2], 0, sizeof (rel[2]));
           inst_l102 (val, rel);
           break;
         }
@@ -4081,9 +4081,9 @@ inst (void)
       val[3] = val[2];
       rel[3] = rel[2]; /* relocatable: 6-field XFORM */
       val[2] = OP->val / 64;
-      memset (&rel[2], 0, sizeof rel[2]);
+      memset (&rel[2], 0, sizeof (rel[2]));
       val[4] = OP->val;
-      memset (&rel[4], 0, sizeof rel[4]);
+      memset (&rel[4], 0, sizeof (rel[4]));
       varscan (&val[1], &rel[1], 4);
       varscan (&val[5], &rel[5], OP->mask);
       ic_relative (val, rel, 1, 5);
@@ -4117,11 +4117,11 @@ inst (void)
 
       STMNTCT++;
       val[0] = 0;
-      memset (&rel[0], 0, sizeof rel[0]);
+      memset (&rel[0], 0, sizeof (rel[0]));
       val[1] = OP->val + INHIB_BIT28;
-      memset (&rel[1], 0, sizeof rel[1]);
+      memset (&rel[1], 0, sizeof (rel[1]));
       val[2] = 0;
-      memset (&rel[2], 0, sizeof rel[2]);
+      memset (&rel[2], 0, sizeof (rel[2]));
       gen (3, &IFORM[4], &val[0], &rel[0]);
       break;
 
@@ -4151,9 +4151,9 @@ inst (void)
       varscan (&val[0], &rel[0], 0);
       varscan (&val[2], &rel[2], 0);
       val[0] = 0;
-      memset (&rel[0], 0, sizeof rel[0]);
+      memset (&rel[0], 0, sizeof (rel[0]));
       val[1] = OP->val + INHIB_BIT28;
-      memset (&rel[1], 0, sizeof rel[1]);
+      memset (&rel[1], 0, sizeof (rel[1]));
       gen (3, &IFORM[4], &val[0], &rel[0]);
       break;
 
@@ -4173,7 +4173,7 @@ inst (void)
         if (OP->rpl)
           {
             val[4] = 0;
-            memset (&rel[4], 0, sizeof rel[4]);
+            memset (&rel[4], 0, sizeof (rel[4]));
           }
         else
           {
@@ -4229,11 +4229,11 @@ inst (void)
           }
 
         val[1] = OP->mask * 2 + OP->ar;
-        memset (&rel[1], 0, sizeof rel[1]);
+        memset (&rel[1], 0, sizeof (rel[1]));
         val[2] = cond;
-        memset (&rel[2], 0, sizeof rel[2]);
+        memset (&rel[2], 0, sizeof (rel[2]));
         val[3] = OP->val + INHIB_BIT28;
-        memset (&rel[3], 0, sizeof rel[3]);
+        memset (&rel[3], 0, sizeof (rel[3]));
         gen (5, RFORM, &val[0], &rel[0]);
         break;
       }
@@ -4336,7 +4336,7 @@ inst (void)
         for (j = 0; j < nwi; j++)
           {
             int64_t v = (int64_t)words[j];
-            memset (&rel[0], 0, sizeof rel[0]);
+            memset (&rel[0], 0, sizeof (rel[0]));
             gen (1, W36, &v, &rel[0]);
           }
 
@@ -4379,8 +4379,8 @@ inst (void)
                   }
 
                 convert (base, &cv, &ct, &cd, &dv);
-                memset (&rel[0], 0, sizeof rel[0]);
-                memset (&rel[1], 0, sizeof rel[1]);
+                memset (&rel[0], 0, sizeof (rel[0]));
+                memset (&rel[1], 0, sizeof (rel[1]));
                 if (ct == 1 || ct == 2)
                   { /* SPFP / DPFP -> DPS-8 float */
                     W fw[2];
@@ -4440,7 +4440,7 @@ inst (void)
         varscan (&val[0], &rel[0], 4); /* operand (literal allowed) */
         varscan (&val[2], &rel[2], 0); /* tag/extent */
         val[1] = OP->val;
-        memset (&rel[1], 0, sizeof rel[1]);
+        memset (&rel[1], 0, sizeof (rel[1]));
         gen (3, IOFORM, val, rel); /* addr(18) | op(6) | tag(12) */
         break;
       }
@@ -4459,9 +4459,9 @@ inst (void)
         val[1] = 0;
         val[2] = 1;
         val[3] = 0;
-        memset (&rel[1], 0, sizeof rel[1]);
-        memset (&rel[2], 0, sizeof rel[2]);
-        memset (&rel[3], 0, sizeof rel[3]);
+        memset (&rel[1], 0, sizeof (rel[1]));
+        memset (&rel[2], 0, sizeof (rel[2]));
+        memset (&rel[3], 0, sizeof (rel[3]));
         if (!nextfld () && NEXTCH == CURRCH + 1 && XCARD[CURRCH] == 'N')
           {
             val[2] = 0; /* `,N` clears the count-up flag */
@@ -4485,7 +4485,7 @@ inst (void)
         for (i = 0; i < 9; i++)
           {
             val[i] = 0;
-            memset (&rel[i], 0, sizeof rel[i]);
+            memset (&rel[i], 0, sizeof (rel[i]));
           }
 
         if (!OP->ar)
@@ -4569,12 +4569,12 @@ inst (void)
         for (i = 0; i < 37; i++)
           {
             val[i] = 0;
-            memset (&rel[i], 0, sizeof rel[i]);
+            memset (&rel[i], 0, sizeof (rel[i]));
           }
 
         mfscan (&MF_[0]);
         mfscan (&MF_[1]);
-        memset (&MF_[2], 0, sizeof MF_[2]);
+        memset (&MF_[2], 0, sizeof (MF_[2]));
         IDS = -1;
         NDS = 2; /* descriptor state for the ADSC/... that follow */
         switch (K)
@@ -4658,7 +4658,7 @@ inst (void)
         for (i27 = 0; i27 < 6; i27++)
           {
             val[i27] = 0;
-            memset (&rel[i27], 0, sizeof rel[i27]);
+            memset (&rel[i27], 0, sizeof (rel[i27]));
           }
 
         if (++IDS >= NDS)
@@ -4719,7 +4719,7 @@ inst (void)
         for (i27 = 0; i27 < 6; i27++)
           {
             val[i27] = 0;
-            memset (&rel[i27], 0, sizeof rel[i27]);
+            memset (&rel[i27], 0, sizeof (rel[i27]));
           }
 
         if (++IDS >= NDS)
@@ -4737,7 +4737,7 @@ inst (void)
                 if (rel[2].evalop != 0 || rel_s_nz (&rel[2]))
                   {
                     error (5);
-                    memset (&rel[2], 0, sizeof rel[2]);
+                    memset (&rel[2], 0, sizeof (rel[2]));
                   }
                 else
                   {
@@ -4775,7 +4775,7 @@ inst (void)
         for (i27 = 0; i27 < 7; i27++)
           {
             val[i27] = 0;
-            memset (&rel[i27], 0, sizeof rel[i27]);
+            memset (&rel[i27], 0, sizeof (rel[i27]));
           }
 
         if (++IDS >= NDS)
@@ -4814,7 +4814,7 @@ inst (void)
         for (j = 0; j < 4; j++)
           {
             val[j] = 0;
-            memset (&rel[j], 0, sizeof rel[j]);
+            memset (&rel[j], 0, sizeof (rel[j]));
           }
 
         varscan (&val[3], &rel[3], 0);
@@ -4841,7 +4841,7 @@ inst (void)
         for (j = -1; j < 8; j++)
           {
             val[j] = 0;
-            memset (&rel[j], 0, sizeof rel[j]);
+            memset (&rel[j], 0, sizeof (rel[j]));
           }
 
         varscan (&val[3], &rel[3], 0);
@@ -4911,7 +4911,7 @@ inst (void)
         for (j = 0; j < 8; j++)
           {
             val[j] = 0;
-            memset (&rel[j], 0, sizeof rel[j]);
+            memset (&rel[j], 0, sizeof (rel[j]));
           }
 
         varscan (&val[3], &rel[3], 0);
@@ -4961,7 +4961,7 @@ inst (void)
         for (j = 0; j < 12; j++)
           {
             val[j] = 0;
-            memset (&rel[j], 0, sizeof rel[j]);
+            memset (&rel[j], 0, sizeof (rel[j]));
           }
 
         varscan (&val[8], &rel[8], 0);
@@ -5040,7 +5040,7 @@ inst (void)
         for (j = 0; j < 4; j++)
           {
             val[j] = 0;
-            memset (&rel[j], 0, sizeof rel[j]);
+            memset (&rel[j], 0, sizeof (rel[j]));
           }
 
         for (K = 0; K <= 3; K++)
@@ -5098,7 +5098,7 @@ inst (void)
                       }
                   }
 
-                memset (&rel[K], 0, sizeof rel[K]); /* L3150 */
+                memset (&rel[K], 0, sizeof (rel[K])); /* L3150 */
                 if (L < M)
                   {
                     K++;
@@ -5111,7 +5111,7 @@ inst (void)
                     for (j = 0; j < 4; j++)
                       {
                         val[j] = 0;
-                        memset (&rel[j], 0, sizeof rel[j]);
+                        memset (&rel[j], 0, sizeof (rel[j]));
                       }
                   }
               }
@@ -5151,7 +5151,7 @@ inst (void)
             if (rel_nz (&rel[K]))
               {
                 error (5);
-                memset (&rel[K], 0, sizeof rel[K]);
+                memset (&rel[K], 0, sizeof (rel[K]));
               }
 
             val[K] += M * 16;
@@ -5405,7 +5405,7 @@ inst (void)
             static const int NB36[1] = { 36 };
             int64_t w = acc & (int64_t)M36;
             struct rel r;
-            memset (&r, 0, sizeof r);
+            memset (&r, 0, sizeof (r));
             gen (1, NB36, &w, &r);
             NW++;
           }
@@ -5431,7 +5431,7 @@ inst (void)
           }
 
         v = (OP->val == 0) ? (int64_t)date_word () : (int64_t)TTLDAT;
-        memset (&r, 0, sizeof r);
+        memset (&r, 0, sizeof (r));
         gen (1, NB36, &v, &r);
         break;
       }
@@ -5464,7 +5464,7 @@ boundary (int nw, int odd, int cdf)
     }
 
   newpc = ((PC + nw - 1) / nw) * nw + odd;
-  memset (rel, 0, sizeof rel);
+  memset (rel, 0, sizeof (rel));
   if (nw == 2)
     {
       val[0] = 0;
@@ -5581,7 +5581,7 @@ case_defref (void)
           break; /* ALTRET: no (more) name field */
         }
 
-      memset (&r, 0, sizeof r);
+      memset (&r, 0, sizeof (r));
       if (OP->val & 0100000)
         {
           r.f_edef = 1; /* OP.VAL bit 2 = F.EDEF */
@@ -5736,7 +5736,7 @@ line_is_endm (const char *ln)
 {
   char op[MAXSYM + 1];
 
-  line_op_token (ln, op, sizeof op);
+  line_op_token (ln, op, sizeof (op));
   return !strcmp (op, "ENDM") || !strcmp (op, "ENDOP");
 }
 
@@ -5767,7 +5767,7 @@ case_macro_def (void)
       if (nbody >= cap)
         {
           cap = cap ? cap * 2 : 8;
-          body = (char * *)realloc (body, (size_t)cap * sizeof *body);
+          body = (char * *)realloc (body, (size_t)cap * sizeof (*body));
         }
 
       body[nbody++] = dupstr (ln);
@@ -5901,7 +5901,7 @@ crsm_sym (struct crsm_ctx *c, int n)
   if (c->n < 32)
     {
       char buf[16];
-      snprintf (buf, sizeof buf, "_%04ld_", CRSMNO++);
+      snprintf (buf, sizeof (buf), "_%04ld_", CRSMNO++);
       c->num[c->n] = n;
       c->sym[c->n] = dupstr (buf);
       return c->sym[c->n++];
@@ -6049,7 +6049,7 @@ idrp_line (const char *ln, char *buf, size_t cap)
   char op[MAXSYM + 1];
   size_t i = 0, n = strlen (ln), o = 0;
 
-  line_op_token (ln, op, sizeof op);
+  line_op_token (ln, op, sizeof (op));
   if (strcmp (op, "IDRP"))
     {
       return 0;
@@ -6117,7 +6117,7 @@ push_line (char ***v, int *n, int *cap, const char *s)
   if (*n >= *cap)
     {
       *cap = *cap ? *cap * 2 : 16;
-      *v = (char * *)realloc (*v, (size_t)*cap * sizeof **v);
+      *v = (char * *)realloc (*v, (size_t)*cap * sizeof (**v));
     }
 
   (*v)[(*n)++] = dupstr (s);
@@ -6138,14 +6138,14 @@ expand_range (char **body, int lo, int hi, char **args, int nargs,
 
   while (i < hi)
     {
-      if (idrp_line (body[i], opnd, sizeof opnd) && opnd[0])
+      if (idrp_line (body[i], opnd, sizeof (opnd)) && opnd[0])
         { /* IDRP open */
           char listbuf[XCSIZE * 2];
           char *elems[64];
           int depth = 1, j = i + 1, close = hi, bound, nel, e;
           for (; j < hi; j++) /* matching close (depth-tracked) */
             {
-              if (idrp_line (body[j], dummy, sizeof dummy))
+              if (idrp_line (body[j], dummy, sizeof (dummy)))
                 {
                   if (dummy[0])
                     {
@@ -6164,7 +6164,7 @@ expand_range (char **body, int lo, int hi, char **args, int nargs,
               bound = atoi (opnd + 1);
               nel = split_list (
                   (bound >= 1 && bound <= nargs) ? args[bound - 1] : "",
-                  listbuf, sizeof listbuf, elems, 64);
+                  listbuf, sizeof (listbuf), elems, 64);
             }
           else
             { /* IDRP (literal list) */
@@ -6178,7 +6178,7 @@ expand_range (char **body, int lo, int hi, char **args, int nargs,
                   p = opnd + 1;
                 }
 
-              nel = split_list (p, listbuf, sizeof listbuf, elems, 64);
+              nel = split_list (p, listbuf, sizeof (listbuf), elems, 64);
               bound = first_dummy (body, i + 1, close, nargs);
             }
 
@@ -6213,7 +6213,7 @@ expand_range (char **body, int lo, int hi, char **args, int nargs,
         }
       else
         {
-          macro_subst (body[i], args, nargs, ccp, line, sizeof line);
+          macro_subst (body[i], args, nargs, ccp, line, sizeof (line));
           push_line (exp, ne, cape, line);
           i++;
         }
@@ -6243,7 +6243,7 @@ case_macro_call (void)
     }
 
   start = (DEL == D_BLANK) ? -1 : CURRCH + 1; /* variable field = the args */
-  nargs = macro_parse_args (start, argbuf, sizeof argbuf, args, 64);
+  nargs = macro_parse_args (start, argbuf, sizeof (argbuf), args, 64);
   if (m->nbody == 0)
     {
       return;
@@ -6280,7 +6280,7 @@ case_dup (void)
       return;
     }
 
-  block = (char * *)malloc ((size_t)ncards * sizeof *block);
+  block = (char * *)malloc ((size_t)ncards * sizeof (*block));
   for (got = 0; got < ncards; got++)
     { /* capture the block */
       const char *ln = next_phys_line ();
@@ -6295,7 +6295,7 @@ case_dup (void)
 
   if (got > 0)
     { /* emit it nreps times */
-      exp = (char * *)malloc ((size_t)got * (size_t)nreps * sizeof *exp);
+      exp = (char * *)malloc ((size_t)got * (size_t)nreps * sizeof (*exp));
       for (j = 0; j < nreps; j++)
         {
           for (i = 0; i < got; i++)
@@ -6665,7 +6665,7 @@ case_litorg (void)
     { /* LBL LITORG -> LBL = pool location */
       int v = LITLOC;
       struct rel r;
-      memset (&r, 0, sizeof r);
+      memset (&r, 0, sizeof (r));
       r.opndtyp = OPERSECT;
       r.relocop = RELOCOPADD;
       r.operand = LITSECT;
@@ -6815,7 +6815,7 @@ listing_line (int pc0)
 
   if (OPTIONS.xr)
     { /* line-number column for the xref */
-      snprintf (pbuf, sizeof pbuf, "%4d ", CARD_COUNT);
+      snprintf (pbuf, sizeof (pbuf), "%4d ", CARD_COUNT);
       p = pbuf;
       pcont = "     ";
     }
@@ -7318,7 +7318,7 @@ run_selftests (void)
   struct rel r, cst;
 
   fprintf (LO, "convert:\n");
-  for (i = 0; i < (int)(sizeof ct / sizeof ct[0]); i++)
+  for (i = 0; i < (int)(sizeof (ct) / sizeof (ct[0])); i++)
     {
       set_xcard (ct[i].s);
       convert (ct[i].base, &v, &type, &def, &dv);
@@ -7353,9 +7353,9 @@ run_selftests (void)
   ERRSEV = 0;
   ERRCT = 0;
   PASS2 = 1;
-  memset (&cst, 0, sizeof cst);
+  memset (&cst, 0, sizeof (cst));
   cst.opndtyp = OPERCONST;
-  for (i = 0; i < (int)(sizeof defs / sizeof defs[0]); i++)
+  for (i = 0; i < (int)(sizeof (defs) / sizeof (defs[0])); i++)
     {
       int val = defs[i].v;
       r = cst;
@@ -7394,7 +7394,7 @@ run_selftests (void)
   { /* two relocatable (section) symbols and one absolute, for reloc tests */
     struct rel rs;
     int vv;
-    memset (&rs, 0, sizeof rs);
+    memset (&rs, 0, sizeof (rs));
     rs.opndtyp = OPERSECT;
     rs.relocop = RELOCOPADD;
     vv = 100;
@@ -7409,7 +7409,7 @@ run_selftests (void)
       struct rel t = rs;
       symtab ("L2", &vv, &t, 1);
     }
-    memset (&rs, 0, sizeof rs);
+    memset (&rs, 0, sizeof (rs));
     vv = 8;
     symtab ("K", &vv, &rs, 1);
   }
@@ -7425,7 +7425,7 @@ run_selftests (void)
       { "L1*2", 0 },  { "L1*L2", 0 },   { "5+2", 1 },
     };
     int k;
-    for (k = 0; k < (int)(sizeof ve / sizeof ve[0]); k++)
+    for (k = 0; k < (int)(sizeof (ve) / sizeof (ve[0])); k++)
       {
         int64_t val;
         struct rel rr;
@@ -7459,12 +7459,12 @@ run_selftests (void)
   { /* one relocatable label and one absolute constant for the operands */
     struct rel r;
     int v;
-    memset (&r, 0, sizeof r);
+    memset (&r, 0, sizeof (r));
     r.opndtyp = OPERSECT;
     r.relocop = RELOCOPADD;
     v = 0100;
     symtab ("LOOP", &v, &r, 1);
-    memset (&r, 0, sizeof r);
+    memset (&r, 0, sizeof (r));
     v = 5;
     symtab ("KON", &v, &r, 1);
   }
@@ -7481,7 +7481,7 @@ run_selftests (void)
       "       TRA   UNDEF",   /* type 1: forward (undefined) reference */
     };
     int k;
-    for (k = 0; k < (int)(sizeof prog / sizeof prog[0]); k++)
+    for (k = 0; k < (int)(sizeof (prog) / sizeof (prog[0])); k++)
       {
         const char *disp = prog[k];
         while (*disp == ' ')
@@ -7528,7 +7528,7 @@ run_selftests (void)
       "       ZERO  4,5",   /* type 17: ZERO two-field word */
     };
     int k, i;
-    for (k = 0; k < (int)(sizeof data / sizeof data[0]); k++)
+    for (k = 0; k < (int)(sizeof (data) / sizeof (data[0])); k++)
       {
         const char *disp = data[k];
         while (*disp == ' ')
@@ -7581,7 +7581,7 @@ read_source (const char *name)
       return 1;
     }
 
-  while (fgets (buf, sizeof buf, f))
+  while (fgets (buf, sizeof (buf), f))
     {
       int n = (int)strlen (buf);
       while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r'))
@@ -7591,7 +7591,7 @@ read_source (const char *name)
       if (src_n == src_cap)
         {
           src_cap = src_cap ? src_cap * 2 : 256;
-          src_lines = (char * *)realloc (src_lines, src_cap * sizeof *src_lines);
+          src_lines = (char * *)realloc (src_lines, src_cap * sizeof (*src_lines));
           if (!src_lines)
             {
               fprintf (stderr, "bmap: out of memory\n");
@@ -7698,7 +7698,7 @@ parse_options (const char *s)
               break;
             }
         }
-      else if (n < (int)sizeof tok - 1)
+      else if (n < (int)sizeof (tok) - 1)
         {
           tok[n++] = (char)upch (c);
         }
@@ -7730,7 +7730,7 @@ resolve_sentinels (void)
   for (i = 0; i < 2; i++)
     {
       found[i] = (struct bmap_op *)bsearch (
-          names[i], bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
+          names[i], bmap_ops, NBMAPOP, sizeof (bmap_ops[0]), op_cmp);
     }
 
   OP_NONOP = found[0];

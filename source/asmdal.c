@@ -139,7 +139,7 @@ static const char *err_msg[]
         "Device number out of range",
         "Symbol not previously defined",
         "Expressions may not contain external symbols" };
-#define NERR ((int)(sizeof err_msg / sizeof err_msg[0]))
+#define NERR ((int)(sizeof (err_msg) / sizeof (err_msg[0])))
 
 /* Token: the per-line intermediate the original spools to a scratch file;
  * here just an in-memory array entry. */
@@ -199,7 +199,9 @@ static int rec_addr; /* address of first word in current record */
 static int
 is_sp (const char *p, int n)
 {
-  for (int i = 0; i < n; i++)
+  int i;
+
+  for (i = 0; i < n; i++)
     {
       if (p[i] != ' ')
         {
@@ -313,12 +315,16 @@ validate_symbol (const char *s)
       return 1;
     }
 
-  for (int i = 1; i < 6; i++)
+  int i;
+
+  for (i = 1; i < 6; i++)
     {
       t = (unsigned char)s[i];
       if (t == 32)
         {
-          for (int k = i; k < 6; k++)
+          int k;
+
+          for (k = i; k < 6; k++)
             {
               if (s[k] != ' ')
                 {
@@ -352,7 +358,7 @@ oct6 (char *d, int v)
 static struct node *
 new_node (void)
 {
-  struct node *p = (struct node *)calloc (1, sizeof *p);
+  struct node *p = (struct node *)calloc (1, sizeof (*p));
 
   if (!p)
     {
@@ -1688,7 +1694,7 @@ headings (void)
   line_count = 0;
   page_count++;
   fprintf (lst, "\fASMDAL.A01   Title=%.6s   ", title_g);
-  strftime (buf, sizeof buf, "%a %d-%b-%y %H:%M:%S", tm);
+  strftime (buf, sizeof (buf), "%a %d-%b-%y %H:%M:%S", tm);
   fprintf (lst, "%s   Page=%2d\n\n", buf, page_count);
   fprintf (lst, "Location  Machine text    Source line\n\n");
 }
@@ -1789,7 +1795,7 @@ next_token (void)
   if (ntok == captok)
     {
       captok = captok ? captok * 2 : 256;
-      toks = (struct token *)realloc (toks, captok * sizeof *toks);
+      toks = (struct token *)realloc (toks, captok * sizeof (*toks));
       if (!toks)
         {
           fprintf (stderr, "asmdal: out of memory\n");
@@ -1798,7 +1804,7 @@ next_token (void)
     }
 
   struct token *t = &toks[ntok++];
-  memset (t, 0, sizeof *t);
+  memset (t, 0, sizeof (*t));
   memset (t->value, ' ', 6);
   memset (t->acc, ' ', 6);
   memset (t->xr, ' ', 6);
@@ -1812,7 +1818,7 @@ pass_1 (FILE *src)
   char line[512];
 
   location = 0;
-  while (fgets (line, sizeof line, src))
+  while (fgets (line, sizeof (line), src))
     {
       int n = (int)strlen (line);
       while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
@@ -1961,7 +1967,7 @@ main (int argc, char **argv)
   {
     time_t now = time (NULL);
     char buf[32];
-    strftime (buf, sizeof buf, "%H:%M %d-%b-%y", localtime (&now));
+    strftime (buf, sizeof (buf), "%H:%M %d-%b-%y", localtime (&now));
     fprintf (stderr, "ASMDAL A01 here at %s\n", buf);
   }
 

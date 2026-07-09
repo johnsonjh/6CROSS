@@ -80,7 +80,7 @@ main (int argc, char **argv)
 
   if (!out)
     {
-      snprintf (defout, sizeof defout, "%s.hex", in);
+      snprintf (defout, sizeof (defout), "%s.hex", in);
       out = defout;
     }
 

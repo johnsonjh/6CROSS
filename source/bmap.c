@@ -251,7 +251,7 @@ sym_addref (struct sym *s, int ln)
   if (s->nref >= s->caprefs)
     {
       s->caprefs = s->caprefs ? s->caprefs * 2 : 8;
-      s->refs = realloc (s->refs, (size_t)s->caprefs * sizeof *s->refs);
+      s->refs = (int *)realloc (s->refs, (size_t)s->caprefs * sizeof *s->refs);
     }
 
   s->refs[s->nref++] = ln;
@@ -282,7 +282,7 @@ static char *
 dupstr (const char *s)
 {
   size_t n = strlen (s) + 1;
-  char *p = malloc (n);
+  char *p = (char *)malloc (n);
 
   if (p)
     {
@@ -359,7 +359,7 @@ macro_add (const char *name, char **body, int nbody)
       if (n_macros >= cap_macros)
         {
           cap_macros = cap_macros ? cap_macros * 2 : 16;
-          MACROS = realloc (MACROS, (size_t)cap_macros * sizeof *MACROS);
+          MACROS = (struct macro *)realloc (MACROS, (size_t)cap_macros * sizeof *MACROS);
         }
 
       m = &MACROS[n_macros++];
@@ -432,7 +432,7 @@ opsyn_add (const char *name, const struct bmap_op *op)
   if (n_opsyn >= cap_opsyn)
     {
       cap_opsyn = cap_opsyn ? cap_opsyn * 2 : 16;
-      OPSYNS = realloc (OPSYNS, (size_t)cap_opsyn * sizeof *OPSYNS);
+      OPSYNS = (struct opsyn_ent *)realloc (OPSYNS, (size_t)cap_opsyn * sizeof *OPSYNS);
     }
 
   strncpy (OPSYNS[n_opsyn].name, name, MAXSYM);
@@ -673,7 +673,8 @@ find_op (int s, int e)
       return NULL;
     }
 
-  return bsearch (buf, bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
+  return (struct bmap_op *)bsearch (
+          buf, bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
 }
 
 /* ----------------------------------------------------------- ERROR (1247) -
@@ -717,7 +718,7 @@ error (int code)
 static struct sym *
 new_sym (const char *name)
 {
-  struct sym *p = calloc (1, sizeof *p);
+  struct sym *p = (struct sym *)calloc (1, sizeof *p);
 
   if (!p)
     {
@@ -1730,7 +1731,7 @@ lit_intern (const int64_t *v, int nw)
   if (n_lit >= cap_lit)
     {
       cap_lit = cap_lit ? cap_lit * 2 : 32;
-      LITTAB = realloc (LITTAB, (size_t)cap_lit * sizeof *LITTAB);
+      LITTAB = (struct lit_ent *)realloc (LITTAB, (size_t)cap_lit * sizeof *LITTAB);
     }
 
   if (nw == 2 && (LITLOC & 1))
@@ -2554,7 +2555,7 @@ ow (struct obuf *b, W w) /* append a 36-bit word, 5 bytes BE */
   if (b->n + 5 > b->cap)
     {
       b->cap = b->cap ? b->cap * 2 : 2048;
-      b->p = realloc (b->p, b->cap);
+      b->p = (unsigned char *)realloc (b->p, b->cap);
       if (!b->p)
         {
           fprintf (stderr, "bmap: out of memory\n");
@@ -3199,7 +3200,7 @@ xuo_outterm (void) /* flush all records to OBJ */
     if (OBJ.n + extra > OBJ.cap)
       {
         OBJ.cap = OBJ.n + extra + 64;
-        OBJ.p = realloc (OBJ.p, OBJ.cap);
+        OBJ.p = (unsigned char *)realloc (OBJ.p, OBJ.cap);
         if (!OBJ.p)
           {
             fprintf (stderr, "bmap: out of memory\n");
@@ -5766,7 +5767,7 @@ case_macro_def (void)
       if (nbody >= cap)
         {
           cap = cap ? cap * 2 : 8;
-          body = realloc (body, (size_t)cap * sizeof *body);
+          body = (char * *)realloc (body, (size_t)cap * sizeof *body);
         }
 
       body[nbody++] = dupstr (ln);
@@ -6116,7 +6117,7 @@ push_line (char ***v, int *n, int *cap, const char *s)
   if (*n >= *cap)
     {
       *cap = *cap ? *cap * 2 : 16;
-      *v = realloc (*v, (size_t)*cap * sizeof **v);
+      *v = (char * *)realloc (*v, (size_t)*cap * sizeof **v);
     }
 
   (*v)[(*n)++] = dupstr (s);
@@ -6279,7 +6280,7 @@ case_dup (void)
       return;
     }
 
-  block = malloc ((size_t)ncards * sizeof *block);
+  block = (char * *)malloc ((size_t)ncards * sizeof *block);
   for (got = 0; got < ncards; got++)
     { /* capture the block */
       const char *ln = next_phys_line ();
@@ -6294,7 +6295,7 @@ case_dup (void)
 
   if (got > 0)
     { /* emit it nreps times */
-      exp = malloc ((size_t)got * (size_t)nreps * sizeof *exp);
+      exp = (char * *)malloc ((size_t)got * (size_t)nreps * sizeof *exp);
       for (j = 0; j < nreps; j++)
         {
           for (i = 0; i < got; i++)
@@ -7590,7 +7591,7 @@ read_source (const char *name)
       if (src_n == src_cap)
         {
           src_cap = src_cap ? src_cap * 2 : 256;
-          src_lines = realloc (src_lines, src_cap * sizeof *src_lines);
+          src_lines = (char * *)realloc (src_lines, src_cap * sizeof *src_lines);
           if (!src_lines)
             {
               fprintf (stderr, "bmap: out of memory\n");
@@ -7598,7 +7599,7 @@ read_source (const char *name)
             }
         }
 
-      src_lines[src_n] = malloc ((size_t)n + 1);
+      src_lines[src_n] = (char *)malloc ((size_t)n + 1);
       memcpy (src_lines[src_n], buf, (size_t)n + 1);
       src_n++;
     }
@@ -7711,7 +7712,7 @@ derive (const char *src, const char *ext)
   const char *base = slash ? slash + 1 : src;
   const char *dot = strrchr (base, '.');
   size_t n = dot ? (size_t)(dot - src) : strlen (src);
-  char *out = malloc (n + strlen (ext) + 1);
+  char *out = (char *)malloc (n + strlen (ext) + 1);
 
   memcpy (out, src, n);
   strcpy (out + n, ext);
@@ -7728,8 +7729,8 @@ resolve_sentinels (void)
 
   for (i = 0; i < 2; i++)
     {
-      found[i]
-          = bsearch (names[i], bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
+      found[i] = (struct bmap_op *)bsearch (
+          names[i], bmap_ops, NBMAPOP, sizeof bmap_ops[0], op_cmp);
     }
 
   OP_NONOP = found[0];

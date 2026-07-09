@@ -352,7 +352,7 @@ oct6 (char *d, int v)
 static struct node *
 new_node (void)
 {
-  struct node *p = calloc (1, sizeof *p);
+  struct node *p = (struct node *)calloc (1, sizeof *p);
 
   if (!p)
     {
@@ -651,13 +651,14 @@ mkword0 (int type, int length, int address)
   return ((W)(type & 0777) << 27) | ((W)(length & 0777) << 18)
          | ((W)(address & M18));
 }
+
 static void
 emit_word (W w) /* append one 36-bit word, 5 bytes BE */
 {
   if (objlen + 5 > objcap)
     {
       objcap = objcap ? objcap * 2 : 4096;
-      objbuf = realloc (objbuf, objcap);
+      objbuf = (unsigned char *)realloc (objbuf, objcap);
       if (!objbuf)
         {
           fprintf (stderr, "asmdal: out of memory\n");
@@ -1788,7 +1789,7 @@ next_token (void)
   if (ntok == captok)
     {
       captok = captok ? captok * 2 : 256;
-      toks = realloc (toks, captok * sizeof *toks);
+      toks = (struct token *)realloc (toks, captok * sizeof *toks);
       if (!toks)
         {
           fprintf (stderr, "asmdal: out of memory\n");
@@ -1888,7 +1889,7 @@ derive (const char *src, const char *ext)
   const char *base = slash ? slash + 1 : src;
   const char *dot = strrchr (base, '.');
   size_t n = dot ? (size_t)(dot - src) : strlen (src);
-  char *out = malloc (n + strlen (ext) + 1);
+  char *out = (char *)malloc (n + strlen (ext) + 1);
 
   memcpy (out, src, n);
   strcpy (out + n, ext);
